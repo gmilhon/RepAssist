@@ -1,0 +1,238 @@
+# Solution Architecture
+
+## 1. System context
+
+Rep Assist sits inside the POS shell and brokers between the rep and the
+existing fleet of resolver agents, the knowledge base, order systems, and the
+human Resolution Desk.
+
+```mermaid
+flowchart TB
+    subgraph POS["Verizon POS application"]
+        Widget["Rep Assist widget<br/>(embedded React)"]
+    end
+    Rep(["🧑‍💼 Retail Rep"]) --> Widget
+    Widget -->|HTTPS / JSON| Orch["Rep Assist Orchestrator<br/>(LangGraph + FastAPI)"]
+
+    Orch -->|classify / compose| LLM["Claude (Anthropic API)<br/>+ offline fallback"]
+    Orch -->|REST| AGT["Existing Agent Services<br/>Activation · Promo · Pending Order"]
+    Orch -->|REST| ORD["Order / Account context"]
+    Orch -->|REST| KB["Knowledge Base"]
+    Orch -->|read/write| DB[("Tickets + Feedback<br/>store")]
+
+    Tier(["🛠️ Tier 1/2 Specialist"]) --> Desk["Resolution Desk<br/>(embedded React)"]
+    Desk -->|HTTPS / JSON| Orch
+    Lead(["📋 Agent Dev / Product"]) --> Insights["Insights<br/>(capability backlog)"]
+    Insights --> Orch
+```
+
+**Trust boundaries.** The rep and Tier 1/2 UIs are authenticated POS surfaces.
+The orchestrator is the only component that talks to the agent services, the
+LLM, and the store; nothing in the browser holds credentials for those systems.
+
+## 2. Container / component view
+
+```mermaid
+flowchart LR
+    subgraph FE["Frontend (Vite/React)"]
+        Chat["ChatWidget"]
+        Console["ReviewConsole"]
+        Insights2["InsightsPanel"]
+    end
+
+    subgraph BE["Orchestrator service (FastAPI)"]
+        API["/api/chat, /api/tickets, /api/insights/"]
+        subgraph G["LangGraph orchestrator"]
+            Triage["triage"]
+            Route{"router"}
+            RA["activation"]
+            RP["pending_order"]
+            RM["promo"]
+            RK["knowledge"]
+            RC["confirm (interrupt)"]
+            RT["ticket_fallback"]
+            RCmp["compose"]
+        end
+        LLMmod["llm.py (Claude / mock)"]
+        Adapter["agents_client.py"]
+        Store["store (SQLModel)"]
+    end
+
+    subgraph EXT["Existing agent microservices (mocked locally)"]
+        SA["/activation"]
+        SP["/pending-order"]
+        SM["/promo"]
+        SO["/orders/lookup"]
+        SK["/kb/search"]
+    end
+
+    Chat --> API
+    Console --> API
+    Insights2 --> API
+    API --> G
+    Triage --> LLMmod
+    RCmp --> LLMmod
+    Route --> RA & RP & RM & RK
+    RA & RP & RM --> Adapter
+    RK --> Adapter
+    Adapter --> SA & SP & SM & SO & SK
+    RT --> Store
+    API --> Store
+```
+
+| Component | Responsibility | Code |
+|---|---|---|
+| `ChatWidget` | Rep conversation, resolution cards, confirm/deny | [`frontend/src/components/ChatWidget.tsx`](../frontend/src/components/ChatWidget.tsx) |
+| `ReviewConsole` | Tier 1/2 ticket queue, detail, resolve + feedback | [`frontend/src/components/ReviewConsole.tsx`](../frontend/src/components/ReviewConsole.tsx) |
+| `InsightsPanel` | Ranked capability backlog | [`frontend/src/components/InsightsPanel.tsx`](../frontend/src/components/InsightsPanel.tsx) |
+| API routers | HTTP surface | [`backend/app/api/`](../backend/app/api) |
+| Orchestrator graph | Triage → route → resolve → confirm → compose | [`backend/app/graph/`](../backend/app/graph) |
+| LLM | Triage (structured output) + reply composition | [`backend/app/llm.py`](../backend/app/llm.py) |
+| Agent adapter | HTTP client for existing agents | [`backend/app/integrations/agents_client.py`](../backend/app/integrations/agents_client.py) |
+| Store | Tickets + feedback + analytics | [`backend/app/store/`](../backend/app/store) |
+
+## 3. Primary sequence — automated resolution with confirmation
+
+```mermaid
+sequenceDiagram
+    participant Rep
+    participant UI as ChatWidget
+    participant API as FastAPI
+    participant G as LangGraph
+    participant LLM as Claude
+    participant AG as Activation Resolver
+
+    Rep->>UI: "ACT-1001 stuck in activation"
+    UI->>API: POST /api/chat
+    API->>G: invoke(thread)
+    G->>LLM: classify (structured output)
+    LLM-->>G: intent=activation, conf=0.9, order=ACT-1001
+    G->>AG: POST /activation/diagnose
+    AG-->>G: can_resolve, proposed_action=resend_provisioning
+    G-->>G: interrupt() — pause for confirmation
+    API-->>UI: status=needs_confirmation + prompt
+    Rep->>UI: Approve
+    UI->>API: POST /api/chat/confirm {approved:true}
+    API->>G: resume(Command(resume=true))
+    G->>AG: POST /activation/execute
+    AG-->>G: success + actions_taken
+    G->>LLM: compose rep-facing reply
+    G-->>API: resolution card
+    API-->>UI: status=answered + card
+```
+
+## 4. Escalation sequence — no agent/knowledge can resolve
+
+```mermaid
+sequenceDiagram
+    participant Rep
+    participant G as LangGraph
+    participant DB as Ticket store
+    participant Tier as Tier 1/2
+    participant Dev as Dev/Product
+
+    Rep->>G: unusual issue
+    G->>G: triage → low confidence / "other"
+    G->>DB: create_ticket(conversation, order_context, trace)
+    G-->>Rep: "Opened TCK-xxxx for a specialist"
+    Tier->>DB: claim + resolve + feedback(recommended_capability, gap_type)
+    Dev->>DB: read capability backlog (ranked)
+    Note over Dev,G: Build the recommended agent/skill → assistant resolves it next time
+```
+
+## 5. State machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> triage
+    triage --> activation: intent=activation
+    triage --> pending_order: intent=pending_order
+    triage --> promo: intent=promo
+    triage --> knowledge: billing / general
+    triage --> ticket_fallback: other / low confidence
+    activation --> confirm: proposes a change
+    pending_order --> confirm: proposes a change
+    promo --> confirm: proposes a change
+    activation --> ticket_fallback: cannot resolve
+    pending_order --> ticket_fallback: cannot resolve
+    promo --> compose: resolved, no change needed
+    knowledge --> compose: KB hit
+    knowledge --> ticket_fallback: KB miss
+    confirm --> compose: approved+executed / declined
+    confirm --> ticket_fallback: execution failed
+    ticket_fallback --> compose
+    compose --> [*]
+```
+
+## 6. Data model
+
+```mermaid
+erDiagram
+    TICKET {
+        string id PK
+        datetime created_at
+        string status "open|in_review|resolved|closed"
+        string intent
+        string priority
+        string summary
+        string order_id
+        string account_id
+        json conversation
+        json order_context
+        json trace
+        string assigned_to
+        string resolution_notes
+        string root_cause_category
+        string recommended_capability "agent/skill to build"
+        string gap_type "missing_agent|agent_failed|missing_knowledge|bad_data|training|none"
+        string resolved_by
+        datetime resolved_at
+    }
+    CHECKPOINT {
+        string thread_id PK
+        blob state "LangGraph conversation state"
+    }
+```
+
+Two stores: the **ticket/feedback** database (SQLModel/SQLite locally; swap for
+Postgres in production) and the **LangGraph checkpointer** (SQLite) that persists
+per-conversation state so a paused confirmation can resume on the next request.
+
+## 7. Key architectural decisions
+
+| Decision | Rationale |
+|---|---|
+| **LangGraph** for orchestration | Native conditional routing + durable **interrupt/resume** for human-in-the-loop, with a checkpointer for per-conversation state. |
+| **Existing agents over REST** | Mirrors the real distributed system; the orchestrator depends only on HTTP contracts, so pointing at production agents is a config change (`AGENT_SERVICES_BASE_URL`). |
+| **Official `anthropic` SDK**, model `claude-opus-4-8` | Most capable default; triage uses **structured outputs** (`messages.parse`) for reliable intent JSON. Configurable to Sonnet/Haiku for cost. |
+| **Deterministic offline fallback** | The assistant degrades gracefully (rule-based triage + templated replies) if the LLM is unavailable or unconfigured — no hard dependency for demos or outages. |
+| **Confirmation gate on writes** | Account-mutating actions require explicit rep approval — safety + auditability. |
+| **Feedback-as-backlog** | Tier 1/2 resolution captures *why* automation failed and *what to build*, turning support toil into a prioritized dev signal. |
+
+## 8. Security & compliance (prototype → production)
+
+- **AuthN/Z.** Production: front both UIs with POS SSO; the orchestrator validates
+  the rep/agent identity and role (rep vs. Tier 1/2) on every call. The prototype
+  uses a stub `rep_id`.
+- **Least privilege.** Only the orchestrator holds credentials for the agent
+  services, the LLM, and the store. The browser never does.
+- **PII handling.** Order/account context is fetched **on demand** for the active
+  request and is not embedded in long-lived prompts. For production, scrub or
+  tokenize PII before it reaches the model, and disable model-side retention.
+- **Auditability.** Every automated change passes through `confirm` and is logged
+  with the rep id, the action, params, and outcome. Tickets retain the full
+  conversation + trace.
+- **Data residency / model hosting.** Claude is available via the first-party
+  API, AWS (Claude Platform on AWS / Bedrock), Vertex, and Foundry — choose the
+  deployment that satisfies Verizon's data-residency posture without changing the
+  orchestration code.
+
+## 9. Scalability & reliability
+
+- **Stateless orchestrator + external checkpointer.** Run N replicas behind a load
+  balancer; conversation state lives in the checkpoint store (swap SQLite →
+  Postgres/Redis), so any replica can resume any thread.
+- **Timeouts + graceful degradation.** Every agent call is time-bounded; a failed
+  agent call degrades to a ticket rather than an error.
+- **Idempotent writes.** Production resolver `execute` calls should be idempotent
+  (keyed by thread/action id) so a retried confirmation cannot double-apply.

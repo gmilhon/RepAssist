@@ -1,0 +1,19 @@
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local data (regenerated on run)
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+backend/repassist.db
+backend/.env
+
+# Node / Vite
+frontend/node_modules/
+frontend/dist/
+
+# OS
+.DS_Store

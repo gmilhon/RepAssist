@@ -1,0 +1,91 @@
+# Rep Assist — Conversational Order & Service Resolution for Verizon POS
+
+Rep Assist is a conversational web app embedded in the Verizon point-of-sale
+(POS) application. A retail rep describes an order or service problem in plain
+language; a **LangGraph orchestrator** triages it, routes it to the right
+existing agent (Activation Resolver, Promo Correction Agent, Pending Order
+Resolver, …), confirms any account-changing action with the rep, and — when no
+agent or knowledge can solve it — opens a **human-in-the-loop ticket** that
+replaces ServiceNow. Tier 1/2 specialists resolve those tickets and leave
+structured feedback that becomes a **prioritized backlog of agents/skills** the
+dev team should build next, so the assistant keeps getting better.
+
+> This repository is a **runnable reference implementation**: a real LangGraph
+> orchestrator, a rep chat UI, the Tier 1/2 resolution desk, mocked "existing
+> agent" microservices, and a feedback/analytics loop. It runs locally with
+> **zero credentials** (deterministic mock LLM) and lights up real Claude
+> reasoning the moment you add an `ANTHROPIC_API_KEY`.
+
+---
+
+## What's in the box
+
+| Layer | Tech | Folder |
+|---|---|---|
+| Rep chat UI + Tier 1/2 desk + Insights | React + Vite + TypeScript | [`frontend/`](frontend/) |
+| Conversational orchestrator | LangGraph + FastAPI | [`backend/app/graph`](backend/app/graph), [`backend/app/api`](backend/app/api) |
+| "Existing" agents (mocked microservices) | FastAPI | [`backend/app/mock_services`](backend/app/mock_services) |
+| HITL ticketing + feedback store (ServiceNow replacement) | SQLite + SQLModel | [`backend/app/store`](backend/app/store) |
+| LLM access (Claude + offline fallback) | official `anthropic` SDK | [`backend/app/llm.py`](backend/app/llm.py) |
+| Architecture, diagrams, runbook, roadmap | Markdown + Mermaid | [`docs/`](docs/) |
+
+## Documentation
+
+1. [Executive Summary](docs/00-executive-summary.md) — the one-pager for leadership.
+2. [Solution Architecture](docs/01-solution-architecture.md) — context/container/sequence diagrams, data model, security.
+3. [LangGraph Orchestration](docs/02-langgraph-orchestration.md) — the graph, state, nodes, and the human-in-the-loop interrupt.
+4. [HITL Ticketing Workflow](docs/03-hitl-ticketing-workflow.md) — how this replaces ServiceNow.
+5. [Feedback & Continuous Improvement](docs/04-feedback-and-continuous-improvement.md) — turning Tier 1/2 feedback into a dev backlog.
+6. [Local Setup Runbook](docs/05-local-setup-runbook.md) — step-by-step to run everything.
+7. [Roadmap & What You Need To Do](docs/06-roadmap-and-what-you-need-to-do.md) — productionization plan and your task list.
+8. [Real Agent Integration — Worked Example](docs/07-real-agent-integration-example.md) — how to swap a mock for a real, vendor-shaped agent (implemented for Activation).
+9. [Operations & KPI Dashboard](docs/08-operations-dashboard.md) — engagement, escalations, resolutions, and all operational KPIs.
+
+## 60-second quickstart
+
+```bash
+# 1) Backend deps
+cd backend && python3 -m venv .venv && . .venv/bin/activate
+pip install -r requirements.txt
+
+# 2) Start the existing-agent microservices (mock) + the orchestrator
+uvicorn app.mock_services.main:app --port 8100   # terminal A
+uvicorn app.main:app --port 8000                 # terminal B
+
+# 3) Frontend
+cd ../frontend && npm install && npm run dev      # terminal C  -> http://localhost:5173
+```
+
+Open http://localhost:5173, click a "Common issue" chip, and watch the
+assistant diagnose, ask you to confirm the fix, and resolve it — or escalate to
+the Resolution Desk. Full details in the [runbook](docs/05-local-setup-runbook.md).
+
+> **Go live with Claude:** put `ANTHROPIC_API_KEY=...` in `backend/.env`
+> (copy from `.env.example`). With no key, the system runs fully offline using a
+> deterministic rule-based classifier so you can demo without credentials.
+
+## The flow at a glance
+
+```mermaid
+flowchart LR
+    Rep["🧑‍💼 Rep in POS"] -->|"describes issue"| Orch["LangGraph<br/>Orchestrator"]
+    Orch --> Triage{"Triage:<br/>intent + confidence"}
+    Triage -->|activation| A["Activation Resolver"]
+    Triage -->|pending order| P["Pending Order Resolver"]
+    Triage -->|promo| M["Promo Correction Agent"]
+    Triage -->|billing / how-to| K["Knowledge Base"]
+    Triage -->|unknown / low conf.| T["🎫 Human Ticket"]
+    A & P & M --> Confirm{"Rep confirms<br/>the change?"}
+    Confirm -->|yes| Done["✅ Resolved in POS"]
+    Confirm -->|no| Done2["No change made"]
+    K --> Done
+    T --> Desk["🛠️ Tier 1/2 Resolution Desk"]
+    Desk -->|"feedback: which agent to build"| Backlog["📊 Capability Backlog<br/>(dev team)"]
+    Backlog -.->|"new agents/skills"| Orch
+```
+
+## License / status
+
+Internal reference prototype. Not production-hardened — see
+[Roadmap & What You Need To Do](docs/06-roadmap-and-what-you-need-to-do.md) for the
+gap list before any pilot.
