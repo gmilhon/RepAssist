@@ -45,8 +45,9 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 }
 .tab:hover { background: #1c1d22; color: #fff; }
 .tab.active { background: var(--vz-red); color: #fff; }
+.topbar-pills { margin-left: auto; display: flex; gap: 6px; }
 .llm-pill {
-  margin-left: auto; font-size: 12px; font-weight: 600;
+  font-size: 12px; font-weight: 600;
   padding: 5px 10px; border-radius: 999px;
 }
 .llm-pill.live { background: rgba(10, 125, 51, 0.18); color: #6ee7a0; }
@@ -336,3 +337,108 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 .gap-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 12px; color: var(--ink-2); }
 .gap-examples { margin: 10px 0 0; padding-left: 18px; font-size: 12px; color: var(--ink-2); }
 .gap-examples li { margin-bottom: 3px; }
+
+/* ================================================================= */
+/* CX Monitor dashboard                                                */
+/* ================================================================= */
+:root {
+  --cx-conv: #ee0000;
+  --cx-lat:  #0b5cab;
+  --text-muted: #8a8d95;
+}
+
+.cx-dashboard { padding: 20px 24px; overflow-y: auto; height: 100%; }
+
+/* ── status banner ── */
+.cx-banner {
+  border-radius: 8px; padding: 10px 14px; font-size: 13px;
+  margin-bottom: 16px; line-height: 1.4;
+}
+.cx-banner--live  { background: rgba(10, 125, 51, 0.10); border: 1px solid rgba(10, 125, 51, 0.25); color: #0a7d33; }
+.cx-banner--mock  { background: rgba(178, 95, 0, 0.08); border: 1px solid rgba(178, 95, 0, 0.25); color: #b25f00; }
+.cx-banner--error { background: rgba(238, 0, 0, 0.06); border: 1px solid rgba(238, 0, 0, 0.20); color: #9b0000; }
+.cx-banner code         { background: rgba(0,0,0,0.06); padding: 1px 4px; border-radius: 4px; }
+.cx-banner-detail       { font-size: 11px; opacity: 0.75; font-family: "SF Mono", ui-monospace, Menlo, monospace; word-break: break-all; }
+
+/* ── KPI cards ── */
+.cx-kpi-row {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px;
+  margin-bottom: 20px;
+}
+@media (max-width: 1100px) { .cx-kpi-row { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 700px)  { .cx-kpi-row { grid-template-columns: repeat(2, 1fr); } }
+
+.cx-kpi-card {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 14px 16px;
+  box-shadow: var(--shadow);
+}
+.cx-kpi-label { font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; color: var(--ink-2); margin-bottom: 4px; }
+.cx-kpi-value { font-size: 22px; font-weight: 800; color: var(--ink); line-height: 1; }
+.cx-kpi-sub   { font-size: 11px; color: var(--ink-2); margin-top: 4px; }
+
+/* ── body layout ── */
+.cx-body { display: grid; grid-template-columns: 280px 1fr; gap: 16px; }
+@media (max-width: 900px) { .cx-body { grid-template-columns: 1fr; } }
+.cx-col { display: flex; flex-direction: column; gap: 16px; }
+.cx-col--wide { /* inherits */ }
+
+/* ── section cards ── */
+.cx-section {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 16px 18px;
+  box-shadow: var(--shadow);
+}
+.cx-section-title { font-size: 13px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.4px; color: var(--ink-2); margin-bottom: 12px; }
+.cx-empty { font-size: 13px; color: var(--ink-2); margin: 0; }
+
+/* ── latency bars ── */
+.cx-bars       { display: flex; flex-direction: column; gap: 8px; }
+.cx-bar-row    { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.cx-bar-label  { width: 110px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cx-bar-track  { flex: 1; height: 8px; background: #f0f1f3; border-radius: 999px; overflow: hidden; }
+.cx-bar-fill   { height: 100%; background: linear-gradient(90deg, var(--vz-red), var(--vz-red-dark)); border-radius: 999px; }
+.cx-bar-value  { width: 52px; text-align: right; font-weight: 600; color: var(--ink); }
+
+/* ── cost table ── */
+.cx-cost-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.cx-cost-table td { padding: 5px 4px; border-bottom: 1px solid var(--line); }
+.cx-cost-table td:last-child { text-align: right; font-weight: 600; }
+.cx-cost-total td { font-weight: 700; color: var(--ink); border-bottom: none; }
+
+/* ── timeseries chart ── */
+.cx-chart-wrap { }
+.cx-chart-legend { display: flex; gap: 16px; margin-bottom: 8px; font-size: 12px; }
+.cx-legend-conv::before { content: ""; display: inline-block; width: 18px; height: 2px;
+  background: var(--cx-conv); margin-right: 5px; vertical-align: middle; }
+.cx-legend-lat::before  { content: ""; display: inline-block; width: 18px; height: 2px;
+  background: var(--cx-lat);  margin-right: 5px; vertical-align: middle; border-top: 2px dashed var(--cx-lat); }
+.cx-chart { width: 100%; height: auto; display: block; }
+
+.cx-chart-single { display: flex; flex-direction: column; gap: 6px; padding: 12px 0; }
+.cx-chart-single-dot { width: 10px; height: 10px; border-radius: 50%; }
+.cx-chart-single-dot--conv { background: var(--cx-conv); }
+.cx-chart-single-text { font-size: 13px; color: var(--ink); }
+.cx-chart-single-hint { font-size: 12px; color: var(--ink-2); font-style: italic; }
+
+/* ── recent traces table ── */
+.cx-table-wrap { overflow-x: auto; }
+.cx-trace-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.cx-trace-table th {
+  text-align: left; padding: 6px 8px; border-bottom: 2px solid var(--line);
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--ink-2);
+}
+.cx-trace-table td { padding: 5px 8px; border-bottom: 1px solid var(--line); color: var(--ink); }
+.cx-trace-table tr:last-child td { border-bottom: none; }
+.cx-trace-error td { background: rgba(238, 0, 0, 0.04); }
+.cx-trace-ts   { white-space: nowrap; color: var(--ink-2); }
+.cx-trace-err-cell { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--vz-red); }
+.cx-trace-link { color: var(--info); text-decoration: none; font-weight: 600; }
+.cx-trace-link:hover { text-decoration: underline; }
+.cx-trace-no-link { color: var(--ink-2); }
+
+.cx-loading { text-align: center; padding: 60px; color: var(--ink-2); font-size: 14px; }
+.cx-error   { background: rgba(238,0,0,0.06); border: 1px solid rgba(238,0,0,0.2);
+  border-radius: 8px; padding: 12px 16px; color: var(--vz-red); font-size: 13px; }

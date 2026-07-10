@@ -19,3 +19,6 @@ sqlmodel>=0.0.21
 
 # Config
 python-dotenv>=1.0
+
+# Observability
+langsmith>=0.1

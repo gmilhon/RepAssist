@@ -69,6 +69,62 @@ export interface PerformanceSummary {
   backlog_priorities: string;
 }
 
+export interface CXTrace {
+  id: string;
+  started_at: string;
+  latency_ms: number;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  total_tokens: number | null;
+  error: string | null;
+  intent: string | null;
+  url: string | null;
+}
+
+export interface CXOverview {
+  configured: boolean;
+  langsmith_project: string | null;
+  generated_at: string;
+  error?: string;
+  no_traces_yet?: boolean;
+  period: { start: string | null; end: string | null };
+  overview: {
+    conversations: number;
+    traces_captured: number;
+    error_count: number;
+    error_rate: number;
+  };
+  latency_ms: {
+    p50: number;
+    p95: number;
+    p99: number;
+    avg: number;
+    by_intent: Array<{ intent: string; avg_ms: number; count: number }>;
+  };
+  tokens: {
+    avg_input: number;
+    avg_output: number;
+    avg_total: number;
+    total_input: number;
+    total_output: number;
+  };
+  cost_usd: {
+    avg_per_conversation: number;
+    total: number;
+    model: string;
+    input_rate_per_million: number;
+    output_rate_per_million: number;
+  };
+  timeseries: Array<{
+    date: string;
+    conversations: number;
+    avg_latency_ms: number;
+    avg_tokens: number;
+    error_count: number;
+  }>;
+  recent_traces: CXTrace[];
+}
+
 export interface MetricsOverview {
   generated_at: string;
   engagement: {

@@ -40,6 +40,7 @@ dev team should build next, so the assistant keeps getting better.
 7. [Roadmap & What You Need To Do](docs/06-roadmap-and-what-you-need-to-do.md) — productionization plan and your task list.
 8. [Real Agent Integration — Worked Example](docs/07-real-agent-integration-example.md) — how to swap a mock for a real, vendor-shaped agent (implemented for Activation).
 9. [Operations & KPI Dashboard](docs/08-operations-dashboard.md) — engagement, escalations, resolutions, and all operational KPIs.
+10. [CX Monitor — LangSmith Integration](docs/09-cx-monitor.md) — conversation latency, token usage, cost-per-conversation, and live trace explorer.
 
 ## 60-second quickstart
 
@@ -63,6 +64,12 @@ the Resolution Desk. Full details in the [runbook](docs/05-local-setup-runbook.m
 > **Go live with Claude:** put `ANTHROPIC_API_KEY=...` in `backend/.env`
 > (copy from `.env.example`). With no key, the system runs fully offline using a
 > deterministic rule-based classifier so you can demo without credentials.
+
+> **Enable LangSmith tracing:** add `LANGCHAIN_API_KEY=...` (from
+> [smith.langchain.com](https://smith.langchain.com)) to `backend/.env`. This
+> enables the **CX Monitor** tab — latency percentiles, token usage,
+> cost-per-conversation, and a live trace explorer backed by real LangSmith data.
+> The tab shows sample data when the key is absent.
 
 ## The flow at a glance
 

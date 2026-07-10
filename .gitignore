@@ -17,3 +17,6 @@ frontend/dist/
 
 # OS
 .DS_Store
+
+# Claude Code (local only — launch.json is tracked)
+.claude/settings.local.json

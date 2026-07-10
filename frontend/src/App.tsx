@@ -3,8 +3,9 @@ import { api } from "./api";
 import ChatWidget from "./components/ChatWidget";
 import ReviewConsole from "./components/ReviewConsole";
 import OperationsDashboard from "./components/OperationsDashboard";
+import CXDashboard from "./components/CXDashboard";
 
-type Tab = "chat" | "desk" | "ops";
+type Tab = "chat" | "desk" | "ops" | "cx";
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("chat");
@@ -15,6 +16,7 @@ export default function App() {
   }, []);
 
   const llmMode = health?.llm_mode ?? "…";
+  const lsEnabled = health?.langsmith?.enabled ?? false;
 
   return (
     <div className="app">
@@ -34,9 +36,17 @@ export default function App() {
           <button className={tab === "ops" ? "tab active" : "tab"} onClick={() => setTab("ops")}>
             Performance
           </button>
+          <button className={tab === "cx" ? "tab active" : "tab"} onClick={() => setTab("cx")}>
+            CX Monitor
+          </button>
         </nav>
-        <div className={`llm-pill ${llmMode === "anthropic" ? "live" : "mock"}`}>
-          {llmMode === "anthropic" ? `LLM: ${health?.model}` : `LLM: mock (offline)`}
+        <div className="topbar-pills">
+          <div className={`llm-pill ${llmMode === "anthropic" ? "live" : "mock"}`}>
+            {llmMode === "anthropic" ? `LLM: ${health?.model}` : `LLM: mock (offline)`}
+          </div>
+          <div className={`llm-pill ${lsEnabled ? "live" : "mock"}`}>
+            {lsEnabled ? `LS: ${health?.langsmith?.project}` : "LS: not configured"}
+          </div>
         </div>
       </header>
 
@@ -44,6 +54,7 @@ export default function App() {
         {tab === "chat" && <ChatWidget />}
         {tab === "desk" && <ReviewConsole />}
         {tab === "ops" && <OperationsDashboard />}
+        {tab === "cx" && <CXDashboard />}
       </main>
     </div>
   );

@@ -1,4 +1,4 @@
-import type { CapabilityGap, ChatResponse, MetricsOverview, PerformanceSummary, Ticket } from "./types";
+import type { CapabilityGap, ChatResponse, CXOverview, MetricsOverview, PerformanceSummary, Ticket } from "./types";
 
 async function http<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -68,4 +68,7 @@ export const api = {
 
   metricsSummary: (start?: string, end?: string) =>
     http<PerformanceSummary>(`/api/metrics/summary${qs({ start, end })}`),
+
+  cxOverview: (start?: string, end?: string) =>
+    http<CXOverview>(`/api/cx/overview${qs({ start, end })}`),
 };

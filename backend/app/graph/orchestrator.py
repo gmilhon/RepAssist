@@ -90,7 +90,10 @@ def get_graph():
 # Run helpers
 # --------------------------------------------------------------------------- #
 def _config(thread_id: str) -> dict:
-    return {"configurable": {"thread_id": thread_id}}
+    return {
+        "configurable": {"thread_id": thread_id},
+        "run_name": "rep-assist-conversation",
+    }
 
 
 def _pending_interrupt(snapshot):

@@ -41,6 +41,18 @@ class Settings(BaseModel):
         os.getenv("TRIAGE_CONFIDENCE_THRESHOLD", "0.45")
     )
 
+    # LangSmith observability (optional — traces automatically when configured)
+    # Uses the standard LangChain env var names so any LangChain tool picks them up.
+    langsmith_api_key: str = os.getenv("LANGCHAIN_API_KEY", "").strip()
+    langsmith_project: str = os.getenv("LANGCHAIN_PROJECT", "rep-assist").strip()
+    # Pricing for cost estimates (USD per million tokens, claude-sonnet-4-6 defaults)
+    langsmith_input_cost_per_million: float = float(
+        os.getenv("LANGSMITH_INPUT_COST_PER_MILLION", "3.0")
+    )
+    langsmith_output_cost_per_million: float = float(
+        os.getenv("LANGSMITH_OUTPUT_COST_PER_MILLION", "15.0")
+    )
+
     # CORS
     frontend_origin: str = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
 
@@ -48,6 +60,11 @@ class Settings(BaseModel):
     def llm_enabled(self) -> bool:
         """True when a real Anthropic key is present; otherwise we use the mock LLM."""
         return bool(self.anthropic_api_key)
+
+    @property
+    def langsmith_enabled(self) -> bool:
+        """True when a LangSmith API key is present — enables auto-tracing."""
+        return bool(self.langsmith_api_key)
 
 
 @lru_cache

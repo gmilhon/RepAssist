@@ -56,9 +56,19 @@ def extract_entities(text: str) -> dict:
 
 
 def _client():
-    import anthropic  # imported lazily so offline mode needs no install of creds
+    import anthropic
 
-    return anthropic.Anthropic(api_key=get_settings().anthropic_api_key)
+    client = anthropic.Anthropic(api_key=get_settings().anthropic_api_key)
+    # Wrap with LangSmith instrumentation when tracing is configured — this
+    # makes every Anthropic call appear as a child LLM run in LangSmith with
+    # token counts that roll up to the root conversation trace.
+    try:
+        if get_settings().langsmith_enabled:
+            from langsmith.wrappers import wrap_anthropic
+            client = wrap_anthropic(client)
+    except Exception:
+        pass
+    return client
 
 
 # --------------------------------------------------------------------------- #
