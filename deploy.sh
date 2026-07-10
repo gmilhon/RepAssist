@@ -104,8 +104,7 @@ gcloud run deploy "$SERVICE" \
   --memory 1Gi \
   --cpu 1 \
   --timeout 60 \
-  --set-secrets "ANTHROPIC_API_KEY=rep-assist-anthropic-key:latest" \
-  --set-secrets "LANGCHAIN_API_KEY=rep-assist-langsmith-key:latest" \
+  --set-secrets "ANTHROPIC_API_KEY=rep-assist-anthropic-key:latest,LANGCHAIN_API_KEY=rep-assist-langsmith-key:latest" \
   --set-env-vars "LANGCHAIN_PROJECT=rep-assist,ANTHROPIC_MODEL=claude-opus-4-8"
 
 # --------------------------------------------------------------------------- #
