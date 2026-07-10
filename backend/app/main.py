@@ -7,7 +7,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .api import chat, cx, insights, metrics, tickets
+from .api import chat, cx, email_reports, insights, metrics, tickets
 from .config import get_settings
 from .store import db
 
@@ -41,6 +41,7 @@ app.include_router(tickets.router)
 app.include_router(insights.router)
 app.include_router(metrics.router)
 app.include_router(cx.router)
+app.include_router(email_reports.router)
 
 
 @app.on_event("startup")

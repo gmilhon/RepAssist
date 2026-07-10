@@ -56,6 +56,23 @@ class Settings(BaseModel):
     # CORS
     frontend_origin: str = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
 
+    # SMTP for email reports (optional — preview mode when not set)
+    smtp_host:     str  = os.getenv("SMTP_HOST",     "").strip()
+    smtp_port:     int  = int(os.getenv("SMTP_PORT", "587"))
+    smtp_user:     str  = os.getenv("SMTP_USER",     "").strip()
+    smtp_password: str  = os.getenv("SMTP_PASSWORD", "").strip()
+    smtp_from:     str  = os.getenv("SMTP_FROM",     "").strip()
+    smtp_tls:      bool = os.getenv("SMTP_TLS", "true").lower() == "true"
+
+    @property
+    def smtp_enabled(self) -> bool:
+        """True when host + user are set — required to actually send email."""
+        return bool(self.smtp_host and self.smtp_user)
+
+    @property
+    def smtp_from_addr(self) -> str:
+        return self.smtp_from or self.smtp_user
+
     @property
     def llm_enabled(self) -> bool:
         """True when a real Anthropic key is present; otherwise we use the mock LLM."""

@@ -1,4 +1,4 @@
-import type { CapabilityGap, ChatResponse, CXOverview, MetricsOverview, PerformanceSummary, Ticket } from "./types";
+import type { CapabilityGap, ChatResponse, CXOverview, EmailSettings, EmailSubscriber, MetricsOverview, PerformanceSummary, SendReportResult, Ticket } from "./types";
 
 async function http<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -71,4 +71,25 @@ export const api = {
 
   cxOverview: (start?: string, end?: string) =>
     http<CXOverview>(`/api/cx/overview${qs({ start, end })}`),
+
+  // Email reports
+  emailSettings: () => http<EmailSettings>("/api/email/settings"),
+  listSubscribers: () => http<EmailSubscriber[]>("/api/email/subscribers"),
+  addSubscriber: (email: string, name: string, subscribed_performance: boolean, subscribed_cx: boolean) =>
+    http<EmailSubscriber>("/api/email/subscribers", {
+      method: "POST",
+      body: JSON.stringify({ email, name: name || null, subscribed_performance, subscribed_cx }),
+    }),
+  updateSubscriber: (email: string, patch: Partial<Pick<EmailSubscriber, "name" | "subscribed_performance" | "subscribed_cx" | "active">>) =>
+    http<EmailSubscriber>(`/api/email/subscribers/${encodeURIComponent(email)}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+  removeSubscriber: (email: string) =>
+    fetch(`/api/email/subscribers/${encodeURIComponent(email)}`, { method: "DELETE" }),
+  sendReport: (report_type: "performance" | "cx", start?: string, end?: string) =>
+    http<SendReportResult>("/api/email/send-report", {
+      method: "POST",
+      body: JSON.stringify({ report_type, start: start ?? null, end: end ?? null }),
+    }),
 };

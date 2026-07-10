@@ -83,3 +83,17 @@ class Ticket(SQLModel, table=True):
     gap_type: Optional[GapType] = None
     resolved_by: Optional[str] = None
     resolved_at: Optional[datetime] = None
+
+
+class EmailSubscriber(SQLModel, table=True):
+    """Recipients for scheduled/on-demand dashboard email reports."""
+
+    __tablename__ = "email_subscribers"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    email: str = Field(unique=True, index=True)
+    name: Optional[str] = None
+    subscribed_performance: bool = True   # receives Performance dashboard reports
+    subscribed_cx: bool = True            # receives CX Monitor reports
+    active: bool = True
+    created_at: datetime = Field(default_factory=_now)

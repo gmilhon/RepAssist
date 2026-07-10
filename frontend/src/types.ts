@@ -69,6 +69,33 @@ export interface PerformanceSummary {
   backlog_priorities: string;
 }
 
+export interface EmailSubscriber {
+  id: number;
+  email: string;
+  name: string | null;
+  subscribed_performance: boolean;
+  subscribed_cx: boolean;
+  active: boolean;
+  created_at: string;
+}
+
+export interface SendReportResult {
+  sent: number;
+  previewed: boolean;
+  recipients: string[];
+  preview_html?: string;
+  warning?: string;
+  error?: string;
+}
+
+export interface EmailSettings {
+  smtp_enabled: boolean;
+  smtp_host: string | null;
+  smtp_port: number;
+  smtp_user: string | null;
+  smtp_tls: boolean;
+}
+
 export interface CXTrace {
   id: string;
   started_at: string;

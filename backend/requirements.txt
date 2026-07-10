@@ -22,3 +22,6 @@ python-dotenv>=1.0
 
 # Observability
 langsmith>=0.1
+
+# Email validation (used by /api/email subscriber endpoints)
+email-validator>=2.0

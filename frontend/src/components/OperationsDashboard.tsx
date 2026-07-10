@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { api } from "../api";
 import type { MetricsOverview, PerformanceSummary } from "../types";
 import { CapabilityBacklog } from "./InsightsPanel";
+import SendReportButton from "./SendReportButton";
 
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 const niceIntent = (s: string) => s.replace("_", " ");
@@ -241,9 +242,10 @@ export default function OperationsDashboard() {
             Live KPIs for the Rep Assist solution · {dateLabel}
           </p>
         </div>
-        <button className="btn ghost" onClick={load}>
-          ↻ Refresh
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <SendReportButton reportType="performance" start={dateRange.start} end={dateRange.end} />
+          <button className="btn ghost" onClick={load}>↻ Refresh</button>
+        </div>
       </div>
 
       <DateBar

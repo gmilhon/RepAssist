@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { CXOverview } from "../types";
+import SendReportButton from "./SendReportButton";
 
 // --------------------------------------------------------------------------- //
 // Helpers
@@ -233,6 +234,15 @@ export default function CXDashboard() {
 
   return (
     <div className="cx-dashboard">
+      {/* ── Page header ──────────────────────────────────────────────── */}
+      <div className="dash-head">
+        <div>
+          <h2>CX Monitor</h2>
+          <p className="muted">Conversation latency, token usage, and cost from LangSmith</p>
+        </div>
+        <SendReportButton reportType="cx" start={dateRange.start} end={dateRange.end} />
+      </div>
+
       {/* ── Date bar ─────────────────────────────────────────────────── */}
       <div className="date-bar">
         <div className="date-presets">
