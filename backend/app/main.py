@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .api import chat, cx, email_reports, insights, metrics, tickets
@@ -51,13 +52,6 @@ def _startup() -> None:
     db.init_db()
 
 
-# Serve the built React frontend in production (when static/ exists next to app/).
-# Must be mounted AFTER all API routes so /api/* hits FastAPI first.
-_static = Path(__file__).parent.parent / "static"
-if _static.is_dir():
-    app.mount("/", StaticFiles(directory=str(_static), html=True), name="frontend")
-
-
 @app.get("/health")
 def health() -> dict:
     return {
@@ -72,3 +66,18 @@ def health() -> dict:
             "project": settings.langsmith_project if settings.langsmith_enabled else None,
         },
     }
+
+
+# Serve the built React frontend in production.
+# Registered AFTER all API routes so /api/* and /health always win.
+_static = Path(__file__).parent.parent / "static"
+if _static.is_dir():
+    # Serve JS/CSS/image assets from /assets (Vite's output dir)
+    app.mount("/assets", StaticFiles(directory=str(_static / "assets")), name="assets")
+
+    @app.get("/{path:path}", include_in_schema=False)
+    async def _spa(path: str) -> FileResponse:
+        candidate = _static / (path or "index.html")
+        if candidate.is_file():
+            return FileResponse(str(candidate))
+        return FileResponse(str(_static / "index.html"))
