@@ -318,7 +318,8 @@ def _send_smtp(subject: str, html: str, recipients: list[str], settings) -> None
     msg["To"]      = ", ".join(recipients)
     msg.attach(MIMEText(html, "html"))
 
-    ctx = ssl.create_default_context()
+    import certifi
+    ctx = ssl.create_default_context(cafile=certifi.where())
     if settings.smtp_tls:
         with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
             server.ehlo()
