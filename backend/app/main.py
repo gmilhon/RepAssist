@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import logging
 import os
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from .api import chat, cx, email_reports, insights, metrics, tickets
 from .config import get_settings
@@ -47,6 +49,13 @@ app.include_router(email_reports.router)
 @app.on_event("startup")
 def _startup() -> None:
     db.init_db()
+
+
+# Serve the built React frontend in production (when static/ exists next to app/).
+# Must be mounted AFTER all API routes so /api/* hits FastAPI first.
+_static = Path(__file__).parent.parent / "static"
+if _static.is_dir():
+    app.mount("/", StaticFiles(directory=str(_static), html=True), name="frontend")
 
 
 @app.get("/health")
