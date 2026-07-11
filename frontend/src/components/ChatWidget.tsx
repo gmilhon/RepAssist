@@ -42,6 +42,14 @@ const STATUS_LABEL: Record<string, string> = {
   info: "Info",
 };
 
+function timeGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 5) return "Working late";
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+}
+
 export default function ChatWidget() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [threadId, setThreadId] = useState<string | null>(null);
@@ -218,11 +226,24 @@ export default function ChatWidget() {
         <div className="messages" ref={scrollRef}>
           {messages.length === 0 && (
             <div className="empty">
-              <h2>How can I help with this order?</h2>
+              <span className="empty-wave">👋</span>
+              <h2>{timeGreeting()}! I'm here to help.</h2>
               <p className="muted">
-                Pick a first step, or describe the activation, pending order, promo,
-                or billing issue in your own words.
+                Stuck on an activation, a blocked order, a promo, or a billing question?
+                Pick a first step and I'll sort it out — or just describe it in your own words.
+                I can also keep you in the loop on what's new.
               </p>
+              <div className="empty-suggest">
+                <span className="empty-suggest-label">Catch up before your first customer</span>
+                <div className="empty-suggest-row">
+                  <button className="empty-chip" disabled={busy} onClick={() => showLookup("huddle")}>
+                    🚀 Check today's Opener
+                  </button>
+                  <button className="empty-chip" disabled={busy} onClick={() => showLookup("system")}>
+                    ✨ What's new in Rep Assist
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
