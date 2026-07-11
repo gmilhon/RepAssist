@@ -93,23 +93,58 @@ function DateBar({
 }
 
 // --------------------------------------------------------------------------- #
-// ExecSummaryPanel — re-generates whenever start/end changes
+// ExecSummaryPanel — debounced + 5-min cached LLM summary per date range
 // --------------------------------------------------------------------------- #
+const SUMMARY_TTL_MS = 5 * 60 * 1000;   // reuse a summary for the same range for 5 min
+const SUMMARY_DEBOUNCE_MS = 600;        // wait after a range change before generating
+// Module-level so it survives tab switches / remounts within the session.
+const summaryCache = new Map<string, { summary: PerformanceSummary; ts: number }>();
+
 function ExecSummaryPanel({ start, end }: { start: string; end: string }) {
   const [summary, setSummary] = useState<PerformanceSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
-  function load() {
+  // force=true skips the cache (the Regenerate button). Otherwise a summary
+  // generated for this range within the TTL is reused with no LLM call.
+  function generate(force: boolean) {
+    const key = `${start}|${end}`;
+    if (!force) {
+      const cached = summaryCache.get(key);
+      if (cached && Date.now() - cached.ts < SUMMARY_TTL_MS) {
+        setSummary(cached.summary);
+        setErr(null);
+        setLoading(false);
+        return;
+      }
+    }
     setLoading(true);
     setErr(null);
     api
       .metricsSummary(start, end)
-      .then(setSummary)
+      .then((s) => {
+        summaryCache.set(key, { summary: s, ts: Date.now() });
+        setSummary(s);
+      })
       .catch((e) => setErr(String(e)))
       .finally(() => setLoading(false));
   }
-  useEffect(load, [start, end]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // On range change: reuse a fresh cached summary immediately; otherwise wait a
+  // beat before generating so rapid preset/date changes only fire one LLM call.
+  useEffect(() => {
+    const cached = summaryCache.get(`${start}|${end}`);
+    if (cached && Date.now() - cached.ts < SUMMARY_TTL_MS) {
+      setSummary(cached.summary);
+      setErr(null);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const t = setTimeout(() => generate(false), SUMMARY_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [start, end]);
 
   const modelLabel = summary
     ? summary.model === "mock"
@@ -123,7 +158,7 @@ function ExecSummaryPanel({ start, end }: { start: string; end: string }) {
         <h3>Executive Summary</h3>
         <div className="exec-summary-right">
           {modelLabel && <span className="ai-badge">✦ {modelLabel}</span>}
-          <button className="btn ghost small" onClick={load} disabled={loading}>
+          <button className="btn ghost small" onClick={() => generate(true)} disabled={loading}>
             {loading ? "Generating…" : "↻ Regenerate"}
           </button>
         </div>
