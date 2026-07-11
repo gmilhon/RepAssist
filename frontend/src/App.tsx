@@ -16,6 +16,17 @@ const STATUS_COLOR: Record<string, string> = {
   outage: "red",
 };
 
+const STATUS_LABEL: Record<string, string> = {
+  operational: "All systems operational",
+  degraded: "Partial degradation",
+  outage: "Service outage",
+};
+
+interface HealthToast {
+  id: number;
+  health: SystemHealth;
+}
+
 export default function App() {
   const [tab, setTab] = useState<Tab>("chat");
   const [health, setHealth] = useState<Record<string, any> | null>(null);
@@ -23,17 +34,38 @@ export default function App() {
     status: "operational", description: "", workaround: "", hard_stop: false, updated_at: null,
   });
   const [showHealthPanel, setShowHealthPanel] = useState(false);
+  const [healthToasts, setHealthToasts] = useState<HealthToast[]>([]);
   const healthPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const toastIdRef = useRef(0);
 
   useEffect(() => {
     api.health().then(setHealth).catch(() => setHealth({ status: "down" }));
     loadSysHealth();
     healthPollRef.current = setInterval(loadSysHealth, 60_000);
-    return () => { if (healthPollRef.current) clearInterval(healthPollRef.current); };
+
+    const es = new EventSource(api.healthEventsUrl());
+    es.addEventListener("health_update", (e: MessageEvent) => {
+      try {
+        const updated: SystemHealth = JSON.parse(e.data);
+        setSysHealth(updated);
+        const id = ++toastIdRef.current;
+        setHealthToasts(prev => [...prev, { id, health: updated }]);
+        setTimeout(() => setHealthToasts(prev => prev.filter(t => t.id !== id)), 8000);
+      } catch { /* ignore malformed */ }
+    });
+
+    return () => {
+      if (healthPollRef.current) clearInterval(healthPollRef.current);
+      es.close();
+    };
   }, []);
 
   function loadSysHealth() {
     api.getSystemHealth().then(setSysHealth).catch(() => {});
+  }
+
+  function dismissToast(id: number) {
+    setHealthToasts(prev => prev.filter(t => t.id !== id));
   }
 
   const llmMode = health?.llm_mode ?? "…";
@@ -94,6 +126,23 @@ export default function App() {
 
       {showHealthPanel && (
         <HealthPanel health={sysHealth} onClose={() => setShowHealthPanel(false)} />
+      )}
+
+      {healthToasts.length > 0 && (
+        <div className="health-toast-stack">
+          {healthToasts.map(t => (
+            <div key={t.id} className={`health-toast health-toast--${t.health.status}`}>
+              <span className={`health-toast-dot health-toast-dot--${t.health.status}`} />
+              <div className="health-toast-body">
+                <span className="health-toast-title">{STATUS_LABEL[t.health.status]}</span>
+                {t.health.description && (
+                  <span className="health-toast-desc">{t.health.description}</span>
+                )}
+              </div>
+              <button className="health-toast-close" onClick={() => dismissToast(t.id)} aria-label="Dismiss">✕</button>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

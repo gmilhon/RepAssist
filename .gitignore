@@ -4,12 +4,13 @@ __pycache__/
 *.pyc
 .pytest_cache/
 
-# Local data (regenerated on run)
+# Local data (regenerated on run) — path is cwd-relative, so ignore at any depth
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
-backend/repassist.db
+repassist.db
 backend/.env
+system_health.json
 
 # Node / Vite
 frontend/node_modules/

@@ -1,11 +1,14 @@
 """System health status — operator-configured service status + live diagnostics."""
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import AsyncGenerator
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/system-health", tags=["system-health"])
@@ -39,12 +42,31 @@ def _save(state: dict) -> None:
 
 _state: dict = _load()
 
+# SSE subscriber queues — one asyncio.Queue per connected client
+_subscribers: list[asyncio.Queue] = []
+
+
+def _broadcast(event_type: str, data: dict) -> None:
+    payload = f"event: {event_type}\ndata: {json.dumps(data)}\n\n"
+    dead: list[asyncio.Queue] = []
+    for q in _subscribers:
+        try:
+            q.put_nowait(payload)
+        except asyncio.QueueFull:
+            dead.append(q)
+    for q in dead:
+        try:
+            _subscribers.remove(q)
+        except ValueError:
+            pass
+
 
 class HealthUpdate(BaseModel):
     status: str = "operational"
     description: str = ""
     workaround: str = ""
     hard_stop: bool = False
+    notify: bool = False
 
 
 @router.get("")
@@ -53,7 +75,7 @@ def get_status() -> dict:
 
 
 @router.post("")
-def set_status(body: HealthUpdate) -> dict:
+async def set_status(body: HealthUpdate) -> dict:
     global _state
     _state = {
         "status": body.status,
@@ -63,7 +85,41 @@ def set_status(body: HealthUpdate) -> dict:
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
     _save(_state)
+    if body.notify:
+        _broadcast("health_update", dict(_state))
     return dict(_state)
+
+
+@router.get("/events")
+async def sse_events(request: Request) -> StreamingResponse:
+    queue: asyncio.Queue = asyncio.Queue(maxsize=32)
+    _subscribers.append(queue)
+
+    async def stream() -> AsyncGenerator[str, None]:
+        try:
+            yield ": connected\n\n"
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    msg = queue.get_nowait()
+                    yield msg
+                except asyncio.QueueEmpty:
+                    await asyncio.sleep(0.25)
+        finally:
+            try:
+                _subscribers.remove(queue)
+            except ValueError:
+                pass
+
+    return StreamingResponse(
+        stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.get("/ping")

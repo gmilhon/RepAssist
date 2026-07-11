@@ -47,6 +47,7 @@ dev team should build next, so the assistant keeps getting better.
 11. [A2UI — Agent-to-UI Elements](docs/10-a2ui-generative-ui.md) — generative UI in the chat (recent orders) sourced from a stubbed MCP layer.
 12. [Email Reports & Settings](docs/11-email-reports.md) — on-demand HTML dashboard reports, subscriber management, SMTP + preview mode.
 13. [Deployment — Google Cloud Run](docs/12-deployment-cloud-run.md) — one service serving API + UI, Secret Manager, and synthetic-data seeding.
+14. [System Health & Live Notifications](docs/13-system-health.md) — the topbar status badge, operator-set incidents, and real-time SSE toast notifications.
 
 ## 60-second quickstart
 
@@ -97,6 +98,11 @@ fix, and resolve it — or escalate to the Resolution Desk. Full details in the
 The Performance and CX Monitor tabs can **email HTML reports** to subscribers
 (with an in-browser preview when SMTP isn't configured). The UI is **responsive**
 — it works on phones, iPad Mini, and foldables.
+
+A **System Health badge** in the topbar (visible on every tab) shows live
+service status; an operator can set it from Settings and optionally push a
+real-time toast notification to every rep with the app open. See
+[System Health & Live Notifications](docs/13-system-health.md).
 
 ## The flow at a glance
 

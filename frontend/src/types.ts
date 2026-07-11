@@ -282,6 +282,7 @@ export interface SystemHealth {
   workaround: string;
   hard_stop: boolean;
   updated_at: string | null;
+  notify?: boolean;
 }
 
 export interface PingResult {

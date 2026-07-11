@@ -22,6 +22,7 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
   const [shDesc, setShDesc] = useState("");
   const [shWorkaround, setShWorkaround] = useState("");
   const [shHardStop, setShHardStop] = useState(false);
+  const [shNotify, setShNotify] = useState(false);
   const [shSaving, setShSaving] = useState(false);
   const [shSaved, setShSaved] = useState(false);
 
@@ -60,7 +61,8 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
     e.preventDefault();
     setShSaving(true);
     try {
-      await api.setSystemHealth({ status: shStatus, description: shDesc, workaround: shWorkaround, hard_stop: shHardStop });
+      await api.setSystemHealth({ status: shStatus, description: shDesc, workaround: shWorkaround, hard_stop: shHardStop, notify: shNotify });
+      setShNotify(false);
       setShSaved(true);
       onHealthChange?.();
       setTimeout(() => setShSaved(false), 2000);
@@ -183,11 +185,17 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
             />
           </label>
 
-          <div className="sh-footer-row">
+          <div className="sh-checks-col">
             <label className="sh-hardstop-check">
               <input type="checkbox" checked={shHardStop} onChange={e => setShHardStop(e.target.checked)} />
               <span className="sh-hardstop-label">Hard stop — warn reps not to process new orders</span>
             </label>
+            <label className="sh-hardstop-check">
+              <input type="checkbox" checked={shNotify} onChange={e => setShNotify(e.target.checked)} />
+              <span className="sh-hardstop-label">Notify active users when saved</span>
+            </label>
+          </div>
+          <div className="sh-footer-row">
             <button type="submit" className="btn" disabled={shSaving}>
               {shSaved ? "Saved ✓" : shSaving ? "Saving…" : "Save"}
             </button>

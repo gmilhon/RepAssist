@@ -23,8 +23,9 @@ export const api = {
 
   // System health status
   getSystemHealth: () => http<SystemHealth>("/api/system-health"),
-  setSystemHealth: (body: { status: string; description: string; workaround: string; hard_stop: boolean }) =>
+  setSystemHealth: (body: { status: string; description: string; workaround: string; hard_stop: boolean; notify?: boolean }) =>
     http<SystemHealth>("/api/system-health", { method: "POST", body: JSON.stringify(body) }),
+  healthEventsUrl: () => "/api/system-health/events",
   ping: () => http<PingResult>("/api/system-health/ping"),
   pingRegion: (region: "east" | "central" | "west") =>
     http<PingResult>(`/api/system-health/ping/${region}`),

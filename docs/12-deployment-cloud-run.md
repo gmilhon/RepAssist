@@ -139,6 +139,14 @@ recycled). That's acceptable for a prototype/demo. For durable data, move to
 **Cloud SQL (Postgres)** — set `TICKETS_DB_URL` to the Postgres DSN and use a
 Postgres/Redis LangGraph checkpointer, then `--min/--max-instances` can scale past 1.
 
+The same single-instance assumption applies to the **System Health SSE
+subscriber list** ([doc 13](13-system-health.md)) — it's an in-process
+`list[asyncio.Queue]`, not shared storage. With `--max-instances 1` (the
+default here) every rep's live connection lands on the one instance, so
+real-time notify-on-save works correctly. If you ever raise `--max-instances`,
+a `notify` triggered against one instance won't reach reps whose SSE connection
+is pinned to another — that needs a shared pub/sub (Redis, GCP Pub/Sub) instead.
+
 ---
 
 ## File manifest
@@ -150,3 +158,4 @@ Postgres/Redis LangGraph checkpointer, then `--min/--max-instances` can scale pa
 | `backend/.dockerignore` | Excludes venv, `.env`, SQLite files from the image |
 | `backend/app/main.py` | Serves `static/` via `/assets` mount + SPA catch-all |
 | `backend/app/api/admin.py` | Token-gated synthetic-data seed endpoint |
+| `backend/app/api/system_health.py` | Status GET/POST + SSE live-notification stream ([doc 13](13-system-health.md)) |

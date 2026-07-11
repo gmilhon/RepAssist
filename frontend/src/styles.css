@@ -1107,8 +1107,11 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 }
 .sh-textarea:focus { outline: none; border-color: var(--vz-red); }
 
+.sh-checks-col {
+  display: flex; flex-direction: column; gap: 8px;
+}
 .sh-footer-row {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  display: flex; align-items: center; justify-content: flex-end; gap: 12px;
   flex-wrap: wrap;
 }
 .sh-hardstop-check {
@@ -1116,3 +1119,55 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
   font-size: 13px; cursor: pointer;
 }
 .sh-hardstop-label { color: var(--ink); }
+
+/* ── Health notification toasts ─────────────────────────────────── */
+.health-toast-stack {
+  position: fixed; bottom: 24px; right: 24px;
+  display: flex; flex-direction: column; gap: 10px;
+  z-index: 1100;
+  pointer-events: none;
+}
+.health-toast {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid;
+  max-width: 360px;
+  pointer-events: all;
+  animation: toast-in 0.22s ease;
+  backdrop-filter: blur(8px);
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.health-toast--operational {
+  background: rgba(16,185,80,0.12); border-color: rgba(34,197,94,0.3); color: #6ee7a0;
+}
+.health-toast--degraded {
+  background: rgba(245,158,11,0.14); border-color: rgba(245,158,11,0.35); color: #fcd34d;
+}
+.health-toast--outage {
+  background: rgba(239,68,68,0.14); border-color: rgba(239,68,68,0.35); color: #fca5a5;
+}
+.health-toast-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px;
+}
+.health-toast-dot--operational { background: #22c55e; }
+.health-toast-dot--degraded    { background: #f59e0b; animation: pulse-warn 1.8s ease-in-out infinite; }
+.health-toast-dot--outage      { background: #ef4444; animation: pulse-danger 1.2s ease-in-out infinite; }
+.health-toast-body {
+  flex: 1; display: flex; flex-direction: column; gap: 3px;
+}
+.health-toast-title {
+  font-size: 13px; font-weight: 600;
+}
+.health-toast-desc {
+  font-size: 12px; opacity: 0.8; line-height: 1.4;
+}
+.health-toast-close {
+  background: none; border: none; cursor: pointer;
+  font-size: 12px; opacity: 0.6; padding: 0;
+  color: inherit; flex-shrink: 0;
+}
+.health-toast-close:hover { opacity: 1; }
