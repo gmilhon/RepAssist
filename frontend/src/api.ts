@@ -37,6 +37,9 @@ export const api = {
   recentOrders: (rep_id = "rep.demo") =>
     http<A2UIResponse>(`/api/mcp/recent-orders${qs({ rep_id })}`),
 
+  openTickets: (rep_id = "rep.demo") =>
+    http<A2UIResponse>(`/api/mcp/open-tickets${qs({ rep_id })}`),
+
   listTickets: (status?: string) =>
     http<Ticket[]>(`/api/tickets${status ? `?status=${status}` : ""}`),
 

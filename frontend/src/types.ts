@@ -21,7 +21,26 @@ export interface A2UIRecentOrders {
   orders: A2UIOrder[];
 }
 
-export type A2UIElement = A2UIRecentOrders;
+export interface A2UITicket {
+  ticket_id: string;
+  summary: string;
+  intent: string;
+  priority: "high" | "normal" | "low";
+  status: string;
+  status_label: string;
+  status_tone: "ok" | "warn" | "info" | "danger";
+  age_label: string;
+  prompt: string;
+}
+
+export interface A2UIOpenTickets {
+  type: "open_tickets";
+  title: string;
+  subtitle?: string;
+  tickets: A2UITicket[];
+}
+
+export type A2UIElement = A2UIRecentOrders | A2UIOpenTickets;
 
 export interface A2UIResponse {
   elements: A2UIElement[];
