@@ -137,14 +137,14 @@ export default function ChatWidget() {
     rec.start();
   }
 
-  async function send(text: string) {
+  async function send(text: string, entities?: Record<string, string>) {
     if (!text.trim() || busy) return;
     setMessages((m) => [...m, { role: "user", content: text }]);
     setInput("");
     setBusy(true);
     scrollDown();
     try {
-      applyResponse(await api.chat(text, threadId));
+      applyResponse(await api.chat(text, threadId, "rep.demo", entities));
     } catch (e) {
       setMessages((m) => [...m, { role: "assistant", content: `⚠️ ${e}` }]);
     } finally {

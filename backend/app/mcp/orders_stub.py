@@ -41,22 +41,24 @@ def _ago_label(minutes: int) -> str:
 
 # Deterministic recent-orders fixture, most-recent first.
 # (order_id, type, status, device, line, account_id, customer, minutes_ago, prompt)
+# Prompts embed both order_id and account_id so the triage regex can reliably
+# extract them without needing to prompt the rep for context.
 _RECENT = [
     ("ACT-1001", "New Activation", "Activation Pending", "iPhone 17 Pro", "(555) 010-1001",
      "AC-3001", "J. Rivera", 18,
-     "Order ACT-1001 is stuck in activation, the SIM won't activate"),
+     "Order ACT-1001 on account AC-3001 is stuck in activation — the SIM won't activate"),
     ("ORD-2002", "Upgrade", "Blocked", "Galaxy S26", "(555) 010-2002",
      "AC-3003", "J. Rivera", 74,
-     "ORD-2002 is blocking the customer's new upgrade order"),
+     "Order ORD-2002 on account AC-3003 is blocking the customer's new upgrade order"),
     ("ACT-1002", "New Activation", "Carrier Port Pending", "Pixel 10", "(555) 010-1002",
      "AC-3002", "M. Okafor", 156,
-     "ACT-1002 has a carrier port that hasn't completed yet"),
+     "Order ACT-1002 on account AC-3002 has a carrier port that hasn't completed yet"),
     ("ORD-2003", "New Line", "Credit Hold", "iPhone 17", "(555) 010-2003",
      "AC-3010", "D. Thompson", 320,
-     "ORD-2003 is on a credit hold and the customer can't add their new line"),
+     "Order ORD-2003 on account AC-3010 is on a credit hold — the customer can't add their new line"),
     ("ORD-2010", "Upgrade", "Completed", "iPhone 17 Pro", "(555) 010-2010",
      "AC-5001", "K. Patel", 1500,
-     "Give me a recap of what was done on completed order ORD-2010"),
+     "Give me a recap of completed order ORD-2010 on account AC-5001"),
 ]
 
 

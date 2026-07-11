@@ -33,6 +33,7 @@ def _build() :
 
     builder.add_node("triage", nodes.triage)
     builder.add_node("clarify", nodes.clarify)
+    builder.add_node("ticket_recap", nodes.ticket_recap)
     builder.add_node("system_help", nodes.system_help)
     builder.add_node("activation", nodes.activation_resolver)
     builder.add_node("pending_order", nodes.pending_order_resolver)
@@ -49,6 +50,7 @@ def _build() :
         nodes.route_after_triage,
         {
             "clarify": "clarify",
+            "ticket_recap": "ticket_recap",
             "system_help": "system_help",
             "activation": "activation",
             "pending_order": "pending_order",
@@ -58,8 +60,9 @@ def _build() :
             "ticket_fallback": "ticket_fallback",
         },
     )
-    # clarify and system_help are terminal — they reply directly.
+    # clarify, ticket_recap, and system_help are terminal — they reply directly.
     builder.add_edge("clarify", END)
+    builder.add_edge("ticket_recap", END)
     builder.add_edge("system_help", END)
     for resolver in ("activation", "pending_order", "promo", "occ"):
         builder.add_conditional_edges(
@@ -164,17 +167,22 @@ def _record(result: dict, kind: str, confirmed: bool | None = None) -> None:
     )
 
 
-def start_or_continue(thread_id: str, user_text: str, rep_id: str | None = None) -> dict:
+def start_or_continue(
+    thread_id: str,
+    user_text: str,
+    rep_id: str | None = None,
+    initial_entities: dict | None = None,
+) -> dict:
     graph = get_graph()
     cfg = _config(thread_id)
-    graph.invoke(
-        {
-            "messages": [{"role": "user", "content": user_text}],
-            "rep_id": rep_id,
-            "thread_id": thread_id,
-        },
-        cfg,
-    )
+    invoke_input: dict = {
+        "messages": [{"role": "user", "content": user_text}],
+        "rep_id": rep_id,
+        "thread_id": thread_id,
+    }
+    if initial_entities:
+        invoke_input["entities"] = initial_entities
+    graph.invoke(invoke_input, cfg)
     result = _shape(thread_id, graph.get_state(cfg))
     _record(result, kind="message")
     return result

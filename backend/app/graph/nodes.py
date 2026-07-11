@@ -114,6 +114,9 @@ def route_after_triage(state: GraphState) -> str:
     intent = state.get("intent") or "other"
     confidence = state.get("confidence") or 0.0
     entities = state.get("entities", {})
+    # Ticket reference takes priority — look it up regardless of other keywords.
+    if entities.get("ticket_ref_id"):
+        return "ticket_recap"
     if confidence < threshold:
         return "ticket_fallback"
     # Ask for a missing required id rather than escalating.
@@ -150,7 +153,74 @@ def clarify(state: GraphState) -> dict:
 
 
 # --------------------------------------------------------------------------- #
-# 1c. System help — answer questions about Rep Assist via the system MCP tool
+# 1c. Ticket recap — look up a referenced ticket (TCK-…) and return next steps
+# --------------------------------------------------------------------------- #
+_TICKET_NEXT_STEPS: dict[str, str] = {
+    "pending_order": (
+        "Pull up the stalled prior order and check its current status. "
+        "If it's been stuck for more than 24 h, initiate a manual release — "
+        "the new upgrade order should unblock within minutes once the hold clears."
+    ),
+    "activation": (
+        "Verify SIM/eSIM provisioning status in the activation portal. "
+        "If a carrier port is stalled, check the port-in tracker and contact "
+        "the carrier liaison to force-complete if it's been pending over 48 h."
+    ),
+    "billing": (
+        "Pull the customer's billing account and review the disputed charge. "
+        "If a credit or reversal is warranted, escalate to Billing Tier 2 with this ticket."
+    ),
+    "occ": (
+        "Confirm the service disruption window and verify customer eligibility, "
+        "then process the courtesy credit via the OCC tool."
+    ),
+    "promo": (
+        "Check promo eligibility for the customer's plan and order date. "
+        "If valid, reapply the promotional discount in account management."
+    ),
+    "other": (
+        "Review the full ticket context and route to the appropriate support queue for resolution."
+    ),
+}
+
+
+def ticket_recap(state: GraphState) -> dict:
+    """Look up a referenced ticket (TCK-…) and return a rep-facing recap with next steps."""
+    from ..mcp import get_mcp_client
+
+    ref_id = (state.get("entities") or {}).get("ticket_ref_id", "")
+    ticket = None
+    try:
+        result = get_mcp_client().call_tool("tickets", "get_ticket", {"ticket_id": ref_id})
+        ticket = result.get("ticket")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("ticket lookup failed (%s)", exc)
+
+    if not ticket:
+        answer = f"I couldn't find ticket {ref_id}. Double-check the ticket number and try again."
+        return {
+            "resolution": Resolution(status="info", summary=answer).model_dump(),
+            "messages": [{"role": "assistant", "content": answer, "card": None}],
+            "trace": _trace("ticket_recap", found=False, ref_id=ref_id),
+        }
+
+    intent = ticket.get("intent", "other")
+    next_steps = _TICKET_NEXT_STEPS.get(intent, _TICKET_NEXT_STEPS["other"])
+    priority_label = ticket.get("priority", "normal").capitalize()
+    summary = (
+        f"{ref_id} — {ticket['status_label']} · {priority_label} priority\n"
+        f"{ticket['summary']} (opened {ticket['age_label']})\n\n"
+        f"Next steps: {next_steps}"
+    )
+    return {
+        "resolution": Resolution(status="info", summary=summary, capability="ticketing").model_dump(),
+        "messages": [{"role": "assistant", "content": summary, "card": None}],
+        "trace": _trace("ticket_recap", found=True, ref_id=ref_id, intent=intent),
+    }
+
+
+# --------------------------------------------------------------------------- #
+# 1d. System help — answer questions about Rep Assist via the system MCP tool
 # --------------------------------------------------------------------------- #
 def system_help(state: GraphState) -> dict:
     from ..mcp import get_mcp_client

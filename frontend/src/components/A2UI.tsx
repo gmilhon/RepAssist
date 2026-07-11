@@ -23,7 +23,7 @@ export function A2UIRenderer({
   onOpenArticle,
 }: {
   elements: A2UIElement[];
-  onAction: (prompt: string) => void;
+  onAction: (prompt: string, entities?: Record<string, string>) => void;
   onOpenArticle?: (articleId: string) => void;
 }) {
   return (
@@ -53,7 +53,7 @@ function RecentOrdersCard({
   onAction,
 }: {
   el: A2UIRecentOrders;
-  onAction: (prompt: string) => void;
+  onAction: (prompt: string, entities?: Record<string, string>) => void;
 }) {
   return (
     <div className="a2ui-card">
@@ -76,13 +76,16 @@ function OrderRow({
   onAction,
 }: {
   order: A2UIOrder;
-  onAction: (prompt: string) => void;
+  onAction: (prompt: string, entities?: Record<string, string>) => void;
 }) {
   const meta = [order.order_type, order.device].filter(Boolean).join(" · ");
+  const entities: Record<string, string> = {};
+  if (order.order_id) entities.order_id = order.order_id;
+  if (order.account_id) entities.account_id = order.account_id;
   return (
     <button
       className="a2ui-order"
-      onClick={() => onAction(order.prompt)}
+      onClick={() => onAction(order.prompt, entities)}
       title={`Start working on ${order.order_id}`}
     >
       <div className="a2ui-order-top">
@@ -106,7 +109,7 @@ function OpenTicketsCard({
   onAction,
 }: {
   el: A2UIOpenTickets;
-  onAction: (prompt: string) => void;
+  onAction: (prompt: string, entities?: Record<string, string>) => void;
 }) {
   return (
     <div className="a2ui-card">
@@ -129,7 +132,7 @@ function TicketRow({
   onAction,
 }: {
   ticket: A2UITicket;
-  onAction: (prompt: string) => void;
+  onAction: (prompt: string, entities?: Record<string, string>) => void;
 }) {
   return (
     <button
@@ -159,7 +162,7 @@ function SystemEnhancementsCard({
   onAction,
 }: {
   el: A2UISystemEnhancements;
-  onAction: (prompt: string) => void;
+  onAction: (prompt: string, entities?: Record<string, string>) => void;
 }) {
   return (
     <div className="a2ui-card">

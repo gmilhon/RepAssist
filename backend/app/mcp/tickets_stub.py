@@ -40,7 +40,7 @@ def _ago_label(minutes: int) -> str:
 
 # Deterministic open-tickets fixture for the rep, most-recent first.
 # (ticket_id, summary, intent, priority, status, minutes_ago)
-_OPEN = [
+_OPEN: list[tuple] = [
     ("TCK-4F2A9C1B",
      "Customer disputing a $99 restocking fee charged after an in-store return.",
      "billing", "high", "open", 95),
@@ -91,5 +91,30 @@ def get_open_tickets(arguments: dict) -> dict:
     }
 
 
+_OPEN_BY_ID: dict = {row[0]: row for row in _OPEN}
+
+
+def get_ticket(arguments: dict) -> dict:
+    """MCP tool: look up a single ticket by id."""
+    tid = arguments.get("ticket_id", "").upper()
+    row = _OPEN_BY_ID.get(tid)
+    if not row:
+        return {"ticket": None}
+    ticket_id, summary, intent, priority, status, minutes = row
+    return {
+        "ticket": {
+            "ticket_id": ticket_id,
+            "summary": summary,
+            "intent": intent,
+            "priority": priority,
+            "status": status,
+            "status_label": _STATUS_LABEL.get(status, status),
+            "status_tone": _tone(status),
+            "age_label": _ago_label(minutes),
+        }
+    }
+
+
 def register(client: MCPClient) -> None:
     client.register_tool("tickets", "get_open_tickets", get_open_tickets)
+    client.register_tool("tickets", "get_ticket", get_ticket)

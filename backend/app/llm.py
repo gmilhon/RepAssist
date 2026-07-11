@@ -19,6 +19,7 @@ logger = logging.getLogger("repassist.llm")
 ORDER_RE = re.compile(r"\b((?:ACT|ORD)-\d{3,})\b", re.IGNORECASE)
 ACCOUNT_RE = re.compile(r"\b(AC-\d{3,})\b", re.IGNORECASE)
 MTN_RE = re.compile(r"\b(\d{10})\b")
+TICKET_RE = re.compile(r"\b(TCK-[A-F0-9]{6,})\b", re.IGNORECASE)
 
 TRIAGE_SYSTEM = (
     "You are the triage classifier for a retail Assisted Sales & Service support "
@@ -57,6 +58,8 @@ def extract_entities(text: str) -> dict:
         out["account_id"] = m.group(1).upper()
     if m := MTN_RE.search(text):
         out["mtn"] = m.group(1)
+    if m := TICKET_RE.search(text):
+        out["ticket_ref_id"] = m.group(1).upper()
     return out
 
 
@@ -108,9 +111,13 @@ def _mock_classify(text: str) -> TriageResult:
     def has(*words: str) -> bool:
         return any(w in t for w in words)
 
+    # Ticket reference — if a TCK- id is present this is a recap request.
+    # Route to ticket_recap regardless of other keywords ("blocked", etc.).
+    if ents.get("ticket_ref_id"):
+        intent, conf = "other", 0.9
     # System/product questions first — distinctive phrasing so normal order
     # requests never match here.
-    if has("rep assist", "what's new", "whats new", "new feature", "enhancement",
+    elif has("rep assist", "what's new", "whats new", "new feature", "enhancement",
            "how does this system", "what can you do", "how do i use", "the assistant"):
         intent, conf = "system", 0.85
     # Knowledge / how-to / "details about" questions → One Source of Truth. Checked

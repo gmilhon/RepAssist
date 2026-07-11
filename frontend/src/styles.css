@@ -279,6 +279,7 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 .bubble.assistant { align-self: flex-start; }
 .bubble-text {
   padding: 11px 15px; border-radius: 14px; font-size: 14px; line-height: 1.45;
+  white-space: pre-line;
 }
 .bubble.user .bubble-text { background: var(--vz-red); color: #fff; border-bottom-right-radius: 4px; }
 .bubble.assistant .bubble-text { background: #fff; border: 1px solid var(--line); border-bottom-left-radius: 4px; }

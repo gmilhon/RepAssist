@@ -21,10 +21,10 @@ function qs(params: Record<string, string | undefined>): string {
 export const api = {
   health: () => http<Record<string, any>>("/health"),
 
-  chat: (message: string, thread_id: string | null, rep_id = "rep.demo") =>
+  chat: (message: string, thread_id: string | null, rep_id = "rep.demo", initial_entities?: Record<string, string>) =>
     http<ChatResponse>("/api/chat", {
       method: "POST",
-      body: JSON.stringify({ message, thread_id, rep_id }),
+      body: JSON.stringify({ message, thread_id, rep_id, initial_entities: initial_entities ?? null }),
     }),
 
   confirm: (thread_id: string, approved: boolean) =>

@@ -16,6 +16,7 @@ class ChatRequest(BaseModel):
     message: str
     thread_id: Optional[str] = None
     rep_id: Optional[str] = None
+    initial_entities: Optional[dict] = None
 
 
 class ConfirmRequest(BaseModel):
@@ -26,7 +27,7 @@ class ConfirmRequest(BaseModel):
 @router.post("")
 def chat(req: ChatRequest) -> dict:
     thread_id = req.thread_id or f"thr-{uuid.uuid4().hex[:10]}"
-    return orchestrator.start_or_continue(thread_id, req.message, req.rep_id)
+    return orchestrator.start_or_continue(thread_id, req.message, req.rep_id, req.initial_entities)
 
 
 @router.post("/confirm")
