@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .api import admin, chat, cx, email_reports, insights, mcp, metrics, tickets
+from .api import admin, chat, cx, email_reports, huddle, insights, mcp, metrics, tickets
 from .config import get_settings
 from .store import db
 
@@ -47,11 +47,14 @@ app.include_router(metrics.router)
 app.include_router(cx.router)
 app.include_router(email_reports.router)
 app.include_router(mcp.router)
+app.include_router(huddle.router)
 
 
 @app.on_event("startup")
 def _startup() -> None:
     db.init_db()
+    from .mcp import news_stub
+    news_stub.seed_defaults_if_empty()
 
 
 @app.get("/health")

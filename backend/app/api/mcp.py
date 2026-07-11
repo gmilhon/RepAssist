@@ -44,3 +44,17 @@ def morning_huddle() -> dict:
     """Today's field news, as an A2UI `morning_huddle` element."""
     client = get_mcp_client()
     return client.call_tool("news", "get_morning_huddle", {})
+
+
+@router.get("/ost-search")
+def ost_search(q: str = Query(..., min_length=1)) -> dict:
+    """One Source of Truth: best-matching article for a query, as a `knowledge_article`."""
+    client = get_mcp_client()
+    return client.call_tool("ost", "search_articles", {"query": q})
+
+
+@router.get("/ost-article")
+def ost_article(id: str = Query(...)) -> dict:
+    """One Source of Truth: a specific article by id (used by Morning Huddle links)."""
+    client = get_mcp_client()
+    return client.call_tool("ost", "get_article", {"article_id": id})

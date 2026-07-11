@@ -97,3 +97,19 @@ class EmailSubscriber(SQLModel, table=True):
     subscribed_cx: bool = True            # receives CX Monitor reports
     active: bool = True
     created_at: datetime = Field(default_factory=_now)
+
+
+class HuddleItem(SQLModel, table=True):
+    """A Morning Huddle field-news item, managed from the Settings page and
+    served by the 'news' MCP stub."""
+
+    __tablename__ = "huddle_items"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    category: str = "News"                 # Promo | Device | Policy | Network | News
+    title: str = ""
+    blurb: str = ""
+    article_id: Optional[str] = None       # optional OST article link (e.g. OST-1002)
+    active: bool = True
+    sort_order: int = 0
+    created_at: datetime = Field(default_factory=_now)

@@ -42,10 +42,11 @@ class MCPClient:
 def get_mcp_client() -> MCPClient:
     """Singleton client with the prototype's stub servers registered."""
     client = MCPClient()
-    from . import news_stub, orders_stub, system_stub, tickets_stub
+    from . import news_stub, orders_stub, ost_stub, system_stub, tickets_stub
 
     orders_stub.register(client)
     tickets_stub.register(client)
     system_stub.register(client)
     news_stub.register(client)
+    ost_stub.register(client)
     return client

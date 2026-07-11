@@ -30,7 +30,10 @@ TRIAGE_SYSTEM = (
     "- occ: a fee waiver, bill credit, account credit, or goodwill credit request "
     "(e.g. waived activation fee, credit for a service outage, courtesy credit)\n"
     "- billing: a billing or charge question that is not a credit request\n"
-    "- general: a how-to / policy question answerable from knowledge\n"
+    "- general: a how-to, policy, or 'what is / details about' question answerable "
+    "from the One Source of Truth knowledge base (e.g. how to apply a discount, "
+    "promo eligibility/details, why a first bill is high, how to process a return). "
+    "Prefer this when the rep is asking how/what rather than reporting something broken.\n"
     "- system: a question about Rep Assist itself — its features, recent "
     "enhancements/updates, or how to use the assistant\n"
     "- other: anything that needs a human and does not fit above\n"
@@ -110,6 +113,13 @@ def _mock_classify(text: str) -> TriageResult:
     if has("rep assist", "what's new", "whats new", "new feature", "enhancement",
            "how does this system", "what can you do", "how do i use", "the assistant"):
         intent, conf = "system", 0.85
+    # Knowledge / how-to / "details about" questions → One Source of Truth. Checked
+    # before the task intents so "how do I apply a discount" is a lookup, not a fix.
+    elif has("how do", "how to", "how can", "how does", "what is", "what are",
+             "what's the", "whats the", "explain", "details about", "details of",
+             "tell me about", "walk me through", "steps to", "where do", "policy",
+             "eligib"):
+        intent, conf = "general", 0.8
     elif has("activat", "provision", "sim card", "won't turn on", "not active", "no service"):
         intent, conf = "activation", 0.82
     elif has("pending", "blocking", "blocked", "stuck order", "can't order"):

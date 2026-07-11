@@ -1,4 +1,4 @@
-import type { A2UIResponse, CapabilityGap, ChatResponse, CXOverview, EmailSettings, EmailSubscriber, MetricsOverview, PerformanceSummary, SendReportResult, Ticket } from "./types";
+import type { A2UIResponse, CapabilityGap, ChatResponse, CXOverview, EmailSettings, EmailSubscriber, HuddleItem, MetricsOverview, OSTArticleRef, PerformanceSummary, SendReportResult, Ticket } from "./types";
 
 async function http<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -43,6 +43,18 @@ export const api = {
   systemEnhancements: () => http<A2UIResponse>("/api/mcp/system-enhancements"),
 
   morningHuddle: () => http<A2UIResponse>("/api/mcp/morning-huddle"),
+
+  ostArticle: (id: string) => http<A2UIResponse>(`/api/mcp/ost-article${qs({ id })}`),
+
+  // Morning Huddle management (Settings)
+  listHuddleItems: () => http<HuddleItem[]>("/api/huddle/items"),
+  listHuddleArticles: () => http<OSTArticleRef[]>("/api/huddle/articles"),
+  addHuddleItem: (body: { category: string; title: string; blurb: string; article_id: string | null }) =>
+    http<HuddleItem>("/api/huddle/items", { method: "POST", body: JSON.stringify(body) }),
+  updateHuddleItem: (id: number, patch: Partial<Pick<HuddleItem, "category" | "title" | "blurb" | "article_id" | "active" | "sort_order">>) =>
+    http<HuddleItem>(`/api/huddle/items/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  removeHuddleItem: (id: number) =>
+    fetch(`/api/huddle/items/${id}`, { method: "DELETE" }),
 
   listTickets: (status?: string) =>
     http<Ticket[]>(`/api/tickets${status ? `?status=${status}` : ""}`),

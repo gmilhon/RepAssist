@@ -31,7 +31,7 @@ const LOOKUPS: { icon: string; label: string; kind: LookupKind }[] = [
 // Briefings — MCP-backed informational cards.
 const BRIEFINGS: { icon: string; label: string; kind: LookupKind }[] = [
   { icon: "✨", label: "System enhancements", kind: "system" },
-  { icon: "☀️", label: "Morning huddle", kind: "huddle" },
+  { icon: "🚀", label: "The Opener", kind: "huddle" },
 ];
 
 const STATUS_LABEL: Record<string, string> = {
@@ -48,7 +48,9 @@ export default function ChatWidget() {
   const [pending, setPending] = useState<ConfirmationPayload | null>(null);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [listening, setListening] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   function scrollDown() {
     requestAnimationFrame(() => {
@@ -71,15 +73,60 @@ export default function ChatWidget() {
     }
   }
 
+  // Morning-Huddle "Read article" link → reveal the linked OST article card.
+  async function openArticle(articleId: string) {
+    try {
+      const res = await api.ostArticle(articleId);
+      if (res.elements.length) {
+        setMessages((m) => [...m, { role: "assistant", a2ui: res.elements }]);
+        scrollDown();
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
   function applyResponse(res: ChatResponse) {
     setThreadId(res.thread_id);
     if (res.status === "needs_confirmation") {
       setPending(res.confirmation);
     } else {
       setPending(null);
-      setMessages((m) => [...m, { role: "assistant", content: res.assistant_message ?? "", card: res.card }]);
+      setMessages((m) => [
+        ...m,
+        { role: "assistant", content: res.assistant_message ?? "", card: res.card, a2ui: res.a2ui ?? undefined },
+      ]);
     }
     scrollDown();
+  }
+
+  // Voice-to-text via the Web Speech API (Chrome/Edge). Hidden where unsupported.
+  const speechSupported =
+    typeof window !== "undefined" &&
+    ("webkitSpeechRecognition" in window || "SpeechRecognition" in window);
+
+  function toggleMic() {
+    if (!speechSupported || busy) return;
+    if (listening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const rec = new SR();
+    rec.lang = "en-US";
+    rec.interimResults = true;
+    rec.continuous = false;
+    const base = input.trim();
+    rec.onresult = (e: any) => {
+      let transcript = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) transcript += e.results[i][0].transcript;
+      setInput((base ? base + " " : "") + transcript);
+    };
+    rec.onerror = () => setListening(false);
+    rec.onend = () => setListening(false);
+    recognitionRef.current = rec;
+    setListening(true);
+    rec.start();
   }
 
   async function send(text: string) {
@@ -183,7 +230,7 @@ export default function ChatWidget() {
             <div key={i} className={`bubble ${m.role}`}>
               {m.content && <div className="bubble-text">{m.content}</div>}
               {m.card && <Card card={m.card} />}
-              {m.a2ui && <A2UIRenderer elements={m.a2ui} onAction={send} />}
+              {m.a2ui && <A2UIRenderer elements={m.a2ui} onAction={send} onOpenArticle={openArticle} />}
             </div>
           ))}
 
@@ -220,9 +267,21 @@ export default function ChatWidget() {
           <input
             value={input}
             disabled={busy}
-            placeholder="Describe the order or service issue…"
+            placeholder={listening ? "Listening…" : "Describe the order or service issue…"}
             onChange={(e) => setInput(e.target.value)}
           />
+          {speechSupported && (
+            <button
+              type="button"
+              className={`btn mic${listening ? " listening" : ""}`}
+              onClick={toggleMic}
+              disabled={busy}
+              title={listening ? "Stop listening" : "Voice to text"}
+              aria-label="Voice to text"
+            >
+              {listening ? "◉" : "🎤"}
+            </button>
+          )}
           <button className="btn primary" disabled={busy || !input.trim()} type="submit">
             Send
           </button>

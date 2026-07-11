@@ -25,6 +25,7 @@ class GraphState(TypedDict, total=False):
 
     # Resolution flow
     route: Optional[str]               # set by nodes, read by conditional edges
+    article: Optional[dict]            # OST knowledge_article A2UI element, if any
     diagnosis: Optional[dict]          # what an agent found (even if it couldn't fix it)
     proposed_action: Optional[dict]    # mutating fix awaiting rep confirmation
     confirm_decision: Optional[bool]

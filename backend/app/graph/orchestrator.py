@@ -138,6 +138,7 @@ def _shape(thread_id: str, snapshot) -> dict:
         "status": status,
         "assistant_message": (last_assistant or {}).get("content"),
         "card": (last_assistant or {}).get("card"),
+        "a2ui": (last_assistant or {}).get("a2ui"),
         "confirmation": None,
         "intent": values.get("intent"),
         "confidence": values.get("confidence"),

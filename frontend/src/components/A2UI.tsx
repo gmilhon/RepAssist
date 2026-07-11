@@ -1,5 +1,7 @@
+import { useState } from "react";
 import type {
   A2UIElement,
+  A2UIKnowledgeArticle,
   A2UIMorningHuddle,
   A2UIOpenTickets,
   A2UIOrder,
@@ -18,9 +20,11 @@ import type {
 export function A2UIRenderer({
   elements,
   onAction,
+  onOpenArticle,
 }: {
   elements: A2UIElement[];
   onAction: (prompt: string) => void;
+  onOpenArticle?: (articleId: string) => void;
 }) {
   return (
     <>
@@ -33,7 +37,9 @@ export function A2UIRenderer({
           case "system_enhancements":
             return <SystemEnhancementsCard key={i} el={el} onAction={onAction} />;
           case "morning_huddle":
-            return <MorningHuddleCard key={i} el={el} />;
+            return <MorningHuddleCard key={i} el={el} onOpenArticle={onOpenArticle} />;
+          case "knowledge_article":
+            return <KnowledgeArticleCard key={i} el={el} />;
           default:
             return null; // unknown element types are ignored, not fatal
         }
@@ -189,25 +195,99 @@ function SystemEnhancementsCard({
   );
 }
 
-function MorningHuddleCard({ el }: { el: A2UIMorningHuddle }) {
+function MorningHuddleCard({
+  el,
+  onOpenArticle,
+}: {
+  el: A2UIMorningHuddle;
+  onOpenArticle?: (articleId: string) => void;
+}) {
+  const [done, setDone] = useState<Set<number>>(new Set());
+  const toggle = (i: number) =>
+    setDone((prev) => {
+      const n = new Set(prev);
+      n.has(i) ? n.delete(i) : n.add(i);
+      return n;
+    });
+
   return (
     <div className="a2ui-card">
       <div className="a2ui-card-head">
-        <span className="a2ui-card-eyebrow">☀ Morning Huddle</span>
+        <span className="a2ui-card-eyebrow">🚀 Start of shift</span>
         <h4 className="a2ui-card-title">{el.title}</h4>
         {el.subtitle && <p className="a2ui-card-sub">{el.subtitle}</p>}
       </div>
-      <ul className="a2ui-news-list">
-        {el.items.map((n) => (
-          <li key={n.title} className="a2ui-news">
-            <span className={`a2ui-news-cat a2ui-news-cat--${n.tone}`}>{n.category}</span>
-            <div className="a2ui-news-body">
-              <div className="a2ui-news-title">{n.title}</div>
-              <div className="a2ui-news-blurb">{n.blurb}</div>
-            </div>
-          </li>
+
+      {el.todos.length > 0 && (
+        <div className="a2ui-todo-block">
+          <div className="a2ui-section-label">✅ To-Do</div>
+          <ul className="a2ui-todo-list">
+            {el.todos.map((t, i) => (
+              <li key={i} className={`a2ui-todo${done.has(i) ? " is-done" : ""}`}>
+                <button className="a2ui-todo-check" onClick={() => toggle(i)} aria-label="Toggle done">
+                  {done.has(i) ? "☑" : "☐"}
+                </button>
+                <div className="a2ui-todo-body">
+                  <div className="a2ui-todo-title">{t.title}</div>
+                  {t.detail && <div className="a2ui-todo-detail">{t.detail}</div>}
+                  {t.article_id && onOpenArticle && (
+                    <button className="a2ui-news-link" onClick={() => onOpenArticle(t.article_id!)}>
+                      Open guide →
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {el.items.length > 0 && (
+        <>
+          <div className="a2ui-section-label">📣 Field news</div>
+          <ul className="a2ui-news-list">
+            {el.items.map((n, i) => (
+              <li key={i} className="a2ui-news">
+                <span className={`a2ui-news-cat a2ui-news-cat--${n.tone}`}>{n.category}</span>
+                <div className="a2ui-news-body">
+                  <div className="a2ui-news-title">{n.title}</div>
+                  <div className="a2ui-news-blurb">{n.blurb}</div>
+                  {n.article_id && onOpenArticle && (
+                    <button className="a2ui-news-link" onClick={() => onOpenArticle(n.article_id!)}>
+                      Read article →
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  );
+}
+
+function KnowledgeArticleCard({ el }: { el: A2UIKnowledgeArticle }) {
+  return (
+    <div className="a2ui-card a2ui-article">
+      <div className="a2ui-card-head">
+        <span className="a2ui-card-eyebrow">📄 {el.source}</span>
+        <h4 className="a2ui-card-title">{el.title}</h4>
+        <div className="a2ui-article-meta">
+          <span className="a2ui-article-cat">{el.category}</span>
+          <span className="a2ui-article-id">{el.article_id}</span>
+          <span className="a2ui-article-updated">{el.updated_label}</span>
+        </div>
+        {el.summary && <p className="a2ui-card-sub">{el.summary}</p>}
+      </div>
+      <div className="a2ui-article-sections">
+        {el.sections.map((s, i) => (
+          <div key={i} className="a2ui-article-section">
+            <div className="a2ui-article-heading">{s.heading}</div>
+            <p className="a2ui-article-body">{s.body}</p>
+          </div>
         ))}
-      </ul>
+      </div>
     </div>
   );
 }

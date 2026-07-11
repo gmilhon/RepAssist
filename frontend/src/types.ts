@@ -59,20 +59,63 @@ export interface A2UIHuddleItem {
   tone: "ok" | "warn" | "info" | "danger";
   title: string;
   blurb: string;
+  article_id?: string | null;
+}
+
+export interface A2UIHuddleTodo {
+  title: string;
+  detail: string;
+  article_id?: string | null;
 }
 
 export interface A2UIMorningHuddle {
-  type: "morning_huddle";
+  type: "morning_huddle";   // internal type; product name is "The Opener"
   title: string;
   subtitle?: string;
+  todos: A2UIHuddleTodo[];
   items: A2UIHuddleItem[];
+}
+
+export interface A2UIArticleSection {
+  heading: string;
+  body: string;
+}
+
+export interface A2UIKnowledgeArticle {
+  type: "knowledge_article";
+  article_id: string;
+  title: string;
+  category: string;
+  updated_label: string;
+  summary: string;
+  sections: A2UIArticleSection[];
+  source: string;
 }
 
 export type A2UIElement =
   | A2UIRecentOrders
   | A2UIOpenTickets
   | A2UISystemEnhancements
-  | A2UIMorningHuddle;
+  | A2UIMorningHuddle
+  | A2UIKnowledgeArticle;
+
+// Morning Huddle items — managed on the Settings page
+export interface HuddleItem {
+  id: number;
+  category: string;
+  title: string;
+  blurb: string;
+  article_id: string | null;
+  active: boolean;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface OSTArticleRef {
+  article_id: string;
+  title: string;
+  category: string;
+}
 
 export interface A2UIResponse {
   elements: A2UIElement[];
@@ -104,6 +147,7 @@ export interface ChatResponse {
   status: "answered" | "needs_confirmation" | "escalated";
   assistant_message: string | null;
   card: ResolutionCard | null;
+  a2ui: A2UIElement[] | null;
   confirmation: ConfirmationPayload | null;
   intent: string | null;
   confidence: number | null;

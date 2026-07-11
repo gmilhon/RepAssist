@@ -73,11 +73,13 @@ def test_decline_confirmation_makes_no_change():
     assert done["card"]["status"] == "cancelled"
 
 
-def test_billing_question_answered_from_kb():
+def test_billing_question_answered_from_ost():
     thread = _thread()
     res = orchestrator.start_or_continue(thread, "Why is the first bill so high / overcharge?")
     assert res["status"] == "answered"
-    assert res["card"]["capability"] == "knowledge-base"
+    assert res["card"]["capability"] == "one-source-of-truth"
+    # OST returns the answer as a knowledge_article A2UI card.
+    assert res["a2ui"] and res["a2ui"][0]["type"] == "knowledge_article"
 
 
 def test_unknown_issue_escalates_to_ticket():

@@ -207,6 +207,52 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 .a2ui-news-title { font-size: 13px; font-weight: 700; color: var(--ink); }
 .a2ui-news-blurb { font-size: 12.5px; color: var(--ink-2); line-height: 1.45; margin-top: 2px; }
 
+/* The Opener — section labels + To-Do checklist */
+.a2ui-section-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+  color: var(--ink-2); margin: 4px 0 8px;
+}
+.a2ui-todo-block { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.a2ui-todo-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.a2ui-todo { display: flex; gap: 9px; align-items: flex-start; }
+.a2ui-todo-check {
+  background: none; border: none; cursor: pointer; padding: 0; line-height: 1;
+  font-size: 16px; color: var(--vz-red); flex-shrink: 0; margin-top: 1px;
+}
+.a2ui-todo-title { font-size: 13px; font-weight: 700; color: var(--ink); line-height: 1.35; }
+.a2ui-todo-detail { font-size: 12px; color: var(--ink-2); line-height: 1.4; margin-top: 1px; }
+.a2ui-todo.is-done .a2ui-todo-title { text-decoration: line-through; color: var(--ink-2); }
+.a2ui-todo.is-done .a2ui-todo-check { color: var(--ok); }
+.a2ui-news-link {
+  background: none; border: none; color: var(--info); font-size: 12px; font-weight: 700;
+  cursor: pointer; padding: 4px 0 0; font-family: inherit;
+}
+.a2ui-news-link:hover { text-decoration: underline; }
+
+/* knowledge_article element (OST) */
+.a2ui-article-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0 4px; }
+.a2ui-article-cat {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
+  background: #e7f0fb; color: var(--info); padding: 2px 7px; border-radius: 999px;
+}
+.a2ui-article-id { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 11px; color: var(--vz-red); font-weight: 700; }
+.a2ui-article-updated { font-size: 11px; color: #9aa0a8; }
+.a2ui-article-sections { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
+.a2ui-article-heading { font-size: 12px; font-weight: 700; color: var(--ink); margin-bottom: 3px; }
+.a2ui-article-body { font-size: 12.5px; color: var(--ink-2); line-height: 1.5; margin: 0; }
+
+/* mic (voice-to-text) button */
+.btn.mic {
+  background: #fff; border: 1px solid var(--line); color: var(--ink-2);
+  padding: 10px 12px; font-size: 15px; line-height: 1;
+}
+.btn.mic:hover:not(:disabled) { border-color: var(--vz-red); }
+.btn.mic.listening {
+  background: var(--vz-red); color: #fff; border-color: var(--vz-red);
+  animation: mic-pulse 1.1s ease-in-out infinite;
+}
+@keyframes mic-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(238,0,0,0.35); } 50% { box-shadow: 0 0 0 6px rgba(238,0,0,0); } }
+
 .bubble { max-width: 760px; }
 .bubble.user { align-self: flex-end; }
 .bubble.assistant { align-self: flex-start; }

@@ -99,6 +99,7 @@ def triage(state: GraphState) -> dict:
         "order_context": ctx,
         "triage_summary": result.summary,  # ignored by state schema but handy in trace
         "awaiting": None,                   # cleared; clarify re-sets if still missing
+        "article": None,                    # cleared; knowledge re-sets on an OST hit
         "trace": _trace(
             "triage",
             intent=intent,
@@ -237,21 +238,32 @@ def occ_resolver(state: GraphState) -> dict:
 # 3. Knowledge lookup (billing / general)
 # --------------------------------------------------------------------------- #
 def knowledge(state: GraphState) -> dict:
-    hit = agents_client.kb_search(_last_user_text(state))
-    if not hit:
-        return {
-            "route": "ticket_fallback",
-            "trace": _trace("knowledge", hit=False),
-        }
+    """Answer a knowledge question from OST (One Source of Truth) — returns the
+    best-matching article as an A2UI card. Falls back to a ticket on a miss."""
+    from ..mcp import get_mcp_client
+
+    query = _last_user_text(state)
+    try:
+        result = get_mcp_client().call_tool("ost", "search_articles", {"query": query})
+        elements = result.get("elements", [])
+    except Exception as exc:  # noqa: BLE001 - degrade gracefully
+        logger.warning("OST search failed (%s)", exc)
+        elements = []
+
+    if not elements:
+        return {"route": "ticket_fallback", "trace": _trace("knowledge", hit=False)}
+
+    article = elements[0]
     return {
         "route": "compose",
+        "article": article,
         "resolution": Resolution(
             status="resolved",
-            summary=hit.get("answer", ""),
-            capability="knowledge-base",
-            actions_taken=[f"Shared KB article {hit.get('article_id', '')}".strip()],
+            summary=article.get("summary", article.get("title", "")),
+            capability="one-source-of-truth",
+            actions_taken=[f"Shared OST article {article.get('article_id', '')}".strip()],
         ).model_dump(),
-        "trace": _trace("knowledge", hit=True, article=hit.get("article_id")),
+        "trace": _trace("knowledge", hit=True, article=article.get("article_id")),
     }
 
 
@@ -360,7 +372,11 @@ def compose(state: GraphState) -> dict:
         "ticket_id": state.get("ticket_id"),
         "order_context": state.get("order_context"),
     }
-    assistant_msg = {"role": "assistant", "content": text, "card": card}
+    assistant_msg: dict = {"role": "assistant", "content": text, "card": card}
+    # Attach an OST knowledge article as an A2UI element when the answer came from OST.
+    article = state.get("article")
+    if article:
+        assistant_msg["a2ui"] = [article]
     return {"messages": [assistant_msg], "trace": _trace("compose", status=res.status)}
 
 
