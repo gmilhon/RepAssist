@@ -6,19 +6,23 @@ the chat renders as rich, interactive cards. The tool decides *what* to show; th
 client decides *how* to render it. This keeps the agent↔UI contract explicit and
 makes the chat feel like a workspace, not just a text box.
 
-Four elements ship today, revealed on demand from the chat sidebar (the default
-view leads with first-step CTA tiles instead — see
-[Default chat view](#default-chat-view-first-step-ctas)):
+Five element types ship today. The default view leads with first-step CTA tiles
+(see [Default chat view](#default-chat-view-first-step-ctas)); the rest are
+revealed from the sidebar or returned inline by the graph:
 
-- **Recent orders** — orders the rep has recently serviced (from the *orders* MCP
-  server). One tap picks up that order and starts the conversation.
-- **Your open tickets** — the rep's currently-open tickets (from the *tickets* MCP
-  server). One tap asks the agent for a recap and next steps.
-- **System enhancements** — what's new in Rep Assist, in plain language (from the
-  *system* MCP server). Includes suggested questions; the rep can ask follow-up
-  system questions that are **orchestrated back to the MCP** to answer.
-- **Morning Huddle** — a curated field-news feed: new promos, device launches,
-  policy and network updates (from the *news* MCP server).
+- **Recent orders** — orders the rep has recently serviced (*orders* server). One
+  tap picks up that order and starts the conversation.
+- **Your open tickets** — the rep's currently-open tickets (*tickets* server).
+- **System enhancements** — what's new in Rep Assist, in plain language (*system*
+  server). Includes suggested questions **orchestrated back to the MCP** to answer.
+- **The Opener** — the start-of-shift brief (*news* server; element type stays
+  `morning_huddle` internally): a **To-Do checklist** plus emoji-rich **field news**
+  (promos, launches, policy, network). Items are **managed on the Settings page**
+  and can **link to an OST article**; the To-Do items are checkable.
+- **Knowledge article** — the answer to a knowledge/how-to question (promo details,
+  how to apply a discount, why a first bill is high), from the **OST (One Source of
+  Truth)** server. Returned *inline by the graph* when triage routes a question to
+  knowledge, and also opened from a "Read article" link in The Opener.
 
 No typing an order id or ticket number from memory.
 
@@ -128,12 +132,15 @@ backend/app/mcp/
 ├── tickets_stub.py    # "tickets" server: get_open_tickets        → open_tickets
 ├── system_stub.py     # "system"  server: get_system_enhancements → system_enhancements
 │                       #                   answer_system_question  (system Q&A)
-└── news_stub.py       # "news"    server: get_morning_huddle      → morning_huddle
+├── news_stub.py       # "news"    server: get_morning_huddle      → morning_huddle (DB-backed)
+└── ost_stub.py        # "ost"     server: search_articles / get_article → knowledge_article
 ```
 
 Each stub represents a **distinct upstream system** (orders, ticketing, product
-release notes, field news), registered on the shared `MCPClient` under its own
-server name.
+release notes, field news, knowledge base), registered on the shared `MCPClient`
+under its own server name. The **news** server reads its feed from the
+`huddle_items` table (managed on the Settings page via `/api/huddle`); the **OST**
+server is the knowledge base that answers how-to / "details about" questions.
 
 ### `MCPClient` (stub)
 
@@ -157,17 +164,44 @@ this is the single file to replace when the real orders service is available.
 One endpoint per element-producing MCP tool:
 
 ```
-GET /api/mcp/recent-orders?rep_id=…   → { "elements": [ { "type": "recent_orders", … } ] }
-GET /api/mcp/open-tickets?rep_id=…    → { "elements": [ { "type": "open_tickets",  … } ] }
-GET /api/mcp/system-enhancements      → { "elements": [ { "type": "system_enhancements", … } ] }
-GET /api/mcp/morning-huddle           → { "elements": [ { "type": "morning_huddle", … } ] }
+GET /api/mcp/recent-orders?rep_id=…   → recent_orders
+GET /api/mcp/open-tickets?rep_id=…    → open_tickets
+GET /api/mcp/system-enhancements      → system_enhancements
+GET /api/mcp/morning-huddle           → morning_huddle
+GET /api/mcp/ost-search?q=…           → knowledge_article (best match)
+GET /api/mcp/ost-article?id=OST-1002  → knowledge_article (by id; used by huddle links)
 ```
 
 Defined in [`backend/app/api/mcp.py`](../backend/app/api/mcp.py), registered in
 [`backend/app/main.py`](../backend/app/main.py). The chat fetches each on demand
-when its sidebar tile is tapped. The `system` server's `answer_system_question`
-tool has no endpoint — it's invoked from inside the graph (see
-[System Q&A](#system-qa-orchestrated-through-the-mcp)).
+when its sidebar tile (or a huddle "Read article" link) is tapped. Two tools have
+no HTTP endpoint — they're invoked from inside the graph: `answer_system_question`
+(see [System Q&A](#system-qa-orchestrated-through-the-mcp)) and OST
+`search_articles` (see [Knowledge answers](#knowledge-answers-inline-a2ui-from-ost)).
+
+### Inline A2UI in chat responses
+
+Besides the sidebar-revealed elements, the graph can return an A2UI element **as
+part of a chat answer**. The `ChatResponse` carries an `a2ui` field (surfaced by
+`_shape` from the last assistant message), and a chat message can hold text, a
+resolution card, *and* A2UI elements. This is how OST knowledge answers arrive
+(below).
+
+### Knowledge answers (inline A2UI from OST)
+
+When triage routes a question to the `general`/`billing` intent, the `knowledge`
+node calls the **OST** server's `search_articles`. On a hit it attaches the
+`knowledge_article` element to the composed reply (via the `article` state field);
+on a miss it falls back to a ticket. So "how do I apply a discount?" comes back as
+a short reply **plus a formatted article card**. The Morning-Huddle "Read article"
+links call `ost-article` by id to reveal the same card on demand.
+
+### Voice input
+
+The composer has a **mic button** (next to Send) for voice-to-text via the Web
+Speech API (`webkitSpeechRecognition`). It's shown only where supported and
+degrades gracefully otherwise. Code: `toggleMic` in
+[`ChatWidget.tsx`](../frontend/src/components/ChatWidget.tsx).
 
 ---
 
@@ -223,7 +257,7 @@ proactively-loaded data. Three tile groups:
   prompt immediately**; the assistant then **asks a follow-up** for the specifics
   it needs (see [Clarify + slot-fill](#follow-up-questions-clarify--slot-fill)).
 - **Look up** — `Recent orders`, `My open tickets` → reveal the A2UI card on demand.
-- **Briefings** — `System enhancements`, `Morning huddle` → reveal the A2UI card.
+- **Briefings** — `System enhancements`, `The Opener` → reveal the A2UI card.
 
 This keeps the landing view uncluttered while the MCP-backed cards stay one tap
 away.
@@ -313,14 +347,18 @@ and delete `orders_stub.py`. Nothing in `api/mcp.py` or the frontend changes.
 | `backend/app/mcp/orders_stub.py` | "orders" server + mock recent-orders data |
 | `backend/app/mcp/tickets_stub.py` | "tickets" server + mock open-tickets data |
 | `backend/app/mcp/system_stub.py` | "system" server: enhancements + `answer_system_question` |
-| `backend/app/mcp/news_stub.py` | "news" server + mock Morning Huddle feed |
+| `backend/app/mcp/news_stub.py` | "news" server: DB-backed The Opener feed (To-Do + news) |
+| `backend/app/mcp/ost_stub.py` | "ost" server: knowledge articles (`search_articles` / `get_article`) |
 | `backend/app/mcp/__init__.py` | Exports `MCPClient`, `get_mcp_client` |
-| `backend/app/api/mcp.py` | The four element endpoints |
-| `backend/app/graph/nodes.py` | `clarify`, `system_help`, slot-fill in `triage` |
-| `backend/app/graph/orchestrator.py` | Wires `clarify` + `system_help` nodes |
-| `backend/app/schemas.py`, `llm.py` | `system` intent |
-| `frontend/src/components/A2UI.tsx` | `A2UIRenderer` registry + the four card components |
-| `frontend/src/components/ChatWidget.tsx` | CTA tiles (send / reveal), on-demand element render |
-| `frontend/src/types.ts` | `A2UIElement` union + element interfaces |
-| `frontend/src/api.ts` | `recentOrders`, `openTickets`, `systemEnhancements`, `morningHuddle` |
-| `frontend/src/styles.css` | `a2ui-*` + `cta-*` styles |
+| `backend/app/api/mcp.py` | The six element endpoints |
+| `backend/app/api/huddle.py` | The Opener CRUD + OST article picker (Settings) |
+| `backend/app/store/models.py` | `HuddleItem` model |
+| `backend/app/graph/nodes.py` | `clarify`, `system_help`, OST `knowledge`, slot-fill in `triage` |
+| `backend/app/graph/orchestrator.py` | Wires nodes; `a2ui` in `_shape` |
+| `backend/app/schemas.py`, `llm.py` | `system` intent + knowledge/how-to routing |
+| `frontend/src/components/A2UI.tsx` | `A2UIRenderer` registry + the five card components |
+| `frontend/src/components/ChatWidget.tsx` | CTA tiles, inline a2ui, article open, mic |
+| `frontend/src/components/SettingsPage.tsx` | The Opener management section |
+| `frontend/src/types.ts` | `A2UIElement` union + element/huddle interfaces |
+| `frontend/src/api.ts` | MCP element methods + huddle CRUD |
+| `frontend/src/styles.css` | `a2ui-*` + `cta-*` + mic styles |
