@@ -216,28 +216,30 @@ def _make_ticket(
         resolved_by=None, resolved_at=None,
     )
 
+    # SQLAlchemy persists these enums by NAME (e.g. "OPEN"), so raw-SQL inserts
+    # must use the enum name, not its lowercase value.
     if fate < 0.20:
-        tickets.append({**base, "status": "open"})
+        tickets.append({**base, "status": TicketStatus.OPEN.name})
         return
     if fate < 0.28:
-        tickets.append({**base, "status": "in_review", "assigned_to": rng.choice(TIER2)})
+        tickets.append({**base, "status": TicketStatus.IN_REVIEW.name, "assigned_to": rng.choice(TIER2)})
         return
 
     res_at   = (created + timedelta(hours=round(rng.uniform(0.5, 36), 1))).isoformat()
     gap_pool = GAP_POOL[intent]
 
     if fate < 0.36:
-        tickets.append({**base, "status": "closed", "updated_at": res_at,
+        tickets.append({**base, "status": TicketStatus.CLOSED.name, "updated_at": res_at,
                         "resolution_notes": "Handled one-off; no capability gap.",
-                        "root_cause_category": summary, "gap_type": "none",
+                        "root_cause_category": summary, "gap_type": GapType.NONE.name,
                         "resolved_by": rng.choice(TIER2), "resolved_at": res_at})
         return
 
     cap, gap = rng.choice(gap_pool)
-    tickets.append({**base, "status": "resolved", "updated_at": res_at,
+    tickets.append({**base, "status": TicketStatus.RESOLVED.name, "updated_at": res_at,
                     "resolution_notes": "Root cause identified and added to backlog.",
                     "root_cause_category": summary, "recommended_capability": cap,
-                    "gap_type": gap.value, "resolved_by": rng.choice(TIER2),
+                    "gap_type": gap.name, "resolved_by": rng.choice(TIER2),
                     "resolved_at": res_at})
 
 
