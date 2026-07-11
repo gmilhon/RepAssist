@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { api } from "../api";
 import type { A2UIElement, ChatResponse, ConfirmationPayload, ResolutionCard } from "../types";
 import { A2UIRenderer } from "./A2UI";
@@ -7,14 +7,23 @@ interface Msg {
   role: "user" | "assistant";
   content?: string;
   card?: ResolutionCard | null;
+  a2ui?: A2UIElement[];
 }
 
-const QUICK_STARTS = [
-  "Order ACT-1001 is stuck in activation, the SIM won't activate",
-  "ORD-2002 is blocking the customer's new upgrade order",
-  "Account AC-3003 is missing their BOGO promo credit",
-  "Why is the customer's first bill so high?",
-  "Customer wants to rename their smartwatch watch face",
+// First-step CTAs — tapping one drops a starter into the composer and focuses it
+// so the rep adds the order/account id before sending.
+const FIRST_STEPS: { icon: string; label: string; starter: string }[] = [
+  { icon: "⚡", label: "Fix an activation", starter: "A line is stuck in activation — order " },
+  { icon: "🔓", label: "Unblock an order", starter: "An order is blocking the customer's new order — order " },
+  { icon: "🏷️", label: "Apply a promo", starter: "A promo or credit didn't apply — account " },
+  { icon: "💵", label: "Explain a charge", starter: "The customer has a question about a charge — account " },
+  { icon: "🎁", label: "Request a credit", starter: "The customer is requesting a credit — account " },
+];
+
+// Context lookups — tapping one reveals the matching A2UI card in the chat.
+const LOOKUPS: { icon: string; label: string; kind: "orders" | "tickets" }[] = [
+  { icon: "📦", label: "Recent orders", kind: "orders" },
+  { icon: "🎫", label: "My open tickets", kind: "tickets" },
 ];
 
 const STATUS_LABEL: Record<string, string> = {
@@ -31,18 +40,36 @@ export default function ChatWidget() {
   const [pending, setPending] = useState<ConfirmationPayload | null>(null);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [a2ui, setA2ui] = useState<A2UIElement[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  // Proactively load A2UI elements (recent orders) from the MCP layer on mount.
-  useEffect(() => {
-    api.recentOrders().then((r) => setA2ui(r.elements)).catch(() => setA2ui([]));
-  }, []);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   function scrollDown() {
     requestAnimationFrame(() => {
       scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
     });
+  }
+
+  // First-step tile → prefill the composer and focus (cursor at end).
+  function prefill(starter: string) {
+    setInput(starter);
+    requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (el) {
+        el.focus();
+        el.setSelectionRange(el.value.length, el.value.length);
+      }
+    });
+  }
+
+  // Lookup tile → fetch the A2UI element from the MCP layer and show it as a card.
+  async function showLookup(kind: "orders" | "tickets") {
+    try {
+      const res = kind === "orders" ? await api.recentOrders() : await api.openTickets();
+      setMessages((m) => [...m, { role: "assistant", a2ui: res.elements }]);
+      scrollDown();
+    } catch {
+      /* MCP unavailable — silently ignore */
+    }
   }
 
   function applyResponse(res: ChatResponse) {
@@ -88,37 +115,52 @@ export default function ChatWidget() {
     setMessages([]);
     setThreadId(null);
     setPending(null);
+    setInput("");
   }
 
   return (
     <div className="chat-shell">
       <div className="chat-side">
-        <h3>Common issues</h3>
-        <p className="muted">Tap to start, or type your own.</p>
-        {QUICK_STARTS.map((q) => (
-          <button key={q} className="chip" disabled={busy} onClick={() => send(q)}>
-            {q}
-          </button>
-        ))}
+        <h3>First steps</h3>
+        <p className="muted">Tap to begin, or type your own.</p>
+
+        <div className="cta-tiles">
+          {FIRST_STEPS.map((s) => (
+            <button key={s.label} className="cta-tile" disabled={busy} onClick={() => prefill(s.starter)}>
+              <span className="cta-tile-icon">{s.icon}</span>
+              <span className="cta-tile-label">{s.label}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="cta-subhead">Look up</div>
+        <div className="cta-tiles">
+          {LOOKUPS.map((c) => (
+            <button
+              key={c.kind}
+              className="cta-tile cta-tile--lookup"
+              disabled={busy}
+              onClick={() => showLookup(c.kind)}
+            >
+              <span className="cta-tile-icon">{c.icon}</span>
+              <span className="cta-tile-label">{c.label}</span>
+              <span className="cta-tile-chevron">›</span>
+            </button>
+          ))}
+        </div>
+
         <button className="reset" onClick={reset}>↺ New conversation</button>
       </div>
 
       <div className="chat-main">
         <div className="messages" ref={scrollRef}>
           {messages.length === 0 && (
-            <div className="chat-intro">
-              <div className="empty">
-                <h2>How can I help with this order?</h2>
-                <p className="muted">
-                  Describe the activation, pending order, promo, or billing issue. I'll
-                  resolve it with the right agent — or open a ticket for a specialist.
-                </p>
-              </div>
-              {a2ui.length > 0 && (
-                <div className="a2ui-stack">
-                  <A2UIRenderer elements={a2ui} onAction={send} />
-                </div>
-              )}
+            <div className="empty">
+              <h2>How can I help with this order?</h2>
+              <p className="muted">
+                Pick a first step, or describe the activation, pending order, promo,
+                or billing issue in your own words.
+              </p>
             </div>
           )}
 
@@ -126,6 +168,7 @@ export default function ChatWidget() {
             <div key={i} className={`bubble ${m.role}`}>
               {m.content && <div className="bubble-text">{m.content}</div>}
               {m.card && <Card card={m.card} />}
+              {m.a2ui && <A2UIRenderer elements={m.a2ui} onAction={send} />}
             </div>
           ))}
 
@@ -160,6 +203,7 @@ export default function ChatWidget() {
           }}
         >
           <input
+            ref={inputRef}
             value={input}
             disabled={busy}
             placeholder="Describe the order or service issue…"

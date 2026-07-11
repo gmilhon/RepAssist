@@ -69,7 +69,28 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 }
 .chip:hover:not(:disabled) { border-color: var(--vz-red); background: #fff; }
 .chip:disabled { opacity: 0.5; cursor: default; }
-.reset { margin-top: 10px; background: none; border: none; color: var(--vz-red); cursor: pointer; font-weight: 600; font-size: 13px; padding: 4px 0; }
+.reset { margin-top: 16px; background: none; border: none; color: var(--vz-red); cursor: pointer; font-weight: 600; font-size: 13px; padding: 4px 0; }
+
+/* ── first-step CTA tiles (chat sidebar) ── */
+.cta-tiles { display: flex; flex-direction: column; gap: 8px; }
+.cta-tile {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; cursor: pointer;
+  background: #fafbfc; border: 1px solid var(--line); border-radius: 10px;
+  padding: 11px 12px; font: inherit; color: var(--ink);
+  transition: border-color 0.12s, background 0.12s, transform 0.06s;
+}
+.cta-tile:hover:not(:disabled) { border-color: var(--vz-red); background: #fff; }
+.cta-tile:active:not(:disabled) { transform: translateY(1px); }
+.cta-tile:disabled { opacity: 0.5; cursor: default; }
+.cta-tile-icon { font-size: 16px; line-height: 1; width: 20px; text-align: center; flex-shrink: 0; }
+.cta-tile-label { font-size: 13px; font-weight: 600; flex: 1; }
+.cta-tile-chevron { color: #b0b4bb; font-size: 18px; font-weight: 700; line-height: 1; }
+.cta-subhead {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+  color: var(--ink-2); margin: 18px 0 8px;
+}
+.cta-tile--lookup { background: #fff; }
+.cta-tile--lookup .cta-tile-label { color: var(--ink-2); }
 
 .chat-main { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
 .messages { flex: 1; min-height: 0; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 14px; }
@@ -119,9 +140,33 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 .a2ui-order-foot {
   display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px;
 }
-.a2ui-order-cust { font-size: 12px; font-weight: 600; color: var(--ink); }
+.a2ui-order-cust {
+  font-size: 12px; font-weight: 600; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
 .a2ui-order-time { font-weight: 400; color: #9aa0a8; }
-.a2ui-order-cta { font-size: 12px; font-weight: 700; color: var(--info); white-space: nowrap; }
+.a2ui-order-cta { font-size: 12px; font-weight: 700; color: var(--info); white-space: nowrap; flex-shrink: 0; }
+
+/* open-tickets element (reuses .a2ui-card / .a2ui-orders / .a2ui-order) */
+.a2ui-pri {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
+  padding: 2px 7px; border-radius: 999px; white-space: nowrap;
+}
+.a2ui-pri--high   { background: #fdeaea; color: var(--vz-red); }
+.a2ui-pri--normal { background: #eef0f2; color: var(--ink-2); }
+.a2ui-pri--low    { background: #eef0f2; color: #9aa0a8; }
+.a2ui-ticket-sum {
+  font-size: 12.5px; color: var(--ink); line-height: 1.35;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.a2ui-dot {
+  width: 7px; height: 7px; border-radius: 50%; margin-right: 6px;
+  display: inline-block; vertical-align: middle; margin-top: -2px;
+}
+.a2ui-dot--ok     { background: var(--ok); }
+.a2ui-dot--warn   { background: var(--warn); }
+.a2ui-dot--info   { background: var(--info); }
+.a2ui-dot--danger { background: var(--vz-red); }
 @media (max-width: 560px) { .a2ui-orders { grid-template-columns: 1fr; } }
 
 .bubble { max-width: 760px; }
