@@ -15,6 +15,9 @@ backend/.env
 frontend/node_modules/
 frontend/dist/
 
+# Built frontend bundle (regenerated into the image by deploy.sh)
+backend/static/
+
 # OS
 .DS_Store
 
