@@ -21,7 +21,7 @@ h2, h3, h4 { margin: 0 0 8px; }
 .pad { padding: 16px; }
 code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; }
 
-.app { height: 100vh; display: flex; flex-direction: column; }
+.app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
 
 /* ---- top bar ---- */
 .topbar {
@@ -800,8 +800,17 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
     padding: 14px 16px;
   }
   .chat-main { flex: 1; min-height: 0; }
-  .messages { padding: 16px 14px; gap: 12px; }
-  .composer { padding: 12px 14px; }
+  .messages { padding: 16px 14px; gap: 12px; padding-bottom: 80px; }
+  .composer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 10px 14px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    z-index: 50;
+    box-shadow: 0 -1px 0 var(--line);
+  }
   .empty { margin-top: 5vh; }
   .bubble { max-width: 88%; }
 
