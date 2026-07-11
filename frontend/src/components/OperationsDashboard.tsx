@@ -388,13 +388,19 @@ function TicketStat({ label, value, tone }: { label: string; value: ReactNode; t
 }
 
 function TimeSeries({ data }: { data: MetricsOverview["timeseries"] }) {
-  const W = Math.max(520, data.length * 48);
+  // Fixed viewBox: a constant aspect ratio keeps the chart from collapsing
+  // vertically when there are many days (e.g. YTD ~ 190 points). Bar widths
+  // and label density adapt to the number of points instead of the width.
+  const W = 760;
   const H = 170;
   const pad = { l: 28, r: 8, t: 12, b: 26 };
+  const n = Math.max(1, data.length);
   const max = Math.max(1, ...data.map((d) => d.auto_resolved + d.escalated));
   const innerH = H - pad.t - pad.b;
-  const step = (W - pad.l - pad.r) / data.length;
-  const bw = Math.min(26, step * 0.6);
+  const step = (W - pad.l - pad.r) / n;
+  const bw = Math.max(1.5, Math.min(26, step * 0.7));
+  // Cap visible x-axis labels to ~12 so they never overlap.
+  const labelEvery = Math.max(1, Math.ceil(n / 12));
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="ts" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Interactions per day, resolved versus escalated">
@@ -414,9 +420,9 @@ function TimeSeries({ data }: { data: MetricsOverview["timeseries"] }) {
         const label = d.date.slice(5);
         return (
           <g key={d.date}>
-            <rect x={x} y={yR} width={bw} height={rH} className="ts-resolved" rx={2} />
-            <rect x={x} y={yE} width={bw} height={eH} className="ts-escalated" rx={2} />
-            {i % 2 === 0 && <text x={x + bw / 2} y={H - 8} className="ts-axis" textAnchor="middle">{label}</text>}
+            <rect x={x} y={yR} width={bw} height={rH} className="ts-resolved" rx={bw > 3 ? 2 : 0} />
+            <rect x={x} y={yE} width={bw} height={eH} className="ts-escalated" rx={bw > 3 ? 2 : 0} />
+            {i % labelEvery === 0 && <text x={x + bw / 2} y={H - 8} className="ts-axis" textAnchor="middle">{label}</text>}
           </g>
         );
       })}
