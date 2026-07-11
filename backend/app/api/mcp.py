@@ -30,3 +30,17 @@ def open_tickets(
     """The rep's open tickets, as an A2UI `open_tickets` element."""
     client = get_mcp_client()
     return client.call_tool("tickets", "get_open_tickets", {"rep_id": rep_id, "limit": limit})
+
+
+@router.get("/system-enhancements")
+def system_enhancements() -> dict:
+    """Recent system enhancements, as an A2UI `system_enhancements` element."""
+    client = get_mcp_client()
+    return client.call_tool("system", "get_system_enhancements", {})
+
+
+@router.get("/morning-huddle")
+def morning_huddle() -> dict:
+    """Today's field news, as an A2UI `morning_huddle` element."""
+    client = get_mcp_client()
+    return client.call_tool("news", "get_morning_huddle", {})

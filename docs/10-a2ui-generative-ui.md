@@ -6,15 +6,19 @@ the chat renders as rich, interactive cards. The tool decides *what* to show; th
 client decides *how* to render it. This keeps the agent↔UI contract explicit and
 makes the chat feel like a workspace, not just a text box.
 
-Two elements ship today, revealed on demand from the chat's **"Look up"** tiles
-(the default view leads with first-step CTA tiles instead — see
+Four elements ship today, revealed on demand from the chat sidebar (the default
+view leads with first-step CTA tiles instead — see
 [Default chat view](#default-chat-view-first-step-ctas)):
 
 - **Recent orders** — orders the rep has recently serviced (from the *orders* MCP
   server). One tap picks up that order and starts the conversation.
-- **Your open tickets** — the rep's currently-open tickets that still need
-  attention (from the *tickets* MCP server). One tap asks the agent for a recap
-  and next steps.
+- **Your open tickets** — the rep's currently-open tickets (from the *tickets* MCP
+  server). One tap asks the agent for a recap and next steps.
+- **System enhancements** — what's new in Rep Assist, in plain language (from the
+  *system* MCP server). Includes suggested questions; the rep can ask follow-up
+  system questions that are **orchestrated back to the MCP** to answer.
+- **Morning Huddle** — a curated field-news feed: new promos, device launches,
+  policy and network updates (from the *news* MCP server).
 
 No typing an order id or ticket number from memory.
 
@@ -120,12 +124,16 @@ Two fields make an element renderable and interactive:
 backend/app/mcp/
 ├── __init__.py        # exports MCPClient, get_mcp_client
 ├── client.py          # MCPClient — in-process stand-in for a real MCP client
-├── orders_stub.py     # "orders" MCP server:  get_recent_orders → recent_orders
-└── tickets_stub.py    # "tickets" MCP server: get_open_tickets  → open_tickets
+├── orders_stub.py     # "orders"  server: get_recent_orders      → recent_orders
+├── tickets_stub.py    # "tickets" server: get_open_tickets        → open_tickets
+├── system_stub.py     # "system"  server: get_system_enhancements → system_enhancements
+│                       #                   answer_system_question  (system Q&A)
+└── news_stub.py       # "news"    server: get_morning_huddle      → morning_huddle
 ```
 
-Each stub represents a **distinct upstream system** (an order service vs. the
-ticketing system), registered on the shared `MCPClient` under its own server name.
+Each stub represents a **distinct upstream system** (orders, ticketing, product
+release notes, field news), registered on the shared `MCPClient` under its own
+server name.
 
 ### `MCPClient` (stub)
 
@@ -146,16 +154,20 @@ this is the single file to replace when the real orders service is available.
 
 ### API
 
-One endpoint per MCP tool (1:1 mapping):
+One endpoint per element-producing MCP tool:
 
 ```
-GET /api/mcp/recent-orders?rep_id=rep.demo&limit=6  → { "elements": [ { "type": "recent_orders", … } ] }
-GET /api/mcp/open-tickets?rep_id=rep.demo&limit=6   → { "elements": [ { "type": "open_tickets",  … } ] }
+GET /api/mcp/recent-orders?rep_id=…   → { "elements": [ { "type": "recent_orders", … } ] }
+GET /api/mcp/open-tickets?rep_id=…    → { "elements": [ { "type": "open_tickets",  … } ] }
+GET /api/mcp/system-enhancements      → { "elements": [ { "type": "system_enhancements", … } ] }
+GET /api/mcp/morning-huddle           → { "elements": [ { "type": "morning_huddle", … } ] }
 ```
 
 Defined in [`backend/app/api/mcp.py`](../backend/app/api/mcp.py), registered in
-[`backend/app/main.py`](../backend/app/main.py). The chat fetches both in parallel
-on mount and concatenates the elements (each source degrades independently).
+[`backend/app/main.py`](../backend/app/main.py). The chat fetches each on demand
+when its sidebar tile is tapped. The `system` server's `answer_system_question`
+tool has no endpoint — it's invoked from inside the graph (see
+[System Q&A](#system-qa-orchestrated-through-the-mcp)).
 
 ---
 
@@ -203,18 +215,37 @@ unchanged.
 
 ### Default chat view (first-step CTAs)
 
-The default (empty) view leads with **first-step CTA tiles** in the sidebar rather
-than proactively-loaded data. Two tile groups:
+The default (empty) view leads with **CTA tiles** in the sidebar rather than
+proactively-loaded data. Three tile groups:
 
 - **First steps** — action CTAs (`Fix an activation`, `Unblock an order`, `Apply a
-  promo`, `Explain a charge`, `Request a credit`). Tapping one **prefills the
-  composer** with a starter phrase and focuses it, so the rep adds the id and
-  sends.
-- **Look up** — `Recent orders` and `My open tickets`, which fetch and reveal the
-  corresponding A2UI card on demand (above).
+  promo`, `Explain a charge`, `Request a credit`). Tapping one **sends a starter
+  prompt immediately**; the assistant then **asks a follow-up** for the specifics
+  it needs (see [Clarify + slot-fill](#follow-up-questions-clarify--slot-fill)).
+- **Look up** — `Recent orders`, `My open tickets` → reveal the A2UI card on demand.
+- **Briefings** — `System enhancements`, `Morning huddle` → reveal the A2UI card.
 
 This keeps the landing view uncluttered while the MCP-backed cards stay one tap
 away.
+
+### Follow-up questions (clarify + slot-fill)
+
+Because a first-step tile sends a prompt with no id, the graph **asks for it**
+instead of escalating. A `clarify` node returns the question (e.g. "what's the
+order ID?") and records what it's `awaiting`. When the rep replies with the id,
+`triage` **slot-fills**: it sees the `awaiting` field is now satisfied and resumes
+the prior intent instead of re-classifying a bare "ACT-1001". The resolver then
+runs normally. Code: `route_after_triage`, `clarify`, and the slot-fill block in
+`triage` ([`backend/app/graph/nodes.py`](../backend/app/graph/nodes.py)).
+
+### System Q&A (orchestrated through the MCP)
+
+The System-enhancements card carries **suggested questions**, and the rep can also
+type their own. A new **`system` intent** routes these to a `system_help` node
+that calls the *system* MCP server's `answer_system_question` tool and returns its
+answer — the MCP is the source of truth, the graph just orchestrates. Code: the
+`system` intent in [`llm.py`](../backend/app/llm.py) + `schemas.py`, and the
+`system_help` node in [`nodes.py`](../backend/app/graph/nodes.py).
 
 ### Types & API client
 
@@ -279,13 +310,17 @@ and delete `orders_stub.py`. Nothing in `api/mcp.py` or the frontend changes.
 | File | Role |
 |---|---|
 | `backend/app/mcp/client.py` | `MCPClient` stub — the swappable MCP boundary |
-| `backend/app/mcp/orders_stub.py` | "orders" MCP server + mock recent-orders data |
-| `backend/app/mcp/tickets_stub.py` | "tickets" MCP server + mock open-tickets data |
+| `backend/app/mcp/orders_stub.py` | "orders" server + mock recent-orders data |
+| `backend/app/mcp/tickets_stub.py` | "tickets" server + mock open-tickets data |
+| `backend/app/mcp/system_stub.py` | "system" server: enhancements + `answer_system_question` |
+| `backend/app/mcp/news_stub.py` | "news" server + mock Morning Huddle feed |
 | `backend/app/mcp/__init__.py` | Exports `MCPClient`, `get_mcp_client` |
-| `backend/app/api/mcp.py` | `GET /api/mcp/recent-orders`, `GET /api/mcp/open-tickets` |
-| `backend/app/main.py` | Registers the MCP router |
-| `frontend/src/components/A2UI.tsx` | `A2UIRenderer` registry + `RecentOrdersCard` + `OpenTicketsCard` |
-| `frontend/src/components/ChatWidget.tsx` | Loads elements on mount; renders in empty state |
-| `frontend/src/types.ts` | `A2UIElement` union + order/ticket interfaces |
-| `frontend/src/api.ts` | `api.recentOrders()`, `api.openTickets()` |
-| `frontend/src/styles.css` | `a2ui-*` styles (2-col desktop, 1-col mobile) |
+| `backend/app/api/mcp.py` | The four element endpoints |
+| `backend/app/graph/nodes.py` | `clarify`, `system_help`, slot-fill in `triage` |
+| `backend/app/graph/orchestrator.py` | Wires `clarify` + `system_help` nodes |
+| `backend/app/schemas.py`, `llm.py` | `system` intent |
+| `frontend/src/components/A2UI.tsx` | `A2UIRenderer` registry + the four card components |
+| `frontend/src/components/ChatWidget.tsx` | CTA tiles (send / reveal), on-demand element render |
+| `frontend/src/types.ts` | `A2UIElement` union + element interfaces |
+| `frontend/src/api.ts` | `recentOrders`, `openTickets`, `systemEnhancements`, `morningHuddle` |
+| `frontend/src/styles.css` | `a2ui-*` + `cta-*` styles |

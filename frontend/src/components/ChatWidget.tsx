@@ -10,20 +10,28 @@ interface Msg {
   a2ui?: A2UIElement[];
 }
 
-// First-step CTAs — tapping one drops a starter into the composer and focuses it
-// so the rep adds the order/account id before sending.
-const FIRST_STEPS: { icon: string; label: string; starter: string }[] = [
-  { icon: "⚡", label: "Fix an activation", starter: "A line is stuck in activation — order " },
-  { icon: "🔓", label: "Unblock an order", starter: "An order is blocking the customer's new order — order " },
-  { icon: "🏷️", label: "Apply a promo", starter: "A promo or credit didn't apply — account " },
-  { icon: "💵", label: "Explain a charge", starter: "The customer has a question about a charge — account " },
-  { icon: "🎁", label: "Request a credit", starter: "The customer is requesting a credit — account " },
+// First-step CTAs — tapping one sends a starter prompt; the assistant then asks
+// for the specifics it needs (order/account id).
+const FIRST_STEPS: { icon: string; label: string; prompt: string }[] = [
+  { icon: "⚡", label: "Fix an activation", prompt: "I have a line stuck in activation that I need to fix." },
+  { icon: "🔓", label: "Unblock an order", prompt: "A customer's order is blocked and I need to release it." },
+  { icon: "🏷️", label: "Apply a promo", prompt: "A promo didn't apply to a customer's account." },
+  { icon: "💵", label: "Explain a charge", prompt: "I need help explaining a charge on the customer's bill." },
+  { icon: "🎁", label: "Request a credit", prompt: "The customer is requesting a bill credit." },
 ];
 
+type LookupKind = "orders" | "tickets" | "system" | "huddle";
+
 // Context lookups — tapping one reveals the matching A2UI card in the chat.
-const LOOKUPS: { icon: string; label: string; kind: "orders" | "tickets" }[] = [
+const LOOKUPS: { icon: string; label: string; kind: LookupKind }[] = [
   { icon: "📦", label: "Recent orders", kind: "orders" },
   { icon: "🎫", label: "My open tickets", kind: "tickets" },
+];
+
+// Briefings — MCP-backed informational cards.
+const BRIEFINGS: { icon: string; label: string; kind: LookupKind }[] = [
+  { icon: "✨", label: "System enhancements", kind: "system" },
+  { icon: "☀️", label: "Morning huddle", kind: "huddle" },
 ];
 
 const STATUS_LABEL: Record<string, string> = {
@@ -41,7 +49,6 @@ export default function ChatWidget() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   function scrollDown() {
     requestAnimationFrame(() => {
@@ -49,22 +56,14 @@ export default function ChatWidget() {
     });
   }
 
-  // First-step tile → prefill the composer and focus (cursor at end).
-  function prefill(starter: string) {
-    setInput(starter);
-    requestAnimationFrame(() => {
-      const el = inputRef.current;
-      if (el) {
-        el.focus();
-        el.setSelectionRange(el.value.length, el.value.length);
-      }
-    });
-  }
-
-  // Lookup tile → fetch the A2UI element from the MCP layer and show it as a card.
-  async function showLookup(kind: "orders" | "tickets") {
+  // Lookup/briefing tile → fetch the A2UI element from the MCP layer and show it.
+  async function showLookup(kind: LookupKind) {
     try {
-      const res = kind === "orders" ? await api.recentOrders() : await api.openTickets();
+      const res =
+        kind === "orders" ? await api.recentOrders()
+        : kind === "tickets" ? await api.openTickets()
+        : kind === "system" ? await api.systemEnhancements()
+        : await api.morningHuddle();
       setMessages((m) => [...m, { role: "assistant", a2ui: res.elements }]);
       scrollDown();
     } catch {
@@ -126,7 +125,7 @@ export default function ChatWidget() {
 
         <div className="cta-tiles">
           {FIRST_STEPS.map((s) => (
-            <button key={s.label} className="cta-tile" disabled={busy} onClick={() => prefill(s.starter)}>
+            <button key={s.label} className="cta-tile" disabled={busy} onClick={() => send(s.prompt)}>
               <span className="cta-tile-icon">{s.icon}</span>
               <span className="cta-tile-label">{s.label}</span>
             </button>
@@ -136,6 +135,22 @@ export default function ChatWidget() {
         <div className="cta-subhead">Look up</div>
         <div className="cta-tiles">
           {LOOKUPS.map((c) => (
+            <button
+              key={c.kind}
+              className="cta-tile cta-tile--lookup"
+              disabled={busy}
+              onClick={() => showLookup(c.kind)}
+            >
+              <span className="cta-tile-icon">{c.icon}</span>
+              <span className="cta-tile-label">{c.label}</span>
+              <span className="cta-tile-chevron">›</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="cta-subhead">Briefings</div>
+        <div className="cta-tiles">
+          {BRIEFINGS.map((c) => (
             <button
               key={c.kind}
               className="cta-tile cta-tile--lookup"
@@ -203,7 +218,6 @@ export default function ChatWidget() {
           }}
         >
           <input
-            ref={inputRef}
             value={input}
             disabled={busy}
             placeholder="Describe the order or service issue…"

@@ -31,6 +31,8 @@ TRIAGE_SYSTEM = (
     "(e.g. waived activation fee, credit for a service outage, courtesy credit)\n"
     "- billing: a billing or charge question that is not a credit request\n"
     "- general: a how-to / policy question answerable from knowledge\n"
+    "- system: a question about Rep Assist itself — its features, recent "
+    "enhancements/updates, or how to use the assistant\n"
     "- other: anything that needs a human and does not fit above\n"
     "Extract any order id (ACT-#### or ORD-####) and account id (AC-####). "
     "Be calibrated: use low confidence when the request is vague."
@@ -103,7 +105,12 @@ def _mock_classify(text: str) -> TriageResult:
     def has(*words: str) -> bool:
         return any(w in t for w in words)
 
-    if has("activat", "provision", "sim card", "won't turn on", "not active", "no service"):
+    # System/product questions first — distinctive phrasing so normal order
+    # requests never match here.
+    if has("rep assist", "what's new", "whats new", "new feature", "enhancement",
+           "how does this system", "what can you do", "how do i use", "the assistant"):
+        intent, conf = "system", 0.85
+    elif has("activat", "provision", "sim card", "won't turn on", "not active", "no service"):
         intent, conf = "activation", 0.82
     elif has("pending", "blocking", "blocked", "stuck order", "can't order"):
         intent, conf = "pending_order", 0.82

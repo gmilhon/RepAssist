@@ -32,6 +32,8 @@ def _build() :
     builder = StateGraph(GraphState)
 
     builder.add_node("triage", nodes.triage)
+    builder.add_node("clarify", nodes.clarify)
+    builder.add_node("system_help", nodes.system_help)
     builder.add_node("activation", nodes.activation_resolver)
     builder.add_node("pending_order", nodes.pending_order_resolver)
     builder.add_node("promo", nodes.promo_resolver)
@@ -46,6 +48,8 @@ def _build() :
         "triage",
         nodes.route_after_triage,
         {
+            "clarify": "clarify",
+            "system_help": "system_help",
             "activation": "activation",
             "pending_order": "pending_order",
             "promo": "promo",
@@ -54,6 +58,9 @@ def _build() :
             "ticket_fallback": "ticket_fallback",
         },
     )
+    # clarify and system_help are terminal — they reply directly.
+    builder.add_edge("clarify", END)
+    builder.add_edge("system_help", END)
     for resolver in ("activation", "pending_order", "promo", "occ"):
         builder.add_conditional_edges(
             resolver,

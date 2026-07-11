@@ -1,4 +1,12 @@
-import type { A2UIElement, A2UIOpenTickets, A2UIOrder, A2UIRecentOrders, A2UITicket } from "../types";
+import type {
+  A2UIElement,
+  A2UIMorningHuddle,
+  A2UIOpenTickets,
+  A2UIOrder,
+  A2UIRecentOrders,
+  A2UISystemEnhancements,
+  A2UITicket,
+} from "../types";
 
 /**
  * A2UI (agent-to-UI) renderer.
@@ -22,6 +30,10 @@ export function A2UIRenderer({
             return <RecentOrdersCard key={i} el={el} onAction={onAction} />;
           case "open_tickets":
             return <OpenTicketsCard key={i} el={el} onAction={onAction} />;
+          case "system_enhancements":
+            return <SystemEnhancementsCard key={i} el={el} onAction={onAction} />;
+          case "morning_huddle":
+            return <MorningHuddleCard key={i} el={el} />;
           default:
             return null; // unknown element types are ignored, not fatal
         }
@@ -133,5 +145,69 @@ function TicketRow({
         <span className="a2ui-order-cta">Open →</span>
       </div>
     </button>
+  );
+}
+
+function SystemEnhancementsCard({
+  el,
+  onAction,
+}: {
+  el: A2UISystemEnhancements;
+  onAction: (prompt: string) => void;
+}) {
+  return (
+    <div className="a2ui-card">
+      <div className="a2ui-card-head">
+        <span className="a2ui-card-eyebrow">✦ What's new</span>
+        <h4 className="a2ui-card-title">{el.title}</h4>
+        {el.subtitle && <p className="a2ui-card-sub">{el.subtitle}</p>}
+      </div>
+      <ul className="a2ui-enh-list">
+        {el.enhancements.map((e) => (
+          <li key={e.title} className="a2ui-enh">
+            <span className={`a2ui-enh-tag a2ui-enh-tag--${e.tag.toLowerCase()}`}>{e.tag}</span>
+            <div className="a2ui-enh-body">
+              <div className="a2ui-enh-title">{e.title}</div>
+              <div className="a2ui-enh-detail">{e.detail}</div>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {el.suggestions.length > 0 && (
+        <div className="a2ui-ask">
+          <span className="a2ui-ask-label">Ask about these:</span>
+          <div className="a2ui-ask-chips">
+            {el.suggestions.map((q) => (
+              <button key={q} className="a2ui-ask-chip" onClick={() => onAction(q)}>
+                {q}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MorningHuddleCard({ el }: { el: A2UIMorningHuddle }) {
+  return (
+    <div className="a2ui-card">
+      <div className="a2ui-card-head">
+        <span className="a2ui-card-eyebrow">☀ Morning Huddle</span>
+        <h4 className="a2ui-card-title">{el.title}</h4>
+        {el.subtitle && <p className="a2ui-card-sub">{el.subtitle}</p>}
+      </div>
+      <ul className="a2ui-news-list">
+        {el.items.map((n) => (
+          <li key={n.title} className="a2ui-news">
+            <span className={`a2ui-news-cat a2ui-news-cat--${n.tone}`}>{n.category}</span>
+            <div className="a2ui-news-body">
+              <div className="a2ui-news-title">{n.title}</div>
+              <div className="a2ui-news-blurb">{n.blurb}</div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

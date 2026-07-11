@@ -14,6 +14,7 @@ class Intent(str, Enum):
     OCC = "occ"
     BILLING = "billing"
     GENERAL = "general"
+    SYSTEM = "system"
     OTHER = "other"
 
 
@@ -26,6 +27,7 @@ INTENT_TO_CAPABILITY = {
     Intent.OCC: "occ-credit-agent",
     Intent.BILLING: "billing-knowledge-base",
     Intent.GENERAL: "knowledge-base",
+    Intent.SYSTEM: "system-mcp",
     Intent.OTHER: "human-tier-2",
 }
 
@@ -34,7 +36,7 @@ class TriageResult(BaseModel):
     """Structured output of the triage/classification step."""
 
     intent: Literal[
-        "activation", "pending_order", "promo", "occ", "billing", "general", "other"
+        "activation", "pending_order", "promo", "occ", "billing", "general", "system", "other"
     ] = Field(description="Best-matching issue category for the rep's request.")
     confidence: float = Field(
         description="0.0–1.0 confidence in the chosen intent.", ge=0.0, le=1.0

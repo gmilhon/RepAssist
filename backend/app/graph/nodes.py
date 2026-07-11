@@ -30,7 +30,25 @@ INTENT_CAPABILITY = {
     "occ": "occ-credit-agent",
     "billing": "billing-knowledge-base",
     "general": "knowledge-base",
+    "system": "system-mcp",
     "other": "human-tier-2",
+}
+
+# Intents that need an id before a resolver can act. If it's missing, the graph
+# asks the rep for it (clarify) instead of escalating.
+NEEDS_ID = {
+    "activation": "order_id",
+    "pending_order": "order_id",
+    "promo": "account_id",
+    "occ": "account_id",
+}
+
+# The question the assistant asks when the required id is missing.
+CLARIFY_QUESTION = {
+    "activation": "Happy to help with the activation — what's the order ID? (it looks like ACT-1234)",
+    "pending_order": "I can look into the blocked order — what's the order ID? (ACT-#### or ORD-####)",
+    "promo": "Sure — what's the customer's account ID? (AC-1234) I'll check the promo.",
+    "occ": "I can help with that credit — what's the customer's account ID? (AC-1234)",
 }
 
 
@@ -52,27 +70,39 @@ def triage(state: GraphState) -> dict:
     text = _last_user_text(state)
     result = llm.classify(text)
 
-    # Merge regex-extracted entities with whatever the classifier returned.
-    entities = llm.extract_entities(text)
+    # Merge newly-extracted entities with any carried from earlier turns.
+    entities = {**(state.get("entities") or {}), **llm.extract_entities(text)}
     if result.order_id:
         entities.setdefault("order_id", result.order_id)
     if result.account_id:
         entities.setdefault("account_id", result.account_id)
+
+    intent = result.intent
+    confidence = result.confidence
+
+    # Slot-fill: if the assistant just asked for an id and the rep's reply now
+    # supplies it, resume the prior intent instead of re-classifying the bare id.
+    awaiting = state.get("awaiting")
+    prior_intent = state.get("intent")
+    if awaiting and prior_intent and entities.get(awaiting):
+        intent = prior_intent
+        confidence = max(confidence, 0.9)
 
     ctx = agents_client.order_context(
         entities.get("order_id"), entities.get("account_id")
     )
 
     return {
-        "intent": result.intent,
-        "confidence": result.confidence,
+        "intent": intent,
+        "confidence": confidence,
         "entities": entities,
         "order_context": ctx,
         "triage_summary": result.summary,  # ignored by state schema but handy in trace
+        "awaiting": None,                   # cleared; clarify re-sets if still missing
         "trace": _trace(
             "triage",
-            intent=result.intent,
-            confidence=result.confidence,
+            intent=intent,
+            confidence=confidence,
             entities=entities,
         ),
     }
@@ -82,8 +112,13 @@ def route_after_triage(state: GraphState) -> str:
     threshold = get_settings().triage_confidence_threshold
     intent = state.get("intent") or "other"
     confidence = state.get("confidence") or 0.0
+    entities = state.get("entities", {})
     if confidence < threshold:
         return "ticket_fallback"
+    # Ask for a missing required id rather than escalating.
+    needed = NEEDS_ID.get(intent)
+    if needed and not entities.get(needed):
+        return "clarify"
     return {
         "activation": "activation",
         "pending_order": "pending_order",
@@ -91,8 +126,49 @@ def route_after_triage(state: GraphState) -> str:
         "occ": "occ",
         "billing": "knowledge",
         "general": "knowledge",
+        "system": "system_help",
         "other": "ticket_fallback",
     }.get(intent, "ticket_fallback")
+
+
+# --------------------------------------------------------------------------- #
+# 1b. Clarify — ask the rep for a missing id (no ticket, conversation continues)
+# --------------------------------------------------------------------------- #
+def clarify(state: GraphState) -> dict:
+    intent = state.get("intent") or "other"
+    field = NEEDS_ID.get(intent, "order_id")
+    question = CLARIFY_QUESTION.get(
+        intent, "Which order or account should I look at?"
+    )
+    return {
+        "awaiting": field,
+        "resolution": Resolution(status="info", summary=question).model_dump(),
+        "messages": [{"role": "assistant", "content": question, "card": None}],
+        "trace": _trace("clarify", intent=intent, awaiting=field),
+    }
+
+
+# --------------------------------------------------------------------------- #
+# 1c. System help — answer questions about Rep Assist via the system MCP tool
+# --------------------------------------------------------------------------- #
+def system_help(state: GraphState) -> dict:
+    from ..mcp import get_mcp_client
+
+    question = _last_user_text(state)
+    try:
+        result = get_mcp_client().call_tool(
+            "system", "answer_system_question", {"question": question}
+        )
+        answer = result.get("answer", "")
+    except Exception as exc:  # noqa: BLE001 - degrade gracefully
+        logger.warning("system MCP answer failed (%s)", exc)
+        answer = "I can help with questions about Rep Assist — try asking what's new."
+
+    return {
+        "resolution": Resolution(status="info", summary=answer, capability="system-mcp").model_dump(),
+        "messages": [{"role": "assistant", "content": answer, "card": None}],
+        "trace": _trace("system_help"),
+    }
 
 
 # --------------------------------------------------------------------------- #

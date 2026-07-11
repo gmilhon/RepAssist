@@ -21,6 +21,7 @@ class GraphState(TypedDict, total=False):
     triage_summary: Optional[str]
     entities: dict
     order_context: Optional[dict]
+    awaiting: Optional[str]             # entity the assistant asked the rep for (slot-fill)
 
     # Resolution flow
     route: Optional[str]               # set by nodes, read by conditional edges

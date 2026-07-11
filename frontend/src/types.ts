@@ -40,7 +40,39 @@ export interface A2UIOpenTickets {
   tickets: A2UITicket[];
 }
 
-export type A2UIElement = A2UIRecentOrders | A2UIOpenTickets;
+export interface A2UIEnhancement {
+  tag: string;
+  title: string;
+  detail: string;
+}
+
+export interface A2UISystemEnhancements {
+  type: "system_enhancements";
+  title: string;
+  subtitle?: string;
+  enhancements: A2UIEnhancement[];
+  suggestions: string[];
+}
+
+export interface A2UIHuddleItem {
+  category: string;
+  tone: "ok" | "warn" | "info" | "danger";
+  title: string;
+  blurb: string;
+}
+
+export interface A2UIMorningHuddle {
+  type: "morning_huddle";
+  title: string;
+  subtitle?: string;
+  items: A2UIHuddleItem[];
+}
+
+export type A2UIElement =
+  | A2UIRecentOrders
+  | A2UIOpenTickets
+  | A2UISystemEnhancements
+  | A2UIMorningHuddle;
 
 export interface A2UIResponse {
   elements: A2UIElement[];
