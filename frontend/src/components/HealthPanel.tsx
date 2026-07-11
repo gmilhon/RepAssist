@@ -13,6 +13,16 @@ const STATUS_LABEL: Record<string, string> = {
   outage: "Service outage",
 };
 
+const REGIONS = [
+  { key: "east",    label: "US East",    sub: "AWS us-east-1"   },
+  { key: "central", label: "US Central", sub: "GCP us-central1" },
+  { key: "west",    label: "US West",    sub: "AWS us-west-2"   },
+] as const;
+
+type RegionKey = "east" | "central" | "west";
+
+interface RegionResult { ms: number | null; error: boolean; }
+
 function getBrowserInfo(): string {
   const ua = navigator.userAgent;
   if (ua.includes("Edg/")) return "Edge";
@@ -69,6 +79,15 @@ export default function HealthPanel({ health, onClose }: Props) {
   const [pingError, setPingError] = useState(false);
   const [pinging, setPinging] = useState(false);
   const [clientIp, setClientIp] = useState<string>("—");
+
+  const [regionResults, setRegionResults] = useState<Record<RegionKey, RegionResult>>({
+    east:    { ms: null, error: false },
+    central: { ms: null, error: false },
+    west:    { ms: null, error: false },
+  });
+  const [connectedRegion, setConnectedRegion] = useState<string>("us-central");
+  const [pingingRegions, setPingingRegions] = useState(false);
+
   const [lsCount, setLsCount] = useState(0);
   const [ssCount, setSsCount] = useState(0);
   const [cleared, setCleared] = useState(false);
@@ -78,7 +97,7 @@ export default function HealthPanel({ health, onClose }: Props) {
     setLsCount(localStorage.length);
     setSsCount(sessionStorage.length);
     runPing();
-    // Close on Escape
+    runRegionPings();
     function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -92,12 +111,36 @@ export default function HealthPanel({ health, onClose }: Props) {
       const r = await api.ping();
       setPingMs(Math.round(performance.now() - t0));
       setClientIp(r.client_ip);
+      if (r.region) setConnectedRegion(r.region);
     } catch {
       setPingError(true);
       setPingMs(null);
     } finally {
       setPinging(false);
     }
+  }
+
+  async function runRegionPings() {
+    setPingingRegions(true);
+    const next: Record<RegionKey, RegionResult> = {
+      east:    { ms: null, error: false },
+      central: { ms: null, error: false },
+      west:    { ms: null, error: false },
+    };
+    await Promise.all(
+      (["east", "central", "west"] as RegionKey[]).map(async (region) => {
+        const t0 = performance.now();
+        try {
+          const r = await api.pingRegion(region);
+          next[region] = { ms: Math.round(performance.now() - t0), error: false };
+          if (region === "central" && r.region) setConnectedRegion(r.region);
+        } catch {
+          next[region] = { ms: null, error: true };
+        }
+      })
+    );
+    setRegionResults(next);
+    setPingingRegions(false);
   }
 
   function clearCache() {
@@ -110,6 +153,12 @@ export default function HealthPanel({ health, onClose }: Props) {
   }
 
   const s = health.status;
+
+  // max ms across regions for normalising the bars
+  const maxRegionMs = Math.max(
+    ...Object.values(regionResults).map(r => r.ms ?? 0),
+    1
+  );
 
   return (
     <>
@@ -158,6 +207,45 @@ export default function HealthPanel({ health, onClose }: Props) {
             )}
           </div>
         )}
+
+        {/* ── Server Regions ─────────────────────────────────────────── */}
+        <div className="hpanel-section">
+          <div className="hpanel-section-head hpanel-section-head--row">
+            Server Regions
+            <button className="hpanel-action-btn" onClick={runRegionPings} disabled={pingingRegions}>
+              {pingingRegions ? "Checking…" : "Re-check"}
+            </button>
+          </div>
+          <div className="hpanel-regions">
+            {REGIONS.map(({ key, label, sub }) => {
+              const r = regionResults[key];
+              const isConnected = connectedRegion === `us-${key}`;
+              const tone = r.error ? "danger" : r.ms !== null ? pingTone(r.ms) : undefined;
+              const barPct = r.ms !== null ? Math.round((r.ms / maxRegionMs) * 100) : 0;
+              return (
+                <div key={key} className={`hpanel-region${isConnected ? " hpanel-region--connected" : ""}`}>
+                  <div className="hpanel-region-indicator">
+                    <span className={`hpanel-region-dot${isConnected ? " hpanel-region-dot--on" : ""}`} />
+                    {isConnected && <span className="hpanel-region-connected-label">Connected</span>}
+                  </div>
+                  <div className="hpanel-region-name">{label}</div>
+                  <div className="hpanel-region-sub">{sub}</div>
+                  <div className={`hpanel-region-ms${tone ? ` hpanel-region-ms--${tone}` : ""}`}>
+                    {pingingRegions ? "…" : r.error ? "Failed" : r.ms !== null ? `${r.ms} ms` : "—"}
+                  </div>
+                  <div className="hpanel-region-bar-bg">
+                    {r.ms !== null && (
+                      <div
+                        className={`hpanel-region-bar-fill${tone ? ` hpanel-region-bar-fill--${tone}` : ""}`}
+                        style={{ width: `${barPct}%` }}
+                      />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
         {/* Live diagnostics */}
         <div className="hpanel-section">

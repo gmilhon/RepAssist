@@ -26,6 +26,8 @@ export const api = {
   setSystemHealth: (body: { status: string; description: string; workaround: string; hard_stop: boolean }) =>
     http<SystemHealth>("/api/system-health", { method: "POST", body: JSON.stringify(body) }),
   ping: () => http<PingResult>("/api/system-health/ping"),
+  pingRegion: (region: "east" | "central" | "west") =>
+    http<PingResult>(`/api/system-health/ping/${region}`),
 
   chat: (message: string, thread_id: string | null, rep_id = "rep.demo", initial_entities?: Record<string, string>) =>
     http<ChatResponse>("/api/chat", {

@@ -288,6 +288,7 @@ export interface PingResult {
   ok: boolean;
   server_ts: string;
   client_ip: string;
+  region?: string;
 }
 
 export interface MetricsOverview {

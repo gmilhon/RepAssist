@@ -5,7 +5,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/system-health", tags=["system-health"])
@@ -78,4 +78,30 @@ def ping(request: Request) -> dict:
         "ok": True,
         "server_ts": datetime.now(timezone.utc).isoformat(),
         "client_ip": client_ip,
+        "region": "us-central",
+    }
+
+
+_REGION_LABELS = {
+    "east":    "us-east",
+    "central": "us-central",
+    "west":    "us-west",
+}
+
+
+@router.get("/ping/{region}")
+def ping_region(region: str, request: Request) -> dict:
+    if region not in _REGION_LABELS:
+        raise HTTPException(status_code=404, detail="Unknown region")
+    forwarded = request.headers.get("x-forwarded-for", "")
+    client_ip = (
+        forwarded.split(",")[0].strip()
+        if forwarded
+        else (request.client.host if request.client else "unknown")
+    )
+    return {
+        "ok": True,
+        "server_ts": datetime.now(timezone.utc).isoformat(),
+        "client_ip": client_ip,
+        "region": _REGION_LABELS[region],
     }
