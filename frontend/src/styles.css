@@ -545,3 +545,92 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 .settings-check { display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--ink-2); white-space: nowrap; cursor: pointer; }
 .settings-check input[type="checkbox"] { cursor: pointer; }
 .settings-add-error { margin-top: 8px; font-size: 12px; color: var(--vz-red); }
+
+/* ================================================================= */
+/* Responsive / mobile                                                 */
+/*   Breakpoints:                                                       */
+/*     <=1024  tablets & Fold (open): topbar reflows                    */
+/*     <=900   iPad Mini portrait: detail two-col collapses            */
+/*     <=680   phones: master/detail views stack, tighter padding      */
+/*     <=640   phones: hide status pills                                */
+/* ================================================================= */
+
+/* ---- Topbar: reflow on tablets, Fold, and small laptops ---- */
+@media (max-width: 1024px) {
+  .topbar {
+    height: auto;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+    padding: 8px 14px;
+  }
+  .brand { margin-right: auto; }
+  .brand-sub { display: none; }               /* non-essential; biggest space hog */
+  .topbar-pills { margin-left: 0; }
+  .tabs {
+    order: 3;                                  /* drop to a second row */
+    width: 100%;
+    margin-left: 0;
+    overflow-x: auto;                          /* horizontally scrollable strip */
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;                     /* Firefox */
+  }
+  .tabs::-webkit-scrollbar { display: none; }  /* WebKit */
+  .tab { flex: 0 0 auto; white-space: nowrap; }
+}
+
+/* ---- Phones: drop the dev status pills ---- */
+@media (max-width: 640px) {
+  .topbar-pills { display: none; }
+}
+
+/* ---- Ticket detail: single column before the pane gets too narrow ---- */
+@media (max-width: 900px) {
+  .detail-grid { grid-template-columns: 1fr; }
+}
+
+/* ---- Phones: stack master/detail views and tighten spacing ---- */
+@media (max-width: 680px) {
+  /* Chat: quick-issue list on top (capped), conversation below */
+  .chat-shell { display: flex; flex-direction: column; min-height: 0; }
+  .chat-side {
+    max-height: 38vh;
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+    padding: 14px 16px;
+  }
+  .chat-main { flex: 1; min-height: 0; }
+  .messages { padding: 16px 14px; gap: 12px; }
+  .composer { padding: 12px 14px; }
+  .empty { margin-top: 5vh; }
+  .bubble { max-width: 88%; }
+
+  /* Resolution Desk: queue on top (capped), detail below */
+  .desk { display: flex; flex-direction: column; min-height: 0; }
+  .queue {
+    max-height: 42vh;
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+  .detail { flex: 1; min-height: 0; padding: 16px 14px; }
+  .detail-head { flex-wrap: wrap; gap: 8px; }
+  .form-row { grid-template-columns: 1fr; }
+  .resolve-form .form-actions { flex-wrap: wrap; }
+
+  /* Dashboards: tighter gutters + headers that wrap instead of overflow */
+  .dash { padding: 16px 14px; }
+  .cx-dashboard { padding: 16px 14px; }
+  .insights { padding: 18px 14px; }
+  .settings-page { padding: 16px 14px; }
+  .dash-head { flex-wrap: wrap; gap: 10px; }
+  .panel-head { flex-wrap: wrap; gap: 4px 10px; }
+  .exec-summary-head { flex-wrap: wrap; gap: 8px; }
+
+  /* Date range bar: drop the divider, left-align inputs when wrapped */
+  .date-divider { display: none; }
+  .date-inputs { margin-left: 0; }
+
+  /* Email preview iframe: shorter on phones */
+  .send-report-preview-frame { height: 380px; }
+}
