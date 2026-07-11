@@ -1,6 +1,7 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
-import type { ChatResponse, ConfirmationPayload, ResolutionCard } from "../types";
+import type { A2UIElement, ChatResponse, ConfirmationPayload, ResolutionCard } from "../types";
+import { A2UIRenderer } from "./A2UI";
 
 interface Msg {
   role: "user" | "assistant";
@@ -30,7 +31,13 @@ export default function ChatWidget() {
   const [pending, setPending] = useState<ConfirmationPayload | null>(null);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [a2ui, setA2ui] = useState<A2UIElement[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Proactively load A2UI elements (recent orders) from the MCP layer on mount.
+  useEffect(() => {
+    api.recentOrders().then((r) => setA2ui(r.elements)).catch(() => setA2ui([]));
+  }, []);
 
   function scrollDown() {
     requestAnimationFrame(() => {
@@ -99,12 +106,19 @@ export default function ChatWidget() {
       <div className="chat-main">
         <div className="messages" ref={scrollRef}>
           {messages.length === 0 && (
-            <div className="empty">
-              <h2>How can I help with this order?</h2>
-              <p className="muted">
-                Describe the activation, pending order, promo, or billing issue. I'll
-                resolve it with the right agent — or open a ticket for a specialist.
-              </p>
+            <div className="chat-intro">
+              <div className="empty">
+                <h2>How can I help with this order?</h2>
+                <p className="muted">
+                  Describe the activation, pending order, promo, or billing issue. I'll
+                  resolve it with the right agent — or open a ticket for a specialist.
+                </p>
+              </div>
+              {a2ui.length > 0 && (
+                <div className="a2ui-stack">
+                  <A2UIRenderer elements={a2ui} onAction={send} />
+                </div>
+              )}
             </div>
           )}
 

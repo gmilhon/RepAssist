@@ -1,3 +1,32 @@
+// ── A2UI (agent-to-UI) elements ──────────────────────────────────────────
+// Structured UI component specs returned by MCP tools; the chat renders each
+// element by its `type`. Extend the union as new element types are added.
+export interface A2UIOrder {
+  order_id: string;
+  order_type: string;
+  status: string;
+  status_tone: "ok" | "warn" | "info" | "danger";
+  device: string | null;
+  line: string | null;
+  account_id: string | null;
+  customer: string | null;
+  opened_label: string;
+  prompt: string;
+}
+
+export interface A2UIRecentOrders {
+  type: "recent_orders";
+  title: string;
+  subtitle?: string;
+  orders: A2UIOrder[];
+}
+
+export type A2UIElement = A2UIRecentOrders;
+
+export interface A2UIResponse {
+  elements: A2UIElement[];
+}
+
 export interface ResolutionCard {
   intent: string | null;
   status: "resolved" | "proposed" | "cancelled" | "escalated" | "info";

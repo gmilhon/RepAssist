@@ -1,4 +1,4 @@
-import type { CapabilityGap, ChatResponse, CXOverview, EmailSettings, EmailSubscriber, MetricsOverview, PerformanceSummary, SendReportResult, Ticket } from "./types";
+import type { A2UIResponse, CapabilityGap, ChatResponse, CXOverview, EmailSettings, EmailSubscriber, MetricsOverview, PerformanceSummary, SendReportResult, Ticket } from "./types";
 
 async function http<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -32,6 +32,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ thread_id, approved }),
     }),
+
+  // A2UI elements sourced from MCP tools
+  recentOrders: (rep_id = "rep.demo") =>
+    http<A2UIResponse>(`/api/mcp/recent-orders${qs({ rep_id })}`),
 
   listTickets: (status?: string) =>
     http<Ticket[]>(`/api/tickets${status ? `?status=${status}` : ""}`),

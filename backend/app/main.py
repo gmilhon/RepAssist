@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .api import admin, chat, cx, email_reports, insights, metrics, tickets
+from .api import admin, chat, cx, email_reports, insights, mcp, metrics, tickets
 from .config import get_settings
 from .store import db
 
@@ -46,6 +46,7 @@ app.include_router(insights.router)
 app.include_router(metrics.router)
 app.include_router(cx.router)
 app.include_router(email_reports.router)
+app.include_router(mcp.router)
 
 
 @app.on_event("startup")
