@@ -132,7 +132,7 @@ def _header(title: str, period: str) -> str:
                            padding:4px 8px; border-radius:5px; margin-right:10px;">✓</span>
               <span style="color:#fff; font-size:18px; font-weight:800;">Rep Assist</span>
               <span style="color:#9ca3af; font-size:12px; margin-left:8px;">
-                Verizon POS · {title}
+                Assisted Sales &amp; Service · {title}
               </span>
             </td>
             <td align="right">

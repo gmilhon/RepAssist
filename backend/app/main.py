@@ -29,7 +29,7 @@ if settings.langsmith_enabled:
 app = FastAPI(
     title="Rep Assist Orchestrator",
     version="0.1.0",
-    description="Conversational LangGraph orchestrator for Verizon POS reps.",
+    description="Conversational LangGraph orchestrator — Assisted Sales & Service for retail reps.",
 )
 
 app.add_middleware(

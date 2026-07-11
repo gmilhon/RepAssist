@@ -68,7 +68,7 @@ def analyze(req: AnalyzeRequest, authorization: str | None = Header(default=None
             state="PORT_PENDING",
             faultCode="CARRIER_PORT",
             analysis="Number port from the losing carrier has not completed; "
-                     "this cannot be remediated from POS.",
+                     "this cannot be remediated from the sales counter.",
             remediation=None,
         )
     return AnalyzeResponse(

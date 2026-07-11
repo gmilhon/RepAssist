@@ -80,7 +80,7 @@ A two-pane console:
 | Integration | Separate system the rep context-switches to | Same app surface, same data model as the assistant |
 
 > **Scope note.** This replaces ServiceNow **for the rep order/service-assist
-> lane** described here. It is not a general ITSM replacement. If Verizon needs
+> lane** described here. It is not a general ITSM replacement. If the business needs
 > SLAs, escalation chains, or external-team routing, either extend this schema
 > (add `sla_due`, `queue`, `escalation_tier`) or bridge selected tickets back to
 > the enterprise ITSM via a connector — see the

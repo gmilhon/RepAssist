@@ -52,7 +52,7 @@ def activation_diagnose(req: DiagnoseRequest) -> dict:
         return {"can_resolve": False,
                 "root_cause": "Number port from the losing carrier has not completed.",
                 "summary": "Activation is blocked by an external carrier port that we "
-                           "cannot release from POS."}
+                           "cannot release from the sales counter."}
     return {"can_resolve": True,
             "root_cause": "SIM/eSIM profile was never pushed to the network.",
             "summary": "The line is stuck because provisioning didn't reach the network.",

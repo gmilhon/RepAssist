@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 // During dev, proxy API + health calls to the orchestrator on :8000 so the
-// frontend can use relative URLs (and ship as an embeddable POS widget later).
+// frontend can use relative URLs (and ship as an embeddable sales-app widget later).
 export default defineConfig({
   plugins: [react()],
   server: {

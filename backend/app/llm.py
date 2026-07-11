@@ -21,7 +21,7 @@ ACCOUNT_RE = re.compile(r"\b(AC-\d{3,})\b", re.IGNORECASE)
 MTN_RE = re.compile(r"\b(\d{10})\b")
 
 TRIAGE_SYSTEM = (
-    "You are the triage classifier for a Verizon retail point-of-sale support "
+    "You are the triage classifier for a retail Assisted Sales & Service support "
     "assistant. Reps describe an order or service problem. Classify the request "
     "into exactly one intent:\n"
     "- activation: a line/device is stuck activating or not provisioning\n"
@@ -37,7 +37,7 @@ TRIAGE_SYSTEM = (
 )
 
 COMPOSE_SYSTEM = (
-    "You are Rep Assist, helping a Verizon retail rep resolve a customer order "
+    "You are Rep Assist, helping a retail rep resolve a customer order "
     "issue. Write a short, concrete, friendly reply (2-4 sentences) the rep can "
     "act on. State what was found and what was done or what happens next. Never "
     "invent data beyond the structured context you are given."
@@ -157,7 +157,7 @@ def compose_reply(resolution: Resolution, order_context: dict | None, ticket_id:
 
 
 EXEC_SUMMARY_SYSTEM = (
-    "You are an operations analyst for Verizon's Rep Assist POS support solution. "
+    "You are an operations analyst for the Rep Assist Assisted Sales & Service solution. "
     "You will receive structured KPI and capability-gap data. Write a crisp executive summary "
     "for the Performance dashboard read by VP-level operations leaders. "
     "Be specific with numbers and percentages. Write in plain prose — no bullet points, "

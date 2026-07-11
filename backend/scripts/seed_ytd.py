@@ -87,7 +87,7 @@ SUMMARIES: dict[str, list[str]] = {
     ],
     "other": [
         "Watch face won't rename after update",
-        "eSIM QR prints upside down on old POS",
+        "eSIM QR prints upside down on old sales terminal",
         "Scam-likely label on customer's calls",
         "Voicemail greeting stuck in loop",
         "App crashing on device after OS update",

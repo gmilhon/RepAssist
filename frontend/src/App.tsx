@@ -25,7 +25,7 @@ export default function App() {
         <div className="brand">
           <span className="brand-mark">✓</span>
           <span className="brand-name">Rep Assist</span>
-          <span className="brand-sub">Verizon POS · Order &amp; Service Support</span>
+          <span className="brand-sub">Assisted Sales &amp; Service</span>
         </div>
         <nav className="tabs">
           <button className={tab === "chat" ? "tab active" : "tab"} onClick={() => setTab("chat")}>
