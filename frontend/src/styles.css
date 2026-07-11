@@ -799,6 +799,24 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
     border-bottom: 1px solid var(--line);
     padding: 14px 16px;
   }
+  /* Gradient at bottom signals more content below */
+  .chat-side::after {
+    content: '';
+    display: block;
+    position: sticky;
+    bottom: 0;
+    height: 44px;
+    margin-top: -44px;
+    background: linear-gradient(to bottom, transparent, var(--card));
+    pointer-events: none;
+  }
+  /* 2-column grid halves the vertical footprint of each tile section */
+  .cta-tiles { display: grid; grid-template-columns: 1fr 1fr; }
+  .cta-tile { padding: 10px 10px; }
+  /* Chevron doesn't fit cleanly in compact grid cells */
+  .cta-tile-chevron { display: none; }
+  /* Last odd tile in a section spans both columns instead of orphaning */
+  .cta-tile:last-child:nth-child(odd) { grid-column: span 2; }
   .chat-main { flex: 1; min-height: 0; }
   .messages { padding: 16px 14px; gap: 12px; padding-bottom: 80px; }
   .composer {
