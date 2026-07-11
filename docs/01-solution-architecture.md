@@ -2,13 +2,13 @@
 
 ## 1. System context
 
-Rep Assist sits inside the POS shell and brokers between the rep and the
-existing fleet of resolver agents, the knowledge base, order systems, and the
-human Resolution Desk.
+Rep Assist sits inside the retail sales application and brokers between the rep
+and the existing fleet of resolver agents, the knowledge base, order systems, and
+the human Resolution Desk.
 
 ```mermaid
 flowchart TB
-    subgraph POS["Verizon POS application"]
+    subgraph RetailApp["Retail sales application"]
         Widget["Rep Assist widget<br/>(embedded React)"]
     end
     Rep(["🧑‍💼 Retail Rep"]) --> Widget
@@ -26,7 +26,7 @@ flowchart TB
     Insights --> Orch
 ```
 
-**Trust boundaries.** The rep and Tier 1/2 UIs are authenticated POS surfaces.
+**Trust boundaries.** The rep and Tier 1/2 UIs are authenticated retail surfaces.
 The orchestrator is the only component that talks to the agent services, the
 LLM, and the store; nothing in the browser holds credentials for those systems.
 
@@ -36,12 +36,14 @@ LLM, and the store; nothing in the browser holds credentials for those systems.
 flowchart LR
     subgraph FE["Frontend (Vite/React)"]
         Chat["ChatWidget"]
+        A2UI["A2UIRenderer<br/>(recent orders)"]
         Console["ReviewConsole"]
-        Insights2["InsightsPanel"]
+        Dash["OperationsDashboard<br/>+ CXDashboard"]
+        Settings["SettingsPage"]
     end
 
     subgraph BE["Orchestrator service (FastAPI)"]
-        API["/api/chat, /api/tickets, /api/insights/"]
+        API["/api/chat · /api/tickets · /api/insights<br/>/api/metrics · /api/cx · /api/mcp · /api/email"]
         subgraph G["LangGraph orchestrator"]
             Triage["triage"]
             Route{"router"}
@@ -53,6 +55,7 @@ flowchart LR
             RT["ticket_fallback"]
             RCmp["compose"]
         end
+        MCP["mcp/ — stub MCPClient<br/>+ orders server (A2UI)"]
         LLMmod["llm.py (Claude / mock)"]
         Adapter["agents_client.py"]
         Store["store (SQLModel)"]
@@ -67,9 +70,13 @@ flowchart LR
     end
 
     Chat --> API
+    Chat --> A2UI
+    A2UI --> API
     Console --> API
-    Insights2 --> API
+    Dash --> API
+    Settings --> API
     API --> G
+    API --> MCP
     Triage --> LLMmod
     RCmp --> LLMmod
     Route --> RA & RP & RM & RK
@@ -83,13 +90,16 @@ flowchart LR
 | Component | Responsibility | Code |
 |---|---|---|
 | `ChatWidget` | Rep conversation, resolution cards, confirm/deny | [`frontend/src/components/ChatWidget.tsx`](../frontend/src/components/ChatWidget.tsx) |
+| `A2UIRenderer` | Generative-UI elements in chat (recent orders); `type`→component registry | [`frontend/src/components/A2UI.tsx`](../frontend/src/components/A2UI.tsx) |
 | `ReviewConsole` | Tier 1/2 ticket queue, detail, resolve + feedback | [`frontend/src/components/ReviewConsole.tsx`](../frontend/src/components/ReviewConsole.tsx) |
-| `InsightsPanel` | Ranked capability backlog | [`frontend/src/components/InsightsPanel.tsx`](../frontend/src/components/InsightsPanel.tsx) |
-| API routers | HTTP surface | [`backend/app/api/`](../backend/app/api) |
+| `OperationsDashboard` / `CXDashboard` | Performance KPIs + AI summary; LangSmith CX telemetry | [`frontend/src/components/`](../frontend/src/components) |
+| `SettingsPage` / `SendReportButton` | Email-report subscribers + on-demand send/preview | [`frontend/src/components/`](../frontend/src/components) |
+| API routers | HTTP surface (`chat, tickets, insights, metrics, cx, mcp, email, admin`) | [`backend/app/api/`](../backend/app/api) |
 | Orchestrator graph | Triage → route → resolve → confirm → compose | [`backend/app/graph/`](../backend/app/graph) |
+| **MCP layer (stub)** | Agent-to-UI tool boundary; `orders` server returns A2UI elements | [`backend/app/mcp/`](../backend/app/mcp) |
 | LLM | Triage (structured output) + reply composition | [`backend/app/llm.py`](../backend/app/llm.py) |
 | Agent adapter | HTTP client for existing agents | [`backend/app/integrations/agents_client.py`](../backend/app/integrations/agents_client.py) |
-| Store | Tickets + feedback + analytics | [`backend/app/store/`](../backend/app/store) |
+| Store | Tickets + feedback + analytics + email subscribers | [`backend/app/store/`](../backend/app/store) |
 
 ## 3. Primary sequence — automated resolution with confirmation
 
@@ -208,10 +218,12 @@ per-conversation state so a paused confirmation can resume on the next request.
 | **Deterministic offline fallback** | The assistant degrades gracefully (rule-based triage + templated replies) if the LLM is unavailable or unconfigured — no hard dependency for demos or outages. |
 | **Confirmation gate on writes** | Account-mutating actions require explicit rep approval — safety + auditability. |
 | **Feedback-as-backlog** | Tier 1/2 resolution captures *why* automation failed and *what to build*, turning support toil into a prioritized dev signal. |
+| **A2UI over an MCP boundary** | Tools return structured UI element specs (not prose); the chat renders them via a `type`→component registry. The stub `MCPClient` has a real `tools/call` shape, so a production MCP order service drops in without touching the API or UI. See [A2UI](10-a2ui-generative-ui.md). |
+| **One Cloud Run service (API + built UI)** | FastAPI serves the Vite bundle behind a SPA catch-all — one URL, no CORS, secrets in Secret Manager. See [Deployment](12-deployment-cloud-run.md). |
 
 ## 8. Security & compliance (prototype → production)
 
-- **AuthN/Z.** Production: front both UIs with POS SSO; the orchestrator validates
+- **AuthN/Z.** Production: front both UIs with retail SSO; the orchestrator validates
   the rep/agent identity and role (rep vs. Tier 1/2) on every call. The prototype
   uses a stub `rep_id`.
 - **Least privilege.** Only the orchestrator holds credentials for the agent
@@ -224,8 +236,8 @@ per-conversation state so a paused confirmation can resume on the next request.
   conversation + trace.
 - **Data residency / model hosting.** Claude is available via the first-party
   API, AWS (Claude Platform on AWS / Bedrock), Vertex, and Foundry — choose the
-  deployment that satisfies Verizon's data-residency posture without changing the
-  orchestration code.
+  deployment that satisfies the retailer's data-residency posture without changing
+  the orchestration code.
 
 ## 9. Scalability & reliability
 

@@ -41,6 +41,7 @@ echo "── Enabling GCP APIs..."
 gcloud services enable \
   run.googleapis.com \
   containerregistry.googleapis.com \
+  cloudbuild.googleapis.com \
   secretmanager.googleapis.com \
   --project "$PROJECT" -q
 
@@ -64,6 +65,27 @@ create_secret_if_missing() {
 
 create_secret_if_missing "rep-assist-anthropic-key"  "ANTHROPIC_API_KEY"
 create_secret_if_missing "rep-assist-langsmith-key"  "LANGCHAIN_API_KEY (or leave blank and press Enter)"
+create_secret_if_missing "rep-assist-smtp-password"  "SMTP_PASSWORD for email reports (or leave blank)"
+
+# Admin token gates POST /api/admin/seed — auto-generate if missing.
+if ! gcloud secrets describe "rep-assist-admin-token" --project "$PROJECT" &>/dev/null; then
+  python3 -c "import secrets; print(secrets.token_hex(24))" \
+    | tr -d '\n' \
+    | gcloud secrets create "rep-assist-admin-token" --data-file=- --project "$PROJECT" -q
+  echo "  ✓ Created secret: rep-assist-admin-token (auto-generated)"
+else
+  echo "  ✓ Secret exists: rep-assist-admin-token"
+fi
+
+# --------------------------------------------------------------------------- #
+# 2b. Grant the Cloud Run runtime service account access to the secrets
+# --------------------------------------------------------------------------- #
+echo "── Granting Secret Manager access to the Cloud Run service account..."
+PROJECT_NUMBER=$(gcloud projects describe "$PROJECT" --format "value(projectNumber)")
+gcloud projects add-iam-policy-binding "$PROJECT" \
+  --member "serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
+  --role "roles/secretmanager.secretAccessor" \
+  --project "$PROJECT" -q >/dev/null
 
 # --------------------------------------------------------------------------- #
 # 3. Build frontend
@@ -101,10 +123,10 @@ gcloud run deploy "$SERVICE" \
   --allow-unauthenticated \
   --min-instances 1 \
   --max-instances 1 \
-  --memory 1Gi \
+  --memory 2Gi \
   --cpu 1 \
-  --timeout 60 \
-  --set-secrets "ANTHROPIC_API_KEY=rep-assist-anthropic-key:latest,LANGCHAIN_API_KEY=rep-assist-langsmith-key:latest,SMTP_PASSWORD=rep-assist-smtp-password:latest" \
+  --timeout 600 \
+  --set-secrets "ANTHROPIC_API_KEY=rep-assist-anthropic-key:latest,LANGCHAIN_API_KEY=rep-assist-langsmith-key:latest,SMTP_PASSWORD=rep-assist-smtp-password:latest,ADMIN_TOKEN=rep-assist-admin-token:latest" \
   --set-env-vars "LANGCHAIN_PROJECT=rep-assist,ANTHROPIC_MODEL=claude-opus-4-8,SMTP_HOST=smtp.gmail.com,SMTP_PORT=587,SMTP_USER=milhon@gmail.com,SMTP_FROM=Grady Milhon <milhon@gmail.com>,SMTP_TLS=true"
 
 # --------------------------------------------------------------------------- #

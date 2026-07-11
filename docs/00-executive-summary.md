@@ -2,7 +2,7 @@
 
 ## The problem
 
-Verizon retail reps regularly hit order and service problems they cannot solve
+Retail reps regularly hit order and service problems they cannot solve
 at the counter: a line stuck in **activation**, a **pending order** blocking a
 new one, a **missing promotion**, a **billing** question, and a long tail of
 miscellaneous issues. Today the rep's only options are to **open a ticket** or
@@ -13,12 +13,19 @@ agents — but reps have no single, conversational way to reach them.
 
 ## The solution
 
-**Rep Assist** is a conversational assistant embedded directly in the POS. The
+**Rep Assist** is a conversational **Assisted Sales & Service** assistant embedded
+directly in the rep's sales workflow. The
 rep types the problem in plain language; an **agentic orchestrator** (built on
 LangGraph) understands it, pulls the order context, and routes to the right
 **existing** resolver agent — Activation Resolver, Promo Correction Agent,
 Pending Order Resolver, and the knowledge base. It resolves the issue inline,
 **asking the rep to confirm** any change that touches the customer's account.
+
+The experience is **generative-UI first**: rather than a blank text box, the chat
+leads with **first-step CTAs** and rich, interactive cards a tap away — the rep's
+**recent orders** and **open tickets**. These *agent-to-UI (A2UI)* elements are
+served by a tool boundary (MCP) so the surface grows without rewrites. See
+[A2UI — Agent-to-UI Elements](10-a2ui-generative-ui.md).
 
 When nothing can resolve the issue automatically, Rep Assist **opens a
 structured ticket** to a lightweight **Tier 1/2 Resolution Desk** that replaces
@@ -28,7 +35,7 @@ new agents/skills to build next. The assistant measurably improves over time.
 
 ```mermaid
 flowchart LR
-    A["Rep asks in POS"] --> B["Orchestrator triages<br/>& pulls order context"]
+    A["Rep asks in sales app"] --> B["Orchestrator triages<br/>& pulls order context"]
     B --> C["Routes to existing agent<br/>(activation / promo / pending order / KB)"]
     C --> D["Resolves inline<br/>(rep confirms changes)"]
     B -->|no agent/knowledge| E["Human ticket → Tier 1/2 desk"]
@@ -82,8 +89,17 @@ tag each ticket with a *recommended capability* and *gap type*, which the
 
 ## What exists today vs. what's left
 
-This repository is a **working reference implementation** of the entire flow
-(orchestrator, both UIs, mocked existing agents, ticketing, feedback loop) that
-runs locally. The remaining work to reach a pilot — real agent endpoints, SSO,
-audit logging, observability, and hardening — is enumerated in
+This repository is a **working reference implementation** of the entire flow that
+runs locally *and* deploys to the cloud as one service. It includes:
+
+- the **LangGraph orchestrator** (triage → route → resolve → confirm → compose);
+- the **rep chat** with **A2UI** recent-orders cards and a confirm/deny gate;
+- the **Tier 1/2 Resolution Desk** (ServiceNow replacement) + feedback loop;
+- a **Performance** dashboard (KPIs + AI-written executive summary) and a **CX
+  Monitor** (latency/token/cost via LangSmith);
+- **email reports** with subscriber management, and a responsive UI;
+- **one-command deployment** to Google Cloud Run (Secret Manager, [doc 12](12-deployment-cloud-run.md)).
+
+The remaining work to reach a pilot — real agent endpoints, SSO, audit logging,
+production persistence, and hardening — is enumerated in
 [Roadmap & What You Need To Do](06-roadmap-and-what-you-need-to-do.md).

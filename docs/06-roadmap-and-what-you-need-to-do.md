@@ -12,11 +12,18 @@ next steps.
 - ✅ A working **LangGraph orchestrator**: triage → route → resolve → confirm →
   compose, with durable human-in-the-loop interrupts.
 - ✅ **Rep chat UI** with resolution cards and a confirm/deny gate.
+- ✅ **A2UI (agent-to-UI) generative elements** — proactive "recent orders" cards
+  in the chat, served by a **stubbed MCP layer** ([doc 10](10-a2ui-generative-ui.md)).
 - ✅ **Tier 1/2 Resolution Desk** (ServiceNow replacement) with full context
   capture and a feedback form.
-- ✅ **Capability backlog** analytics that rank what to build next.
+- ✅ **Performance dashboard** (deflection KPIs + an AI-written executive summary)
+  and **capability backlog** analytics that rank what to build next.
+- ✅ **CX Monitor** — latency/token/cost telemetry via LangSmith ([doc 09](09-cx-monitor.md)).
+- ✅ **Email reports** with subscriber management + SMTP/preview ([doc 11](11-email-reports.md)).
 - ✅ **Mocked existing-agent microservices** with realistic contracts.
 - ✅ Offline mock LLM + live Claude (official SDK, structured-output triage).
+- ✅ **Responsive UI** (phone / tablet / foldable) + **one-command Cloud Run
+  deployment** ([doc 12](12-deployment-cloud-run.md)).
 - ✅ Tests + smoke driver.
 
 Everything below is what's needed to make it real.
@@ -78,7 +85,7 @@ selective auto-approval for the safest, highest-confidence actions.
 - [ ] Add prompt-caching for the (stable) triage system prompt to cut cost.
 
 ### 3. Security, identity & compliance
-- [ ] Front both UIs and the API with **POS SSO**; pass the rep/agent identity and
+- [ ] Front both UIs and the API with **retail SSO**; pass the rep/agent identity and
       role to the orchestrator; enforce rep vs. Tier 1/2 authorization on every route.
 - [ ] Add **audit logging** for every `execute` (who/what/params/outcome) to your
       SIEM; retain ticket conversation + trace per policy.
@@ -99,12 +106,18 @@ selective auto-approval for the safest, highest-confidence actions.
 - [ ] Alerting on agent timeouts/error spikes and LLM fallbacks.
 - [ ] Health/readiness probes; graceful shutdown; rate limiting.
 
-### 6. Frontend / POS embedding
-- [ ] Embed `ChatWidget` in the POS shell (iframe or web component); pass the POS
-      session/rep context in; theme to the POS design system.
+### 6. Frontend / sales-app embedding & A2UI
+- [ ] Embed `ChatWidget` in the sales-app shell (iframe or web component); pass the
+      sales-app session/rep context in; theme to the retail design system.
 - [ ] Point the API base at the real gateway (replace the Vite dev proxy).
 - [ ] Optional: streaming responses (SSE) for a more responsive feel.
 - [ ] Accessibility pass (WCAG) and localization.
+- [ ] **A2UI:** replace the stub MCP layer with a real MCP client to the orders
+      service (keep `MCPClient.call_tool()`'s shape; delete `orders_stub.py`).
+      Pass the real `rep_id` from the sales-app session instead of `rep.demo`.
+- [ ] **A2UI:** add element types as the experience grows — customer summary, plan
+      comparison, upgrade eligibility — via the `A2UIRenderer` registry
+      ([doc 10](10-a2ui-generative-ui.md)).
 
 ### 7. Resolution Desk hardening
 - [ ] Add SLA timers, queues/assignment rules, and notifications if needed.
@@ -120,7 +133,7 @@ selective auto-approval for the safest, highest-confidence actions.
 
 ### 9. Testing & release
 - [ ] Contract tests against each real agent; integration tests on the full graph.
-- [ ] Load tests at expected POS concurrency.
+- [ ] Load tests at expected retail (sales-floor) concurrency.
 - [ ] Canary + rollback plan; feature-flag each agent so you can enable/disable
       automation per intent independently.
 
@@ -139,7 +152,7 @@ selective auto-approval for the safest, highest-confidence actions.
    choice per route.
 5. **Decide the ServiceNow boundary** for this lane (full replace vs. bridge) so
    the desk scope is fixed before pilot.
-6. **Stand up Phase 1** (read-only + escalation) in a non-prod POS environment
+6. **Stand up Phase 1** (read-only + escalation) in a non-prod retail environment
    behind SSO, and start collecting triage-accuracy and deflection data.
 
 > Tackle in this order: **#1 integrate agents → #3 security/SSO → #4 persistence →

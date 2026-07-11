@@ -1,0 +1,291 @@
+# A2UI — Agent-to-UI Elements in the Chat
+
+**A2UI** (agent-to-UI) is Rep Assist's generative-UI layer. Instead of every
+agent response being prose, tools can return **structured UI element specs** that
+the chat renders as rich, interactive cards. The tool decides *what* to show; the
+client decides *how* to render it. This keeps the agent↔UI contract explicit and
+makes the chat feel like a workspace, not just a text box.
+
+Two elements ship today, revealed on demand from the chat's **"Look up"** tiles
+(the default view leads with first-step CTA tiles instead — see
+[Default chat view](#default-chat-view-first-step-ctas)):
+
+- **Recent orders** — orders the rep has recently serviced (from the *orders* MCP
+  server). One tap picks up that order and starts the conversation.
+- **Your open tickets** — the rep's currently-open tickets that still need
+  attention (from the *tickets* MCP server). One tap asks the agent for a recap
+  and next steps.
+
+No typing an order id or ticket number from memory.
+
+> **Where the data comes from.** Elements are sourced from **MCP tools**. The
+> prototype ships a *stubbed* MCP layer with mock data so the feature is fully
+> functional offline; swapping in a real MCP service is a localized change
+> (see [Extending](#extending-swap-the-stub-for-a-real-mcp-server)).
+
+---
+
+## Why it matters
+
+| Outcome | How A2UI drives it |
+|---|---|
+| **Faster start** | The rep resumes recent work in one tap instead of recalling and typing an order id. |
+| **Proactive context** | The agent surfaces what the rep is likely working on before they ask. |
+| **Fewer errors** | Order ids, devices, and customers come from the system of record, not rep memory. |
+| **Extensible surface** | A registry pattern means new element types (customer summary, plan comparison, device timeline) are additive — no chat rewrites. |
+
+---
+
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph FE["Frontend (React)"]
+        Chat["ChatWidget"]
+        R["A2UIRenderer<br/>(type → component)"]
+        ROC["RecentOrdersCard"]
+        OTC["OpenTicketsCard"]
+    end
+    subgraph BE["Orchestrator (FastAPI)"]
+        API["GET /api/mcp/recent-orders<br/>GET /api/mcp/open-tickets"]
+        MC["MCPClient (stub)"]
+        OS["orders_stub · get_recent_orders"]
+        TS["tickets_stub · get_open_tickets"]
+    end
+    Ext[("Real MCP servers<br/>(future)")]
+
+    Chat -->|on mount, in parallel| API
+    API --> MC
+    MC -->|call_tool| OS
+    MC -->|call_tool| TS
+    OS -.->|swap later| Ext
+    TS -.->|swap later| Ext
+    API -->|A2UI elements JSON| R
+    R --> ROC
+    R --> OTC
+    ROC -->|click → send prompt| Chat
+    OTC -->|click → send prompt| Chat
+```
+
+The MCP layer is a **boundary**, not just a function call: `MCPClient.call_tool()`
+has the same shape a real MCP `tools/call` would, so the in-process stub can be
+replaced with a real transport (stdio / streamable-HTTP / SSE) without touching
+the API or the frontend.
+
+---
+
+## The A2UI element contract
+
+An MCP tool returns an **envelope** of one or more elements:
+
+```jsonc
+{
+  "elements": [
+    {
+      "type": "recent_orders",                 // discriminator the renderer switches on
+      "title": "Recent orders",
+      "subtitle": "Pick up where you left off …",
+      "orders": [
+        {
+          "order_id": "ACT-1001",
+          "order_type": "New Activation",
+          "status": "Activation Pending",
+          "status_tone": "warn",               // ok | warn | info | danger → colour
+          "device": "iPhone 17 Pro",
+          "line": "(555) 010-1001",
+          "account_id": "AC-3001",
+          "customer": "J. Rivera",
+          "opened_label": "18m ago",
+          "prompt": "Order ACT-1001 is stuck in activation, the SIM won't activate"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Two fields make an element renderable and interactive:
+
+- **`type`** — the discriminator. `A2UIRenderer` maps it to a component; unknown
+  types are ignored (forward-compatible), never fatal.
+- **`prompt`** (per order) — the message sent through the normal chat flow when
+  the rep acts on the item. This is what wires a click back into the LangGraph
+  conversation.
+
+---
+
+## Backend — the stubbed MCP layer
+
+```
+backend/app/mcp/
+├── __init__.py        # exports MCPClient, get_mcp_client
+├── client.py          # MCPClient — in-process stand-in for a real MCP client
+├── orders_stub.py     # "orders" MCP server:  get_recent_orders → recent_orders
+└── tickets_stub.py    # "tickets" MCP server: get_open_tickets  → open_tickets
+```
+
+Each stub represents a **distinct upstream system** (an order service vs. the
+ticketing system), registered on the shared `MCPClient` under its own server name.
+
+### `MCPClient` (stub)
+
+A minimal in-process client. `register_tool(server, tool, fn)` mimics tool
+discovery; `call_tool(server, tool, arguments)` mimics `tools/call`. A cached
+singleton (`get_mcp_client()`) wires up the stub servers on first use.
+
+```python
+client = get_mcp_client()
+client.call_tool("orders", "get_recent_orders", {"rep_id": "rep.demo", "limit": 6})
+```
+
+### `orders_stub` server
+
+Holds the mock recent-orders fixture and the tone/"time ago" helpers, and returns
+the `recent_orders` A2UI element. Everything here is deterministic mock data —
+this is the single file to replace when the real orders service is available.
+
+### API
+
+One endpoint per MCP tool (1:1 mapping):
+
+```
+GET /api/mcp/recent-orders?rep_id=rep.demo&limit=6  → { "elements": [ { "type": "recent_orders", … } ] }
+GET /api/mcp/open-tickets?rep_id=rep.demo&limit=6   → { "elements": [ { "type": "open_tickets",  … } ] }
+```
+
+Defined in [`backend/app/api/mcp.py`](../backend/app/api/mcp.py), registered in
+[`backend/app/main.py`](../backend/app/main.py). The chat fetches both in parallel
+on mount and concatenates the elements (each source degrades independently).
+
+---
+
+## Frontend — the A2UI renderer
+
+### Registry pattern
+
+[`frontend/src/components/A2UI.tsx`](../frontend/src/components/A2UI.tsx) exports a
+single renderer that switches on `element.type`:
+
+```tsx
+export function A2UIRenderer({ elements, onAction }) {
+  return elements.map((el, i) => {
+    switch (el.type) {
+      case "recent_orders":
+        return <RecentOrdersCard key={i} el={el} onAction={onAction} />;
+      default:
+        return null;   // unknown element types are ignored, not fatal
+    }
+  });
+}
+```
+
+`onAction(prompt)` is the single callback every element uses to push a message
+into the conversation.
+
+### Wiring into the chat
+
+Elements are fetched **on demand** from the sidebar "Look up" tiles and appended
+to the transcript as an assistant message carrying the A2UI element(s). A chat
+message can therefore hold text, a resolution card, and/or A2UI elements:
+
+```tsx
+async function showLookup(kind: "orders" | "tickets") {
+  const res = kind === "orders" ? await api.recentOrders() : await api.openTickets();
+  setMessages((m) => [...m, { role: "assistant", a2ui: res.elements }]);
+}
+// …in the message map:
+{m.a2ui && <A2UIRenderer elements={m.a2ui} onAction={send} />}
+```
+
+`onAction={send}` means clicking an order/ticket reuses the exact same `send()`
+path as typing — so the LangGraph triage → route → resolve → confirm flow runs
+unchanged.
+
+### Default chat view (first-step CTAs)
+
+The default (empty) view leads with **first-step CTA tiles** in the sidebar rather
+than proactively-loaded data. Two tile groups:
+
+- **First steps** — action CTAs (`Fix an activation`, `Unblock an order`, `Apply a
+  promo`, `Explain a charge`, `Request a credit`). Tapping one **prefills the
+  composer** with a starter phrase and focuses it, so the rep adds the id and
+  sends.
+- **Look up** — `Recent orders` and `My open tickets`, which fetch and reveal the
+  corresponding A2UI card on demand (above).
+
+This keeps the landing view uncluttered while the MCP-backed cards stay one tap
+away.
+
+### Types & API client
+
+- [`types.ts`](../frontend/src/types.ts): `A2UIElement` (a union — extend it per
+  element type), `A2UIRecentOrders`, `A2UIOrder`, `A2UIResponse`.
+- [`api.ts`](../frontend/src/api.ts): `api.recentOrders(rep_id?)`.
+
+---
+
+## Interaction flow
+
+```mermaid
+sequenceDiagram
+    participant Rep
+    participant UI as ChatWidget
+    participant API as /api/mcp/recent-orders
+    participant MCP as MCPClient (stub)
+    participant G as LangGraph
+
+    Rep->>UI: taps "Recent orders" tile
+    UI->>API: fetch
+    API->>MCP: call_tool(orders, get_recent_orders)
+    MCP-->>API: { elements:[recent_orders] }
+    API-->>UI: append A2UI card as an assistant message
+    Rep->>UI: taps ACT-1001
+    UI->>G: POST /api/chat { message: order.prompt }
+    G-->>UI: diagnosis + confirmation card
+    Note over UI: normal conversation continues
+```
+
+---
+
+## Extending: add a new element type
+
+Two localized changes (this is exactly how **`open_tickets`** was added on top of
+`recent_orders`):
+
+1. **Backend** — add (or extend) an MCP tool that returns
+   `{ "type": "your_element", … }` and register it on a stub server (e.g.
+   `tickets_stub.register(client)` in `get_mcp_client()`), then expose an endpoint.
+2. **Frontend** — add the interface to the `A2UIElement` union in `types.ts`, an
+   `api.*()` method, and a `case "your_element"` in `A2UIRenderer` that renders your
+   component.
+
+The transport (`MCPClient`), the `onAction` callback, and the chat wiring stay
+unchanged. Good next candidates: a **customer summary** card (account, plan,
+tenure, open orders), a **plan comparison** table, or a **device upgrade
+eligibility** widget.
+
+## Extending: swap the stub for a real MCP server
+
+Keep `MCPClient.call_tool()`'s signature and move the dispatch onto a real MCP
+transport (e.g. the `mcp` Python SDK over stdio or streamable-HTTP). Point it at
+the production Orders MCP server, map its `tools/call` result into the
+`recent_orders` element shape (or have the server return A2UI elements directly),
+and delete `orders_stub.py`. Nothing in `api/mcp.py` or the frontend changes.
+
+---
+
+## File manifest
+
+| File | Role |
+|---|---|
+| `backend/app/mcp/client.py` | `MCPClient` stub — the swappable MCP boundary |
+| `backend/app/mcp/orders_stub.py` | "orders" MCP server + mock recent-orders data |
+| `backend/app/mcp/tickets_stub.py` | "tickets" MCP server + mock open-tickets data |
+| `backend/app/mcp/__init__.py` | Exports `MCPClient`, `get_mcp_client` |
+| `backend/app/api/mcp.py` | `GET /api/mcp/recent-orders`, `GET /api/mcp/open-tickets` |
+| `backend/app/main.py` | Registers the MCP router |
+| `frontend/src/components/A2UI.tsx` | `A2UIRenderer` registry + `RecentOrdersCard` + `OpenTicketsCard` |
+| `frontend/src/components/ChatWidget.tsx` | Loads elements on mount; renders in empty state |
+| `frontend/src/types.ts` | `A2UIElement` union + order/ticket interfaces |
+| `frontend/src/api.ts` | `api.recentOrders()`, `api.openTickets()` |
+| `frontend/src/styles.css` | `a2ui-*` styles (2-col desktop, 1-col mobile) |

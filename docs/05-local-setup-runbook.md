@@ -62,7 +62,10 @@ Open http://localhost:5173.
 
 ## 3. Try it
 
-In the **Rep Assist** tab, click a "Common issue" chip (or type your own):
+The **Rep Assist** tab leads with **first-step CTA tiles** (Fix an activation,
+Unblock an order, …) that prefill the composer, plus **"Look up"** tiles that
+reveal MCP-backed *recent orders* / *open tickets* cards on demand
+([doc 10](10-a2ui-generative-ui.md)). Tap a tile, or type one of these yourself:
 
 | Try this | What happens |
 |---|---|
@@ -137,3 +140,11 @@ The mock agents key behaviour off ids so demos are repeatable
 | `CHECKPOINT_DB` | `./checkpoints.sqlite` | LangGraph conversation state. |
 | `TRIAGE_CONFIDENCE_THRESHOLD` | `0.45` | Below this, escalate to a human. |
 | `FRONTEND_ORIGIN` | `http://localhost:5173` | CORS allow-list. |
+| `LANGCHAIN_API_KEY` | _(empty)_ | Enables LangSmith tracing + the **CX Monitor** tab. See [doc 09](09-cx-monitor.md). |
+| `LANGCHAIN_PROJECT` | `rep-assist` | LangSmith project (created on first trace). |
+| `SMTP_HOST` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` | _(empty)_ | Enables **email reports**; empty → in-browser preview. See [doc 11](11-email-reports.md). |
+
+> **More capabilities:** [CX Monitor](09-cx-monitor.md) ·
+> [A2UI recent orders](10-a2ui-generative-ui.md) ·
+> [Email reports & Settings](11-email-reports.md) ·
+> [Cloud Run deployment](12-deployment-cloud-run.md).

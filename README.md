@@ -1,8 +1,8 @@
-# Rep Assist — Conversational Order & Service Resolution for Verizon POS
+# Rep Assist — Conversational Assisted Sales & Service for Retail Reps
 
-Rep Assist is a conversational web app embedded in the Verizon point-of-sale
-(POS) application. A retail rep describes an order or service problem in plain
-language; a **LangGraph orchestrator** triages it, routes it to the right
+Rep Assist is a conversational **Assisted Sales & Service** assistant embedded in
+the retail sales application. A retail rep describes an order or service problem
+in plain language; a **LangGraph orchestrator** triages it, routes it to the right
 existing agent (Activation Resolver, Promo Correction Agent, Pending Order
 Resolver, …), confirms any account-changing action with the rep, and — when no
 agent or knowledge can solve it — opens a **human-in-the-loop ticket** that
@@ -22,11 +22,14 @@ dev team should build next, so the assistant keeps getting better.
 
 | Layer | Tech | Folder |
 |---|---|---|
-| Rep chat UI + Tier 1/2 desk + Insights | React + Vite + TypeScript | [`frontend/`](frontend/) |
+| Rep chat UI + Tier 1/2 desk + dashboards | React + Vite + TypeScript | [`frontend/`](frontend/) |
 | Conversational orchestrator | LangGraph + FastAPI | [`backend/app/graph`](backend/app/graph), [`backend/app/api`](backend/app/api) |
+| **A2UI** (agent-to-UI) elements + stubbed MCP layer | FastAPI + React | [`backend/app/mcp`](backend/app/mcp), [`frontend/src/components/A2UI.tsx`](frontend/src/components/A2UI.tsx) |
 | "Existing" agents (mocked microservices) | FastAPI | [`backend/app/mock_services`](backend/app/mock_services) |
 | HITL ticketing + feedback store (ServiceNow replacement) | SQLite + SQLModel | [`backend/app/store`](backend/app/store) |
+| Observability (CX Monitor) + email reports | LangSmith + smtplib | [`backend/app/api/cx.py`](backend/app/api/cx.py), [`backend/app/api/email_reports.py`](backend/app/api/email_reports.py) |
 | LLM access (Claude + offline fallback) | official `anthropic` SDK | [`backend/app/llm.py`](backend/app/llm.py) |
+| Cloud Run deployment (one service, API + UI) | Docker + gcloud | [`deploy.sh`](deploy.sh), [`backend/Dockerfile`](backend/Dockerfile) |
 | Architecture, diagrams, runbook, roadmap | Markdown + Mermaid | [`docs/`](docs/) |
 
 ## Documentation
@@ -41,6 +44,9 @@ dev team should build next, so the assistant keeps getting better.
 8. [Real Agent Integration — Worked Example](docs/07-real-agent-integration-example.md) — how to swap a mock for a real, vendor-shaped agent (implemented for Activation).
 9. [Operations & KPI Dashboard](docs/08-operations-dashboard.md) — engagement, escalations, resolutions, and all operational KPIs.
 10. [CX Monitor — LangSmith Integration](docs/09-cx-monitor.md) — conversation latency, token usage, cost-per-conversation, and live trace explorer.
+11. [A2UI — Agent-to-UI Elements](docs/10-a2ui-generative-ui.md) — generative UI in the chat (recent orders) sourced from a stubbed MCP layer.
+12. [Email Reports & Settings](docs/11-email-reports.md) — on-demand HTML dashboard reports, subscriber management, SMTP + preview mode.
+13. [Deployment — Google Cloud Run](docs/12-deployment-cloud-run.md) — one service serving API + UI, Secret Manager, and synthetic-data seeding.
 
 ## 60-second quickstart
 
@@ -57,9 +63,12 @@ uvicorn app.main:app --port 8000                 # terminal B
 cd ../frontend && npm install && npm run dev      # terminal C  -> http://localhost:5173
 ```
 
-Open http://localhost:5173, click a "Common issue" chip, and watch the
-assistant diagnose, ask you to confirm the fix, and resolve it — or escalate to
-the Resolution Desk. Full details in the [runbook](docs/05-local-setup-runbook.md).
+Open http://localhost:5173. The chat leads with **first-step CTA tiles** (Fix an
+activation, Unblock an order, …) that prefill the composer, plus **"Look up"**
+tiles that reveal MCP-backed *recent orders* / *open tickets* cards on demand.
+Pick one (or just type), then watch the assistant diagnose, ask you to confirm the
+fix, and resolve it — or escalate to the Resolution Desk. Full details in the
+[runbook](docs/05-local-setup-runbook.md).
 
 > **Go live with Claude:** put `ANTHROPIC_API_KEY=...` in `backend/.env`
 > (copy from `.env.example`). With no key, the system runs fully offline using a
@@ -71,11 +80,29 @@ the Resolution Desk. Full details in the [runbook](docs/05-local-setup-runbook.m
 > cost-per-conversation, and a live trace explorer backed by real LangSmith data.
 > The tab shows sample data when the key is absent.
 
+> **Deploy to the cloud:** `./deploy.sh` packages the API + built frontend into a
+> single **Google Cloud Run** service with secrets in Secret Manager. See
+> [Deployment — Google Cloud Run](docs/12-deployment-cloud-run.md).
+
+### The five tabs
+
+| Tab | What it is |
+|---|---|
+| **Rep Assist** | The conversational chat — first-step CTA tiles + on-demand A2UI recent-orders/open-tickets cards ([doc 10](docs/10-a2ui-generative-ui.md)) |
+| **Resolution Desk** | Tier 1/2 ticket queue + resolve/feedback ([doc 03](docs/03-hitl-ticketing-workflow.md)) |
+| **Performance** | Engagement/deflection KPIs + AI exec summary ([doc 08](docs/08-operations-dashboard.md)) |
+| **CX Monitor** | LangSmith latency/token/cost telemetry ([doc 09](docs/09-cx-monitor.md)) |
+| **Settings** | Email-report subscribers + SMTP status ([doc 11](docs/11-email-reports.md)) |
+
+The Performance and CX Monitor tabs can **email HTML reports** to subscribers
+(with an in-browser preview when SMTP isn't configured). The UI is **responsive**
+— it works on phones, iPad Mini, and foldables.
+
 ## The flow at a glance
 
 ```mermaid
 flowchart LR
-    Rep["🧑‍💼 Rep in POS"] -->|"describes issue"| Orch["LangGraph<br/>Orchestrator"]
+    Rep["🧑‍💼 Rep in sales app"] -->|"describes issue"| Orch["LangGraph<br/>Orchestrator"]
     Orch --> Triage{"Triage:<br/>intent + confidence"}
     Triage -->|activation| A["Activation Resolver"]
     Triage -->|pending order| P["Pending Order Resolver"]
@@ -83,7 +110,7 @@ flowchart LR
     Triage -->|billing / how-to| K["Knowledge Base"]
     Triage -->|unknown / low conf.| T["🎫 Human Ticket"]
     A & P & M --> Confirm{"Rep confirms<br/>the change?"}
-    Confirm -->|yes| Done["✅ Resolved in POS"]
+    Confirm -->|yes| Done["✅ Resolved in-app"]
     Confirm -->|no| Done2["No change made"]
     K --> Done
     T --> Desk["🛠️ Tier 1/2 Resolution Desk"]
