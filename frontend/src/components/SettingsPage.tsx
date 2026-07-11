@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import type { EmailSettings, EmailSubscriber, HuddleItem, OSTArticleRef } from "../types";
+import type { EmailSettings, EmailSubscriber, HuddleItem, OSTArticleRef, SystemHealth } from "../types";
 
 const HUDDLE_CATEGORIES = ["To-Do", "Promo", "Device", "Policy", "Network", "News"];
 
-export default function SettingsPage() {
+export default function SettingsPage({ onHealthChange }: { onHealthChange?: () => void }) {
   const [subscribers, setSubscribers] = useState<EmailSubscriber[]>([]);
   const [smtp, setSmtp] = useState<EmailSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -17,6 +17,14 @@ export default function SettingsPage() {
   const [addError, setAddError] = useState("");
   const [adding, setAdding] = useState(false);
 
+  // System health state
+  const [shStatus, setShStatus] = useState<SystemHealth["status"]>("operational");
+  const [shDesc, setShDesc] = useState("");
+  const [shWorkaround, setShWorkaround] = useState("");
+  const [shHardStop, setShHardStop] = useState(false);
+  const [shSaving, setShSaving] = useState(false);
+  const [shSaved, setShSaved] = useState(false);
+
   // Morning Huddle state
   const [huddle, setHuddle] = useState<HuddleItem[]>([]);
   const [articles, setArticles] = useState<OSTArticleRef[]>([]);
@@ -28,20 +36,38 @@ export default function SettingsPage() {
   const [hAdding, setHAdding] = useState(false);
 
   async function reload() {
-    const [subs, settings, hItems, arts] = await Promise.all([
+    const [subs, settings, hItems, arts, sh] = await Promise.all([
       api.listSubscribers(),
       api.emailSettings(),
       api.listHuddleItems(),
       api.listHuddleArticles(),
+      api.getSystemHealth(),
     ]);
     setSubscribers(subs);
     setSmtp(settings);
     setHuddle(hItems);
     setArticles(arts);
+    setShStatus(sh.status);
+    setShDesc(sh.description);
+    setShWorkaround(sh.workaround);
+    setShHardStop(sh.hard_stop);
     setLoading(false);
   }
 
   useEffect(() => { reload(); }, []);
+
+  async function handleSaveHealth(e: React.FormEvent) {
+    e.preventDefault();
+    setShSaving(true);
+    try {
+      await api.setSystemHealth({ status: shStatus, description: shDesc, workaround: shWorkaround, hard_stop: shHardStop });
+      setShSaved(true);
+      onHealthChange?.();
+      setTimeout(() => setShSaved(false), 2000);
+    } finally {
+      setShSaving(false);
+    }
+  }
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -113,6 +139,60 @@ export default function SettingsPage() {
     <div className="settings-page">
       <div className="settings-header">
         <h2 className="settings-title">Settings</h2>
+      </div>
+
+      {/* ── System Health ────────────────────────────────────────────── */}
+      <div className="settings-section">
+        <div className="settings-section-head">
+          <h3 className="settings-section-title">System Health</h3>
+          <p className="settings-section-sub">
+            Set the service status reps see in the health indicator. Use <strong>Degraded</strong> or{" "}
+            <strong>Outage</strong> during incidents to surface a description and workaround.
+            Enable <strong>Hard Stop</strong> to warn reps not to process new orders.
+          </p>
+        </div>
+
+        <form className="settings-add-form sh-form" onSubmit={handleSaveHealth}>
+          <div className="sh-status-row">
+            {(["operational", "degraded", "outage"] as const).map(s => (
+              <label key={s} className={`sh-status-option sh-status-option--${s}${shStatus === s ? " selected" : ""}`}>
+                <input type="radio" name="sh-status" value={s} checked={shStatus === s} onChange={() => setShStatus(s)} />
+                <span className={`sh-dot sh-dot--${s}`} />
+                {s.charAt(0).toUpperCase() + s.slice(1)}
+              </label>
+            ))}
+          </div>
+
+          <label className="sh-label">Event description
+            <textarea
+              className="sh-textarea"
+              placeholder="Describe the issue visible to reps (leave blank if operational)…"
+              value={shDesc}
+              onChange={e => setShDesc(e.target.value)}
+              rows={2}
+            />
+          </label>
+
+          <label className="sh-label">Workaround
+            <textarea
+              className="sh-textarea"
+              placeholder="Steps reps can take while the issue is active…"
+              value={shWorkaround}
+              onChange={e => setShWorkaround(e.target.value)}
+              rows={2}
+            />
+          </label>
+
+          <div className="sh-footer-row">
+            <label className="sh-hardstop-check">
+              <input type="checkbox" checked={shHardStop} onChange={e => setShHardStop(e.target.checked)} />
+              <span className="sh-hardstop-label">Hard stop — warn reps not to process new orders</span>
+            </label>
+            <button type="submit" className="btn" disabled={shSaving}>
+              {shSaved ? "Saved ✓" : shSaving ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </form>
       </div>
 
       {/* ── Email Reports ────────────────────────────────────────────── */}

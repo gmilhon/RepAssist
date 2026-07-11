@@ -1,4 +1,4 @@
-import type { A2UIResponse, CapabilityGap, ChatResponse, CXOverview, EmailSettings, EmailSubscriber, HuddleItem, MetricsOverview, OSTArticleRef, PerformanceSummary, SendReportResult, Ticket } from "./types";
+import type { A2UIResponse, CapabilityGap, ChatResponse, CXOverview, EmailSettings, EmailSubscriber, HuddleItem, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, SendReportResult, SystemHealth, Ticket } from "./types";
 
 async function http<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -20,6 +20,12 @@ function qs(params: Record<string, string | undefined>): string {
 
 export const api = {
   health: () => http<Record<string, any>>("/health"),
+
+  // System health status
+  getSystemHealth: () => http<SystemHealth>("/api/system-health"),
+  setSystemHealth: (body: { status: string; description: string; workaround: string; hard_stop: boolean }) =>
+    http<SystemHealth>("/api/system-health", { method: "POST", body: JSON.stringify(body) }),
+  ping: () => http<PingResult>("/api/system-health/ping"),
 
   chat: (message: string, thread_id: string | null, rep_id = "rep.demo", initial_entities?: Record<string, string>) =>
     http<ChatResponse>("/api/chat", {

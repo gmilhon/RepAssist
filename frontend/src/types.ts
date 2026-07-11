@@ -276,6 +276,20 @@ export interface CXOverview {
   recent_traces: CXTrace[];
 }
 
+export interface SystemHealth {
+  status: "operational" | "degraded" | "outage";
+  description: string;
+  workaround: string;
+  hard_stop: boolean;
+  updated_at: string | null;
+}
+
+export interface PingResult {
+  ok: boolean;
+  server_ts: string;
+  client_ip: string;
+}
+
 export interface MetricsOverview {
   generated_at: string;
   engagement: {
