@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .api import chat, cx, email_reports, insights, metrics, tickets
+from .api import admin, chat, cx, email_reports, insights, metrics, tickets
 from .config import get_settings
 from .store import db
 
@@ -39,6 +39,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(admin.router)
 app.include_router(chat.router)
 app.include_router(tickets.router)
 app.include_router(insights.router)
