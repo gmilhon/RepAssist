@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-14T18:17:43.474470+00:00",
-  "last_commit_sha": "d94dca1011e779c27bf52deaa63271ae6e77807c",
+  "generated_at": "2026-07-14T18:32:30.206342+00:00",
+  "last_commit_sha": "ffaa14cc1c2438b45a0ea6b72f3891033c87ab80",
   "enhancements": [
     {
       "tag": "New",
@@ -36,7 +36,7 @@
     {
       "tag": "New",
       "title": "Friendlier chat greeting with quick-start chips",
-      "detail": "When you open chat, Rep Assist now greets you by time of day and offers two quick tap options: 'Check today's Opener' and 'What's new in Rep Assist' \u2014 so you can jump straight to what you need.",
+      "detail": "When you open chat, Rep Assist now greets you by time of day and offers two quick tap options: 'Check today's Opener' and 'What's new in Rep Assist' — so you can jump straight to what you need.",
       "keywords": [
         "greeting",
         "chips",
@@ -62,7 +62,7 @@
     {
       "tag": "Improved",
       "title": "Better experience on phones and tablets",
-      "detail": "The app now reflows cleanly on phones, tablets, and foldables \u2014 no more cut-off menus or sideways scrolling. The message box always stays visible at the bottom of the screen, and the start screen tiles are arranged two per row so you can see more without scrolling.",
+      "detail": "The app now reflows cleanly on phones, tablets, and foldables — no more cut-off menus or sideways scrolling. The message box always stays visible at the bottom of the screen, and the start screen tiles are arranged two per row so you can see more without scrolling.",
       "keywords": [
         "mobile",
         "phone",
@@ -76,7 +76,7 @@
     {
       "tag": "New",
       "title": "One-tap starter tiles for common tasks",
-      "detail": "The chat start screen now has quick-tap tiles for the most common jobs \u2014 Fix an activation, Unblock an order, Apply a promo, Explain a charge, and Request a credit \u2014 so you don't have to type out the request yourself.",
+      "detail": "The chat start screen now has quick-tap tiles for the most common jobs — Fix an activation, Unblock an order, Apply a promo, Explain a charge, and Request a credit — so you don't have to type out the request yourself.",
       "keywords": [
         "first steps",
         "starter tiles",
@@ -85,7 +85,7 @@
         "apply promo",
         "request credit"
       ],
-      "answer": "Instead of typing a request from scratch, you can tap one of the first-step tiles on the chat start screen \u2014 like 'Fix an activation' or 'Apply a promo' \u2014 and Rep Assist will kick off that conversation for you, then ask for whatever details it still needs."
+      "answer": "Instead of typing a request from scratch, you can tap one of the first-step tiles on the chat start screen — like 'Fix an activation' or 'Apply a promo' — and Rep Assist will kick off that conversation for you, then ask for whatever details it still needs."
     },
     {
       "tag": "New",
@@ -114,8 +114,8 @@
     }
   ],
   "suggestions": [
-    "What does the health badge mean?",
-    "How do I use The Opener?",
-    "How does the mic button work in chat?"
+    "What does the system health badge tell me?",
+    "How do the starter tiles on the chat screen work?",
+    "How do I check my recent orders or open tickets?"
   ]
 }
