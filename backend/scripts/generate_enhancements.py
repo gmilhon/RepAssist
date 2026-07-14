@@ -92,7 +92,7 @@ def main() -> int:
         "enhancements": result["enhancements"],
         "suggestions": result["suggestions"],
     }
-    _OUT_FILE.write_text(json.dumps(output, indent=2) + "\n")
+    _OUT_FILE.write_text(json.dumps(output, indent=2, ensure_ascii=False) + "\n")
 
     print(f"Wrote {len(result['enhancements'])} enhancements to {_OUT_FILE}")
     for e in result["enhancements"]:

@@ -559,7 +559,12 @@ def generate_system_enhancements(commit_log: str, previous: list[dict] | None = 
         raise RuntimeError("ANTHROPIC_API_KEY not configured — cannot generate enhancements")
 
     client = _client()
-    prev_json = json.dumps(previous or [], indent=2)
+    # ensure_ascii=False: keep real Unicode chars (em-dash, curly quotes) as
+    # literal text in the prompt. With the default ensure_ascii=True they'd
+    # appear as \uXXXX escapes, which the model then treats as literal text
+    # rather than an escape and re-escapes on the next round — compounding
+    # backslashes on every subsequent regeneration.
+    prev_json = json.dumps(previous or [], indent=2, ensure_ascii=False)
     prompt = (
         f"PREVIOUSLY PUBLISHED ENHANCEMENTS:\n{prev_json}\n\n"
         f"RECENT COMMIT HISTORY (newest first):\n{commit_log}\n\n"
