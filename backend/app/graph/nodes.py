@@ -413,6 +413,14 @@ def ticket_fallback(state: GraphState) -> dict:
         recommended_capability=INTENT_CAPABILITY.get(intent),
     )
 
+    # Feed the Production Monitor's live inflow (SSE + burst-triggered analysis).
+    # Best-effort: monitoring must never break the conversation.
+    try:
+        from ..api import production
+        production.notify_ticket_created(ticket)
+    except Exception:  # noqa: BLE001
+        pass
+
     return {
         "route": "compose",
         "ticket_id": ticket.id,

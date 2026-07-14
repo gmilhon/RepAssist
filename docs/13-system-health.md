@@ -113,9 +113,10 @@ Code: [`backend/app/api/system_health.py`](../backend/app/api/system_health.py).
 separately from the general `/api` proxy, forcing the `Accept: text/event-stream`
 header on the upstream request. Without this, `http-proxy`'s default buffering
 can hold the stream open without flushing chunks to the browser, so the
-`EventSource` never fires. If you add other SSE endpoints later, give each its
-own proxy entry (or a shared one keyed on a `/stream` path prefix) rather than
-relying on the catch-all `/api` rule.
+`EventSource` never fires. Every SSE endpoint needs its own proxy entry (or a
+shared one keyed on a `/stream` path prefix) rather than relying on the
+catch-all `/api` rule — the [Production Monitor](14-production-monitoring.md)'s
+`/api/production/events` has a matching entry for the same reason.
 
 ---
 

@@ -11,7 +11,7 @@ import logging
 import re
 
 from .config import get_settings
-from .schemas import ExecutiveSummary, Resolution, TriageResult
+from .schemas import ExecutiveSummary, ProductionAnalysis, Resolution, TriageResult
 
 logger = logging.getLogger("repassist.llm")
 
@@ -347,3 +347,173 @@ def _mock_compose(resolution: Resolution, ticket_id: str | None) -> str:
             f"{ticket_id} for a Tier 1/2 specialist. {resolution.summary}"
         )
     return resolution.summary
+
+
+# --------------------------------------------------------------------------- #
+# Production-issue analysis (Production Monitor)
+# --------------------------------------------------------------------------- #
+
+PROD_ANALYSIS_SYSTEM = (
+    "You are a production reliability analyst for a telecom retail Assisted Sales "
+    "& Service platform. You receive escalated support tickets that the AI agents "
+    "could not resolve. Detect SYSTEMIC production issues from clusters of related "
+    "tickets — payment processor failures, backend system errors (e.g. ETNI, the "
+    "telephone number inventory system), activation/provisioning failures, promo "
+    "engine defects. Mark an issue critical only when it is order-blocking AND "
+    "shows a burst of related tickets (roughly 5+ in the window); recurring themes "
+    "that are not blocking orders are non_critical. Only report clusters of 2 or "
+    "more tickets that plausibly share one root cause; return an empty list when "
+    "inflow shows no systemic pattern. Problem statements and fixes must be "
+    "specific and operational. Only reference ticket ids you were given."
+)
+
+
+def analyze_production_issues(tickets: list[dict], window_hours: int) -> list[dict]:
+    """Cluster recent escalated tickets into systemic production issues.
+
+    Falls back to deterministic keyword clustering when no API key is set or a
+    live call fails — same offline-safe guarantee as the rest of the LLM layer.
+    """
+    if not tickets:
+        return []
+    settings = get_settings()
+    if not settings.llm_enabled:
+        return _mock_production_analysis(tickets)
+    try:
+        client = _client()
+        lines = [
+            f"- {t['id']} | {t['created_at']} | intent={t['intent']} | "
+            f"priority={t['priority']} | rep={t.get('rep_id') or '—'} | {t['summary']}"
+            for t in tickets
+        ]
+        prompt = (
+            f"ESCALATED TICKET INFLOW — last {window_hours}h, {len(tickets)} tickets "
+            f"(newest first):\n\n" + "\n".join(lines)
+        )
+        resp = client.messages.parse(
+            model=settings.anthropic_model,
+            max_tokens=4096,
+            system=PROD_ANALYSIS_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+            output_format=ProductionAnalysis,
+        )
+        result = resp.parsed_output
+        if result is None:
+            raise ValueError("empty parsed_output")
+        known = {t["id"] for t in tickets}
+        findings = []
+        for issue in result.issues:
+            issue.ticket_ids = [tid for tid in issue.ticket_ids if tid in known]
+            if len(issue.ticket_ids) >= 2:
+                findings.append(issue.model_dump())
+        return findings
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Production analysis failed (%s); using fallback", exc)
+        return _mock_production_analysis(tickets)
+
+
+# Keyword rules checked in order; first hit wins. (category, keywords)
+_PROD_RULES: list[tuple[str, tuple[str, ...]]] = [
+    ("etni",       ("etni", "number inventory", "tn inventory", "telephone number",
+                    "number assignment", "number reservation")),
+    ("payment",    ("payment", "card declined", "declined", "authorization", "checkout",
+                    "gateway", "charge failed")),
+    ("activation", ("activation", "activate", "provision", "esim", "sim", "no service",
+                    "no signal", "port")),
+    ("promo",      ("promo", "bogo", "discount", "trade-in", "credit never", "loyalty")),
+    ("billing",    ("bill", "proration", "autopay", "overcharge")),
+]
+
+_PROD_COPY: dict[str, tuple[str, str, str]] = {
+    # category -> (title, problem_statement, recommended_fix)
+    "etni": (
+        "ETNI number-inventory failures blocking orders",
+        "Escalations reference failures reaching ETNI (telephone number inventory): "
+        "TN lookups and number reservations are erroring or timing out during order "
+        "flows. Reps cannot assign numbers to new lines, so affected orders cannot "
+        "be completed at the point of sale.",
+        "Symptoms point at the ETNI service or its connection pool being degraded. "
+        "Engage the ETNI on-call, verify service health and connection saturation, "
+        "and release stuck TN reservation sessions. Queue affected orders for "
+        "automatic retry once inventory lookups recover.",
+    ),
+    "payment": (
+        "Payment authorization failures at checkout",
+        "A cluster of escalations shows payment authorizations failing at checkout — "
+        "cards declined or the payment step erroring for multiple unrelated customers. "
+        "Reps cannot take payment, which blocks order completion.",
+        "Check payment-gateway health and recent config/credential changes (merchant "
+        "certificate expiry is a common cause). If the gateway error rate stays "
+        "elevated, fail over to the secondary processor and replay the failed "
+        "authorizations from the retry queue.",
+    ),
+    "activation": (
+        "Activation/provisioning failures across new lines",
+        "Multiple escalations show lines stuck between SIM/eSIM provisioning and "
+        "network activation — devices provision but never gain service. Customers "
+        "leave the store with non-working lines and orders cannot be closed out.",
+        "Inspect the activation orchestration queue and the carrier provisioning "
+        "API status page for elevated latency or stuck jobs. Clear wedged workflow "
+        "jobs and reprocess the affected activations; escalate to the network "
+        "provisioning team if the failure rate does not drop.",
+    ),
+    "promo": (
+        "Promo credits not applying",
+        "A recurring theme of promotion credits (BOGO, trade-in, loyalty) not "
+        "applying to qualifying orders. Not order-blocking, but it is generating "
+        "repeat escalations and bill-shock complaints.",
+        "Audit the promo rules engine for the affected campaign codes — the usual "
+        "cause is an eligibility window or SKU list that no longer matches the "
+        "live catalog. Correct the rule and backfill the missing credits.",
+    ),
+    "billing": (
+        "Billing discrepancy theme",
+        "Several escalations describe unexpected charges — proration, missing "
+        "autopay discounts, or duplicate charges on the current cycle. Recurring "
+        "theme rather than an order-blocking incident.",
+        "Review the rating/proration job output for the current bill cycle and "
+        "re-run the discount pass for the affected accounts; issue corrections "
+        "where charges were duplicated.",
+    ),
+    "other": (
+        "Recurring escalation theme (uncategorized)",
+        "A cluster of similar escalations that does not map to a known system "
+        "category. Review the example tickets to identify the shared root cause.",
+        "Triage the example tickets with the Tier 2 team to name the failing "
+        "component, then route a defect to the owning team.",
+    ),
+}
+
+# Order-blocking categories become critical on a burst.
+_PROD_CRITICAL = {"etni", "payment", "activation", "backend"}
+
+
+def _mock_production_analysis(tickets: list[dict]) -> list[dict]:
+    """Deterministic keyword clustering for offline mode."""
+    clusters: dict[str, list[dict]] = {}
+    for t in tickets:
+        text = (t.get("summary") or "").lower()
+        category = "other"
+        for cat, words in _PROD_RULES:
+            if any(w in text for w in words):
+                category = cat
+                break
+        clusters.setdefault(category, []).append(t)
+
+    findings: list[dict] = []
+    for category, members in clusters.items():
+        if len(members) < 3:
+            continue
+        critical = category in _PROD_CRITICAL and len(members) >= 5
+        title, problem, fix = _PROD_COPY[category]
+        findings.append({
+            "title": title,
+            "category": category,
+            "severity": "critical" if critical else "non_critical",
+            "order_blocking": category in _PROD_CRITICAL,
+            "problem_statement": problem,
+            "recommended_fix": fix,
+            "ticket_ids": [m["id"] for m in members],
+        })
+    findings.sort(key=lambda f: (f["severity"] != "critical", -len(f["ticket_ids"])))
+    return findings

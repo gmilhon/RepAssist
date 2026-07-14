@@ -8,9 +8,19 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // SSE endpoint needs streaming — configure explicitly so http-proxy
+      // SSE endpoints need streaming — configure explicitly so http-proxy
       // does not buffer the response body.
       "/api/system-health/events": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: true,
+        selfHandleResponse: false,
+        configure: (proxy) => {
+          proxy.on("proxyReq", (_, req) => {
+            req.headers["accept"] = "text/event-stream";
+          });
+        },
+      },
+      "/api/production/events": {
         target: "http://127.0.0.1:8000",
         changeOrigin: true,
         selfHandleResponse: false,

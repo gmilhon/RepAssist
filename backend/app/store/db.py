@@ -31,6 +31,18 @@ def _date_bounds(
 
 def init_db() -> None:
     SQLModel.metadata.create_all(_engine)
+    # Best-effort additive migration for pre-existing SQLite files
+    # (create_all never alters existing tables).
+    from sqlalchemy import text
+
+    with _engine.connect() as conn:
+        try:
+            conn.execute(text(
+                "ALTER TABLE email_subscribers ADD COLUMN subscribed_alerts BOOLEAN DEFAULT 1"
+            ))
+            conn.commit()
+        except Exception:  # noqa: BLE001 - column already exists
+            pass
 
 
 # --------------------------------------------------------------------------- #

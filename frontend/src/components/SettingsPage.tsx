@@ -90,7 +90,7 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
     }
   }
 
-  async function handleToggle(sub: EmailSubscriber, field: "subscribed_performance" | "subscribed_cx" | "active") {
+  async function handleToggle(sub: EmailSubscriber, field: "subscribed_performance" | "subscribed_cx" | "subscribed_alerts" | "active") {
     await api.updateSubscriber(sub.email, { [field]: !sub[field] });
     await reload();
   }
@@ -248,6 +248,7 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
                       <th>Name</th>
                       <th title="Performance dashboard reports">Performance</th>
                       <th title="CX Monitor reports">CX Monitor</th>
+                      <th title="Critical production-issue alerts">Alerts</th>
                       <th>Active</th>
                       <th></th>
                     </tr>
@@ -273,6 +274,15 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
                             title={sub.subscribed_cx ? "Unsubscribe from CX reports" : "Subscribe to CX reports"}
                           >
                             {sub.subscribed_cx ? "On" : "Off"}
+                          </button>
+                        </td>
+                        <td>
+                          <button
+                            className={`settings-toggle ${sub.subscribed_alerts ? "on" : "off"}`}
+                            onClick={() => handleToggle(sub, "subscribed_alerts")}
+                            title={sub.subscribed_alerts ? "Unsubscribe from production alerts" : "Subscribe to production alerts"}
+                          >
+                            {sub.subscribed_alerts ? "On" : "Off"}
                           </button>
                         </td>
                         <td>

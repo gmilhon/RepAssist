@@ -199,6 +199,7 @@ export interface EmailSubscriber {
   name: string | null;
   subscribed_performance: boolean;
   subscribed_cx: boolean;
+  subscribed_alerts: boolean;
   active: boolean;
   created_at: string;
 }
@@ -338,4 +339,83 @@ export interface MetricsOverview {
     auto_resolved: number;
     escalated: number;
   }>;
+}
+
+// ── Production Monitor ────────────────────────────────────────────────────
+
+export interface TicketBrief {
+  id: string;
+  created_at: string;
+  intent: string;
+  priority: string;
+  rep_id: string | null;
+  summary: string;
+}
+
+export interface ProductionIssue {
+  id: string;
+  detected_at: string | null;
+  updated_at: string | null;
+  severity: "critical" | "non_critical";
+  category: string; // payment | etni | activation | backend | promo | billing | other
+  title: string;
+  problem_statement: string;
+  recommended_fix: string;
+  order_blocking: boolean;
+  ticket_ids: string[];
+  ticket_count: number;
+  status: "active" | "resolved";
+  alert_sent: boolean;
+  defect_key: string | null;
+}
+
+export interface ProductionOverview {
+  generated_at: string;
+  inflow: {
+    last_24h: number;
+    last_hour: number;
+    prev_hour: number;
+    buckets: Array<{ hour: string; count: number }>;
+    recent: TicketBrief[];
+  };
+  issues: ProductionIssue[];
+  monitor: {
+    last_analysis_at: string | null;
+    new_since_analysis: number;
+    auto_analyze_every: number;
+    running: boolean;
+    window_hours: number;
+  };
+}
+
+export interface ProductionAnalyzeResult {
+  status?: string; // "already_running"
+  analyzed_tickets?: number;
+  issues_found?: number;
+  critical?: number;
+  non_critical?: number;
+  alerts?: Array<{
+    issue_id: string;
+    title: string;
+    sent: number;
+    previewed?: boolean;
+    recipients?: string[];
+    preview_html?: string;
+    warning?: string;
+    error?: string;
+  }>;
+  new_defects?: string[];
+  last_analysis_at?: string;
+}
+
+export interface JiraDefectItem {
+  key: string;
+  url: string;
+  summary: string;
+  description: string;
+  priority: string;
+  labels: string[];
+  status: string;
+  issue_id: string | null;
+  created_at: string | null;
 }

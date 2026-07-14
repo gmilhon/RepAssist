@@ -70,6 +70,36 @@ class ExecutiveSummary(BaseModel):
     backlog_priorities: str = Field(description="2-3 sentences on the top capability investments needed.")
 
 
+class ProductionIssueFinding(BaseModel):
+    """One systemic issue cluster identified from escalated-ticket inflow."""
+
+    title: str = Field(description="Short incident-style title, e.g. 'ETNI number-inventory lookups failing'.")
+    category: Literal["payment", "etni", "activation", "backend", "promo", "billing", "other"] = Field(
+        description="Failing system/domain. Use 'etni' for telephone-number-inventory errors, "
+        "'backend' for other upstream system failures."
+    )
+    severity: Literal["critical", "non_critical"] = Field(
+        description="critical = order-blocking with a burst of related tickets; "
+        "non_critical = recurring theme that is not blocking orders."
+    )
+    order_blocking: bool = Field(description="True when the issue prevents reps from completing orders.")
+    problem_statement: str = Field(
+        description="2-4 sentences: what is failing, the observed symptoms, and the customer/order impact."
+    )
+    recommended_fix: str = Field(
+        description="2-4 sentences: the most likely root cause and the concrete remediation to apply."
+    )
+    ticket_ids: list[str] = Field(description="IDs of the escalated tickets belonging to this cluster.")
+
+
+class ProductionAnalysis(BaseModel):
+    """AI clustering of recent escalations into systemic production issues."""
+
+    issues: list[ProductionIssueFinding] = Field(
+        description="Only real clusters (2+ related tickets). Empty when inflow shows no systemic pattern."
+    )
+
+
 class Resolution(BaseModel):
     status: Literal["resolved", "proposed", "cancelled", "escalated", "info"]
     summary: str

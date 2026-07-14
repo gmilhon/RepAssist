@@ -28,6 +28,7 @@ dev team should build next, so the assistant keeps getting better.
 | "Existing" agents (mocked microservices) | FastAPI | [`backend/app/mock_services`](backend/app/mock_services) |
 | HITL ticketing + feedback store (ServiceNow replacement) | SQLite + SQLModel | [`backend/app/store`](backend/app/store) |
 | Observability (CX Monitor) + email reports | LangSmith + smtplib | [`backend/app/api/cx.py`](backend/app/api/cx.py), [`backend/app/api/email_reports.py`](backend/app/api/email_reports.py) |
+| **Production Monitor** — live escalation inflow, AI issue clustering, alerts, JIRA-stub defects | FastAPI SSE + Claude | [`backend/app/api/production.py`](backend/app/api/production.py), [`frontend/src/components/ProductionDashboard.tsx`](frontend/src/components/ProductionDashboard.tsx) |
 | LLM access (Claude + offline fallback) | official `anthropic` SDK | [`backend/app/llm.py`](backend/app/llm.py) |
 | Cloud Run deployment (one service, API + UI) | Docker + gcloud | [`deploy.sh`](deploy.sh), [`backend/Dockerfile`](backend/Dockerfile) |
 | Architecture, diagrams, runbook, roadmap | Markdown + Mermaid | [`docs/`](docs/) |
@@ -48,6 +49,7 @@ dev team should build next, so the assistant keeps getting better.
 12. [Email Reports & Settings](docs/11-email-reports.md) — on-demand HTML dashboard reports, subscriber management, SMTP + preview mode.
 13. [Deployment — Google Cloud Run](docs/12-deployment-cloud-run.md) — one service serving API + UI, Secret Manager, and synthetic-data seeding.
 14. [System Health & Live Notifications](docs/13-system-health.md) — the topbar status badge, operator-set incidents, and real-time SSE toast notifications.
+15. [Production Monitor](docs/14-production-monitoring.md) — real-time escalation inflow, AI issue clustering, critical email alerts, and auto-filed JIRA defects (stub MCP).
 
 ## 60-second quickstart
 
@@ -85,7 +87,7 @@ fix, and resolve it — or escalate to the Resolution Desk. Full details in the
 > single **Google Cloud Run** service with secrets in Secret Manager. See
 > [Deployment — Google Cloud Run](docs/12-deployment-cloud-run.md).
 
-### The five tabs
+### The six tabs
 
 | Tab | What it is |
 |---|---|
@@ -93,6 +95,7 @@ fix, and resolve it — or escalate to the Resolution Desk. Full details in the
 | **Resolution Desk** | Tier 1/2 ticket queue + resolve/feedback ([doc 03](docs/03-hitl-ticketing-workflow.md)) |
 | **Performance** | Engagement/deflection KPIs + AI exec summary ([doc 08](docs/08-operations-dashboard.md)) |
 | **CX Monitor** | LangSmith latency/token/cost telemetry ([doc 09](docs/09-cx-monitor.md)) |
+| **Production** | Real-time escalation inflow + AI issue detection, alerts, and defect filing ([doc 14](docs/14-production-monitoring.md)) |
 | **Settings** | Email-report subscribers + SMTP status ([doc 11](docs/11-email-reports.md)) |
 
 The Performance and CX Monitor tabs can **email HTML reports** to subscribers

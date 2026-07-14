@@ -5,10 +5,11 @@ import HealthPanel from "./components/HealthPanel";
 import ReviewConsole from "./components/ReviewConsole";
 import OperationsDashboard from "./components/OperationsDashboard";
 import CXDashboard from "./components/CXDashboard";
+import ProductionDashboard from "./components/ProductionDashboard";
 import SettingsPage from "./components/SettingsPage";
 import type { SystemHealth } from "./types";
 
-type Tab = "chat" | "desk" | "ops" | "cx" | "settings";
+type Tab = "chat" | "desk" | "ops" | "cx" | "prod" | "settings";
 
 const STATUS_COLOR: Record<string, string> = {
   operational: "green",
@@ -93,6 +94,9 @@ export default function App() {
           <button className={tab === "cx" ? "tab active" : "tab"} onClick={() => setTab("cx")}>
             CX Monitor
           </button>
+          <button className={tab === "prod" ? "tab active" : "tab"} onClick={() => setTab("prod")}>
+            Production
+          </button>
           <button className={tab === "settings" ? "tab active" : "tab"} onClick={() => setTab("settings")}>
             Settings
           </button>
@@ -121,6 +125,7 @@ export default function App() {
         {tab === "desk" && <ReviewConsole />}
         {tab === "ops" && <OperationsDashboard />}
         {tab === "cx" && <CXDashboard />}
+        {tab === "prod" && <ProductionDashboard />}
         {tab === "settings" && <SettingsPage onHealthChange={loadSysHealth} />}
       </main>
 

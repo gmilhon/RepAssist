@@ -35,12 +35,14 @@ class SubscriberIn(BaseModel):
     name: Optional[str] = None
     subscribed_performance: bool = True
     subscribed_cx: bool = True
+    subscribed_alerts: bool = True
 
 
 class SubscriberPatch(BaseModel):
     name: Optional[str] = None
     subscribed_performance: Optional[bool] = None
     subscribed_cx: Optional[bool] = None
+    subscribed_alerts: Optional[bool] = None
     active: Optional[bool] = None
 
 
@@ -64,6 +66,7 @@ def add_subscriber(body: SubscriberIn) -> dict:
             existing.name = body.name or existing.name
             existing.subscribed_performance = body.subscribed_performance
             existing.subscribed_cx = body.subscribed_cx
+            existing.subscribed_alerts = body.subscribed_alerts
             s.add(existing)
             s.commit()
             s.refresh(existing)
@@ -402,3 +405,123 @@ def email_settings() -> dict:
         "smtp_user":    s.smtp_user or None,
         "smtp_tls":     s.smtp_tls,
     }
+
+
+# --------------------------------------------------------------------------- #
+# Critical production-issue alert emails (Production Monitor)
+# --------------------------------------------------------------------------- #
+
+_CATEGORY_LABEL = {
+    "payment": "Payment", "etni": "ETNI · Number Inventory", "activation": "Activation",
+    "backend": "Backend System", "promo": "Promo Engine", "billing": "Billing", "other": "Other",
+}
+
+
+def build_alert_html(issue: dict, examples: list[dict]) -> str:
+    """Inline-styled alert email for a critical production issue."""
+    category = _CATEGORY_LABEL.get(issue.get("category", "other"), "Other")
+    detected = issue.get("detected_at") or datetime.now(timezone.utc).isoformat()
+
+    example_rows = ""
+    for t in examples[:10]:
+        example_rows += f"""
+        <tr>
+          <td style="padding:8px 10px; border-bottom:1px solid {_LINE}; font-size:12px;
+                     font-family:ui-monospace,monospace; color:{_DARK}; white-space:nowrap;">{t['id']}</td>
+          <td style="padding:8px 10px; border-bottom:1px solid {_LINE}; font-size:12px;
+                     color:{_MUTED}; white-space:nowrap;">{t['created_at'][:16].replace('T', ' ')}</td>
+          <td style="padding:8px 10px; border-bottom:1px solid {_LINE}; font-size:12px;
+                     color:{_MUTED};">{t.get('rep_id') or '—'}</td>
+          <td style="padding:8px 10px; border-bottom:1px solid {_LINE}; font-size:12px;
+                     color:{_DARK};">{t['summary']}</td>
+        </tr>"""
+    more = len(examples) - 10
+    more_note = (
+        f'<div style="font-size:11px; color:{_MUTED}; margin-top:6px;">+ {more} more affected tickets</div>'
+        if more > 0 else ""
+    )
+
+    body = f"""
+    {_header("Critical Production Alert", detected[:16].replace("T", " ") + " UTC")}
+    <tr>
+      <td style="padding:0;">
+        <div style="background:#7f1d1d; color:#fff; padding:16px 28px;">
+          <div style="font-size:11px; font-weight:800; letter-spacing:1px; opacity:0.85;">
+            🚨 CRITICAL PRODUCTION ISSUE{" · ORDER-BLOCKING" if issue.get("order_blocking") else ""}
+          </div>
+          <div style="font-size:19px; font-weight:800; margin-top:4px;">{issue['title']}</div>
+          <div style="font-size:12px; margin-top:6px; opacity:0.9;">
+            System: {category} · {issue.get('ticket_count', len(examples))} escalated tickets · Issue {issue.get('id', '')}
+          </div>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:20px 28px 0;">
+        <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;
+                    color:{_MUTED}; margin-bottom:6px;">Problem</div>
+        <div style="font-size:14px; color:{_DARK}; line-height:1.55;">{issue['problem_statement']}</div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:18px 28px 0;">
+        <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;
+                    color:{_MUTED}; margin-bottom:6px;">Recommended fix</div>
+        <div style="font-size:14px; color:{_DARK}; line-height:1.55; background:#f0fdf4;
+                    border:1px solid #bbf7d0; border-radius:8px; padding:12px 14px;">
+          {issue['recommended_fix']}
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:18px 28px 22px;">
+        <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;
+                    color:{_MUTED}; margin-bottom:6px;">Affected escalations</div>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid {_LINE};
+               border-radius:8px; overflow:hidden;">
+          <tr style="background:{_BG};">
+            <td style="padding:8px 10px; font-size:10px; font-weight:700; text-transform:uppercase; color:{_MUTED};">Ticket</td>
+            <td style="padding:8px 10px; font-size:10px; font-weight:700; text-transform:uppercase; color:{_MUTED};">Created</td>
+            <td style="padding:8px 10px; font-size:10px; font-weight:700; text-transform:uppercase; color:{_MUTED};">Rep</td>
+            <td style="padding:8px 10px; font-size:10px; font-weight:700; text-transform:uppercase; color:{_MUTED};">Summary</td>
+          </tr>
+          {example_rows}
+        </table>
+        {more_note}
+      </td>
+    </tr>
+    {_footer()}
+    """
+    return _wrap(body)
+
+
+def send_production_alert(issue: dict, examples: list[dict]) -> dict:
+    """Send a critical-issue alert to alert subscribers (or return a preview).
+
+    Called by the Production Monitor, not exposed as an endpoint. Mirrors the
+    send-report result shape: sent / previewed / recipients / preview_html.
+    """
+    settings = get_settings()
+    html = build_alert_html(issue, examples)
+    subject = f"🚨 CRITICAL · Rep Assist Production Alert · {issue['title']}"
+
+    with Session(_engine) as s:
+        subs = list(s.exec(
+            select(EmailSubscriber)
+            .where(EmailSubscriber.active == True)            # noqa: E712
+            .where(EmailSubscriber.subscribed_alerts == True)  # noqa: E712
+        ).all())
+    recipients = [s.email for s in subs]
+
+    if not recipients:
+        return {"sent": 0, "previewed": False, "recipients": [], "preview_html": html,
+                "warning": "No active alert subscribers. Add subscribers in Settings."}
+    if not settings.smtp_enabled:
+        return {"sent": 0, "previewed": True, "recipients": recipients, "preview_html": html,
+                "warning": "SMTP not configured — showing preview."}
+    try:
+        _send_smtp(subject, html, recipients, settings)
+        return {"sent": len(recipients), "previewed": False, "recipients": recipients}
+    except Exception as exc:  # noqa: BLE001
+        return {"sent": 0, "previewed": True, "recipients": recipients,
+                "preview_html": html, "error": str(exc)}

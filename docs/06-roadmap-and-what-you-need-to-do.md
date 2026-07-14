@@ -20,6 +20,8 @@ next steps.
   and **capability backlog** analytics that rank what to build next.
 - ✅ **CX Monitor** — latency/token/cost telemetry via LangSmith ([doc 09](09-cx-monitor.md)).
 - ✅ **Email reports** with subscriber management + SMTP/preview ([doc 11](11-email-reports.md)).
+- ✅ **Production Monitor** — real-time escalation inflow, AI issue clustering,
+  critical email alerts, and auto-filed defects on a JIRA stub MCP ([doc 14](14-production-monitoring.md)).
 - ✅ **Mocked existing-agent microservices** with realistic contracts.
 - ✅ Offline mock LLM + live Claude (official SDK, structured-output triage).
 - ✅ **Responsive UI** (phone / tablet / foldable) + **one-command Cloud Run

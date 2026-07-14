@@ -95,6 +95,7 @@ class EmailSubscriber(SQLModel, table=True):
     name: Optional[str] = None
     subscribed_performance: bool = True   # receives Performance dashboard reports
     subscribed_cx: bool = True            # receives CX Monitor reports
+    subscribed_alerts: bool = True        # receives critical production-issue alerts
     active: bool = True
     created_at: datetime = Field(default_factory=_now)
 
@@ -113,3 +114,50 @@ class HuddleItem(SQLModel, table=True):
     active: bool = True
     sort_order: int = 0
     created_at: datetime = Field(default_factory=_now)
+
+
+def _issue_id() -> str:
+    return "PRD-" + uuid.uuid4().hex[:8].upper()
+
+
+class ProductionIssue(SQLModel, table=True):
+    """A systemic production issue detected by AI analysis of escalated-ticket
+    inflow (Production Monitor). Critical issues trigger email alerts;
+    non-critical recurring themes get a defect filed on the JIRA board (stub)."""
+
+    __tablename__ = "production_issues"
+
+    id: str = Field(default_factory=_issue_id, primary_key=True)
+    detected_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
+
+    severity: str = "non_critical"        # critical | non_critical
+    category: str = "other"               # payment | etni | activation | backend | promo | billing | other
+    title: str = ""
+    problem_statement: str = ""
+    recommended_fix: str = ""
+    order_blocking: bool = False
+
+    ticket_ids: list = Field(default_factory=list, sa_column=Column(JSON))
+    ticket_count: int = 0
+
+    status: str = "active"                # active | resolved
+    alert_sent: bool = False              # email alert dispatched (critical only)
+    defect_key: Optional[str] = None      # JIRA key when a defect was filed (non-critical)
+
+
+class JiraDefect(SQLModel, table=True):
+    """A defect on the stubbed JIRA board, filed by the Production Monitor for
+    non-critical recurring themes. The stub mirrors what a real MCP JIRA
+    integration would create."""
+
+    __tablename__ = "jira_defects"
+
+    key: str = Field(primary_key=True)    # e.g. REP-1412
+    created_at: datetime = Field(default_factory=_now)
+    summary: str = ""
+    description: str = ""                 # problem statement + recommended fix + ticket examples (markdown)
+    priority: str = "Medium"
+    labels: list = Field(default_factory=list, sa_column=Column(JSON))
+    status: str = "Open"
+    issue_id: Optional[str] = None        # back-reference to ProductionIssue.id

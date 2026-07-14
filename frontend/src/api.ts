@@ -1,4 +1,4 @@
-import type { A2UIResponse, CapabilityGap, ChatResponse, CXOverview, EmailSettings, EmailSubscriber, HuddleItem, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, SendReportResult, SystemHealth, Ticket } from "./types";
+import type { A2UIResponse, CapabilityGap, ChatResponse, CXOverview, EmailSettings, EmailSubscriber, HuddleItem, JiraDefectItem, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, ProductionAnalyzeResult, ProductionIssue, ProductionOverview, SendReportResult, SystemHealth, Ticket } from "./types";
 
 async function http<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -29,6 +29,19 @@ export const api = {
   ping: () => http<PingResult>("/api/system-health/ping"),
   pingRegion: (region: "east" | "central" | "west") =>
     http<PingResult>(`/api/system-health/ping/${region}`),
+
+  // Production Monitor
+  productionOverview: () => http<ProductionOverview>("/api/production/overview"),
+  productionAnalyze: () =>
+    http<ProductionAnalyzeResult>("/api/production/analyze", { method: "POST" }),
+  productionSimulate: (scenario: string) =>
+    http<{ scenario: string; created: number }>("/api/production/simulate", {
+      method: "POST", body: JSON.stringify({ scenario }),
+    }),
+  productionDefects: () => http<{ issues: JiraDefectItem[]; total: number }>("/api/production/defects"),
+  resolveProductionIssue: (id: string) =>
+    http<ProductionIssue>(`/api/production/issues/${id}/resolve`, { method: "POST" }),
+  productionEventsUrl: () => "/api/production/events",
 
   chat: (message: string, thread_id: string | null, rep_id = "rep.demo", initial_entities?: Record<string, string>) =>
     http<ChatResponse>("/api/chat", {
@@ -112,7 +125,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ email, name: name || null, subscribed_performance, subscribed_cx }),
     }),
-  updateSubscriber: (email: string, patch: Partial<Pick<EmailSubscriber, "name" | "subscribed_performance" | "subscribed_cx" | "active">>) =>
+  updateSubscriber: (email: string, patch: Partial<Pick<EmailSubscriber, "name" | "subscribed_performance" | "subscribed_cx" | "subscribed_alerts" | "active">>) =>
     http<EmailSubscriber>(`/api/email/subscribers/${encodeURIComponent(email)}`, {
       method: "PATCH",
       body: JSON.stringify(patch),

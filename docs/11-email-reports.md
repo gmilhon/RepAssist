@@ -13,7 +13,9 @@ so you can build and demo the flow before wiring up a mail server.
 ## User flow
 
 1. **Settings tab** — add subscribers (email + optional name) and toggle their
-   subscriptions to **Performance** and/or **CX Monitor** reports. A status badge
+   subscriptions to **Performance** and/or **CX Monitor** reports, plus
+   **Alerts** (critical production-issue emails from the
+   [Production Monitor](14-production-monitoring.md)). A status badge
    shows whether SMTP is configured.
 2. **Performance / CX Monitor tabs** — click **✉ Send Report**. The backend builds
    the report for the current date range and either:
@@ -51,6 +53,11 @@ with email-client-safe inline styles.
 | `DELETE /api/email/subscribers/{email}` | Deactivate (soft delete) |
 | `POST /api/email/send-report` | Build + send (or preview) a report |
 | `GET /api/email/settings` | SMTP status (no secrets returned) |
+
+Besides on-demand reports, the same SMTP machinery powers **critical
+production-issue alerts** (`send_production_alert`, called internally by the
+[Production Monitor](14-production-monitoring.md) — not an HTTP endpoint).
+Recipients are subscribers with `subscribed_alerts` enabled.
 
 **Send report body:** `{ "report_type": "performance" | "cx", "start"?, "end"? }`.
 
