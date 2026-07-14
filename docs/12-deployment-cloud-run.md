@@ -107,6 +107,12 @@ Re-run `./deploy.sh` — it rebuilds the frontend, re-bundles, rebuilds the imag
 and rolls a new revision. Frontend-only or backend-only changes both go through
 the same path (the frontend is baked into the image).
 
+Before the frontend build, it also regenerates the **System Enhancements**
+("What's new in Rep Assist") card from the commits since the last deploy — see
+[doc 15](15-system-enhancements-generation.md). Skipped gracefully (existing
+content ships as-is) if `backend/.venv` or `ANTHROPIC_API_KEY` isn't available
+on the machine running the deploy.
+
 ---
 
 ## Seeding synthetic history (deployed)
@@ -159,3 +165,4 @@ is pinned to another — that needs a shared pub/sub (Redis, GCP Pub/Sub) instea
 | `backend/app/main.py` | Serves `static/` via `/assets` mount + SPA catch-all |
 | `backend/app/api/admin.py` | Token-gated synthetic-data seed endpoint |
 | `backend/app/api/system_health.py` | Status GET/POST + SSE live-notification stream ([doc 13](13-system-health.md)) |
+| `backend/scripts/generate_enhancements.py` | Regenerates "What's new" from git log before each deploy ([doc 15](15-system-enhancements-generation.md)) |

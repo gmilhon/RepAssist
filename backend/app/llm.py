@@ -7,11 +7,12 @@ degrades gracefully to the mock path rather than failing the conversation.
 """
 from __future__ import annotations
 
+import json
 import logging
 import re
 
 from .config import get_settings
-from .schemas import ExecutiveSummary, ProductionAnalysis, Resolution, TriageResult
+from .schemas import ExecutiveSummary, ProductionAnalysis, Resolution, SystemEnhancementsDoc, TriageResult
 
 logger = logging.getLogger("repassist.llm")
 
@@ -517,3 +518,61 @@ def _mock_production_analysis(tickets: list[dict]) -> list[dict]:
         })
     findings.sort(key=lambda f: (f["severity"] != "critical", -len(f["ticket_ids"])))
     return findings
+
+
+# --------------------------------------------------------------------------- #
+# System Enhancements — "What's new in Rep Assist", generated from git log
+# --------------------------------------------------------------------------- #
+
+ENHANCEMENTS_SYSTEM = (
+    "You maintain the 'What's new in Rep Assist' card that retail sales reps see "
+    "inside the Rep Assist app. You are given the app's recent git commit history "
+    "and the previously published list of enhancements. Produce an updated list "
+    "for rep consumption.\n\n"
+    "Rules:\n"
+    "- Only include changes a retail rep would notice or care about: new things "
+    "Rep Assist can do for them, or visible improvements to existing behavior.\n"
+    "- SKIP internal-only changes: bug fixes to deploy scripts/CI/infra, refactors, "
+    "dependency bumps, test additions, documentation, config plumbing, admin-only "
+    "tooling, and anything with no rep-visible effect.\n"
+    "- Write for an entry-level retail rep: plain language, no code terms, no "
+    "internal system names unless a rep would recognize them (e.g. 'ETNI' is fine "
+    "since reps hear it from Tier 2; 'SSE' or 'API' are not).\n"
+    "- Merge/carry-forward: keep still-relevant items from the previous list, "
+    "update ones that were expanded on by newer commits, and drop items that are "
+    "no longer accurate. Newest and most rep-impactful first.\n"
+    "- Cap at 8 items total."
+)
+
+
+def generate_system_enhancements(commit_log: str, previous: list[dict] | None = None) -> dict:
+    """Regenerate the 'What's new' card content from recent commit history.
+
+    Unlike the other LLM helpers this has no meaningful offline fallback (there
+    is nothing to deterministically summarize from commit subjects alone) — the
+    caller (scripts/generate_enhancements.py) is expected to skip the refresh
+    entirely when no API key is configured, leaving the existing published
+    content untouched rather than overwriting it with a mock.
+    """
+    settings = get_settings()
+    if not settings.llm_enabled:
+        raise RuntimeError("ANTHROPIC_API_KEY not configured — cannot generate enhancements")
+
+    client = _client()
+    prev_json = json.dumps(previous or [], indent=2)
+    prompt = (
+        f"PREVIOUSLY PUBLISHED ENHANCEMENTS:\n{prev_json}\n\n"
+        f"RECENT COMMIT HISTORY (newest first):\n{commit_log}\n\n"
+        f"Produce the updated enhancements list and 3 suggested follow-up questions."
+    )
+    resp = client.messages.parse(
+        model=settings.anthropic_model,
+        max_tokens=8192,
+        system=ENHANCEMENTS_SYSTEM,
+        messages=[{"role": "user", "content": prompt}],
+        output_format=SystemEnhancementsDoc,
+    )
+    result = resp.parsed_output
+    if result is None:
+        raise ValueError("empty parsed_output")
+    return result.model_dump()

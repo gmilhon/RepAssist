@@ -50,6 +50,7 @@ dev team should build next, so the assistant keeps getting better.
 13. [Deployment — Google Cloud Run](docs/12-deployment-cloud-run.md) — one service serving API + UI, Secret Manager, and synthetic-data seeding.
 14. [System Health & Live Notifications](docs/13-system-health.md) — the topbar status badge, operator-set incidents, and real-time SSE toast notifications.
 15. [Production Monitor](docs/14-production-monitoring.md) — real-time escalation inflow, AI issue clustering, critical email alerts, and auto-filed JIRA defects (stub MCP).
+16. [System Enhancements Generation](docs/15-system-enhancements-generation.md) — the "What's new" card, regenerated from git commit history on every deploy instead of hand-maintained.
 
 ## 60-second quickstart
 

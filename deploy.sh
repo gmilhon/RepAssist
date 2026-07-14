@@ -88,6 +88,17 @@ gcloud projects add-iam-policy-binding "$PROJECT" \
   --project "$PROJECT" -q >/dev/null
 
 # --------------------------------------------------------------------------- #
+# 2c. Regenerate "What's new in Rep Assist" from recent git commits
+# --------------------------------------------------------------------------- #
+echo "── Refreshing System Enhancements from git history..."
+if [[ -f backend/.venv/bin/python ]]; then
+  (cd backend && .venv/bin/python scripts/generate_enhancements.py) || \
+    echo "  ⚠ Enhancements regeneration failed — continuing deploy with existing content."
+else
+  echo "  ⚠ No backend/.venv found — skipping (existing enhancements_data.json ships as-is)."
+fi
+
+# --------------------------------------------------------------------------- #
 # 3. Build frontend
 # --------------------------------------------------------------------------- #
 echo "── Building React frontend..."

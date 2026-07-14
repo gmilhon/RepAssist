@@ -1,0 +1,121 @@
+{
+  "generated_at": "2026-07-14T18:17:43.474470+00:00",
+  "last_commit_sha": "d94dca1011e779c27bf52deaa63271ae6e77807c",
+  "enhancements": [
+    {
+      "tag": "New",
+      "title": "System health status indicator",
+      "detail": "A colored badge in the top bar now shows at a glance whether everything is running normally (green), there's a known issue (yellow), or there's a serious outage (red). Tap it to see what's affected, any workaround, and live connection speed to each server region.",
+      "keywords": [
+        "system status",
+        "outage",
+        "system health",
+        "down",
+        "slow",
+        "server issue",
+        "green yellow red"
+      ],
+      "answer": "The health badge at the top of the screen turns yellow or red when there's a known issue, and tapping it opens a panel with details, any workaround, and whether it's serious enough to be a hard stop. It also shows live round-trip times to the East, Central, and West server regions so you can tell if it's just you or a wider slowdown. Updates now push to your screen instantly when an admin posts a status change, instead of waiting up to a minute."
+    },
+    {
+      "tag": "Improved",
+      "title": "The Opener (formerly Morning Huddle) gets a to-do list and article links",
+      "detail": "Your start-of-shift feed is now called The Opener. It includes a checklist of quick tasks (like a training or reviewing a promo talk track) plus field news you can check off, and some items link straight to a help article so you can read more without leaving chat.",
+      "keywords": [
+        "opener",
+        "morning huddle",
+        "to-do",
+        "checklist",
+        "field news",
+        "voice input",
+        "mic",
+        "talk to text"
+      ],
+      "answer": "The Opener is the same start-of-shift briefing that used to be called Morning Huddle, just renamed and refreshed. It now shows a To-Do checklist you can check off (like taking a training or setting up a demo unit) above the regular field-news items, and some items include a 'Read article' link that pulls up more detail right in chat. You can also tap the mic icon in the chat box to talk instead of type."
+    },
+    {
+      "tag": "New",
+      "title": "Friendlier chat greeting with quick-start chips",
+      "detail": "When you open chat, Rep Assist now greets you by time of day and offers two quick tap options: 'Check today's Opener' and 'What's new in Rep Assist' \u2014 so you can jump straight to what you need.",
+      "keywords": [
+        "greeting",
+        "chips",
+        "opener",
+        "what's new",
+        "start chat"
+      ],
+      "answer": "Instead of a plain prompt asking how it can help, Rep Assist now opens with a time-aware greeting (good morning/afternoon/evening) and two tappable chips so you can jump straight to today's Opener or see what's new in the app."
+    },
+    {
+      "tag": "Improved",
+      "title": "Tapping a ticket or order card is smarter now",
+      "detail": "Tapping one of your open ticket cards now pulls up a recap of that ticket's status and suggested next steps right away, instead of asking you to type in an order number. Tapping a recent order also carries over the order and account info automatically.",
+      "keywords": [
+        "ticket recap",
+        "order lookup",
+        "recent orders",
+        "open tickets",
+        "auto-fill"
+      ],
+      "answer": "Before, tapping a ticket card could make Rep Assist ask you for a missing order ID even though it already had the ticket. Now it looks up the ticket right away and gives you a recap of its status, priority, and suggested next steps. Tapping a recent order card also automatically fills in the order and account IDs so you don't have to re-enter them."
+    },
+    {
+      "tag": "Improved",
+      "title": "Better experience on phones and tablets",
+      "detail": "The app now reflows cleanly on phones, tablets, and foldables \u2014 no more cut-off menus or sideways scrolling. The message box always stays visible at the bottom of the screen, and the start screen tiles are arranged two per row so you can see more without scrolling.",
+      "keywords": [
+        "mobile",
+        "phone",
+        "tablet",
+        "layout",
+        "composer",
+        "scrolling"
+      ],
+      "answer": "If you're on a phone or tablet, the top bar, chat, and Resolution Desk screens now resize properly instead of overflowing or getting cut off. The chat message box stays pinned to the bottom of your screen no matter what, and the first-steps tiles on the start screen are now arranged two-per-row so you can see more of them at once."
+    },
+    {
+      "tag": "New",
+      "title": "One-tap starter tiles for common tasks",
+      "detail": "The chat start screen now has quick-tap tiles for the most common jobs \u2014 Fix an activation, Unblock an order, Apply a promo, Explain a charge, and Request a credit \u2014 so you don't have to type out the request yourself.",
+      "keywords": [
+        "first steps",
+        "starter tiles",
+        "fix activation",
+        "unblock order",
+        "apply promo",
+        "request credit"
+      ],
+      "answer": "Instead of typing a request from scratch, you can tap one of the first-step tiles on the chat start screen \u2014 like 'Fix an activation' or 'Apply a promo' \u2014 and Rep Assist will kick off that conversation for you, then ask for whatever details it still needs."
+    },
+    {
+      "tag": "New",
+      "title": "Look up your recent orders and open tickets",
+      "detail": "Two 'Look up' tiles on the chat start screen let you pull up a card of your recent orders or your open tickets on demand, with status, priority, and how long ago each happened.",
+      "keywords": [
+        "recent orders",
+        "open tickets",
+        "look up",
+        "order status",
+        "ticket status"
+      ],
+      "answer": "Tap 'Recent orders' or 'My open tickets' on the chat start screen to reveal a card listing your recent orders or open tickets, complete with status, priority, and a time-ago label, so you can quickly find the one you need without searching manually."
+    },
+    {
+      "tag": "New",
+      "title": "Briefings section with What's New",
+      "detail": "A new Briefings area gives you on-demand access to today's Opener and this What's New card, so you can always check in on recent updates to Rep Assist.",
+      "keywords": [
+        "briefings",
+        "what's new",
+        "updates",
+        "enhancements"
+      ],
+      "answer": "The Briefings tiles let you pull up today's Opener or this What's New card whenever you want, instead of only seeing them once at the start of your shift. It's the same card you're looking at right now."
+    }
+  ],
+  "suggestions": [
+    "What does the health badge mean?",
+    "How do I use The Opener?",
+    "How does the mic button work in chat?"
+  ]
+}

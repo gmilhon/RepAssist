@@ -100,6 +100,31 @@ class ProductionAnalysis(BaseModel):
     )
 
 
+class EnhancementItem(BaseModel):
+    """One rep-facing entry in the 'What's new in Rep Assist' card."""
+
+    tag: Literal["New", "Improved"] = Field(
+        description="'New' for a capability that did not exist before; 'Improved' for a change to something existing."
+    )
+    title: str = Field(description="Short plain-language title, e.g. 'Auto-fix for stuck activations'.")
+    detail: str = Field(description="1-2 sentences, plain language, written for an entry-level retail rep — no jargon, no code/internal terms.")
+    keywords: list[str] = Field(description="3-6 lowercase words/phrases a rep might type when asking about this, for follow-up-question routing.")
+    answer: str = Field(description="2-3 sentence detailed answer to give when a rep asks a follow-up question about this specifically.")
+
+
+class SystemEnhancementsDoc(BaseModel):
+    """Rep-facing 'what's new' content, generated from recent commit history."""
+
+    enhancements: list[EnhancementItem] = Field(
+        description="Most rep-relevant, most recent first. Omit internal-only changes (bug fixes to "
+        "infrastructure, deploy scripts, refactors, docs, CI) that a retail rep would never notice or ask about. "
+        "Cap at 8 items — merge/replace older items with newer ones covering the same feature area."
+    )
+    suggestions: list[str] = Field(
+        description="Exactly 3 short natural-language questions a rep might tap to ask about these enhancements."
+    )
+
+
 class Resolution(BaseModel):
     status: Literal["resolved", "proposed", "cancelled", "escalated", "info"]
     summary: str
