@@ -18,6 +18,32 @@ class Intent(str, Enum):
     OTHER = "other"
 
 
+class VisitReason(str, Enum):
+    """Why a customer is checking in at the store — distinct from `Intent`
+    (which classifies a *problem* the rep describes) and from `sales_intent`
+    (nse/aal/up, a heuristic tag on resolved conversations). This is captured
+    up front, at check-in, before any issue has been discussed."""
+
+    NEW_SERVICE = "new_service"        # New to Verizon / new line
+    UPGRADE = "upgrade"                # device or plan upgrade
+    HOME = "home"                      # home internet / 5G home
+    APPOINTMENT = "appointment"        # scheduled appointment
+    PICKUP = "pickup"                  # in-store order pickup
+    SUPPORT = "support"                # account / billing / service question
+    OTHER = "other"
+
+
+VISIT_REASON_LABELS = {
+    VisitReason.NEW_SERVICE: "New to Verizon",
+    VisitReason.UPGRADE: "Upgrade",
+    VisitReason.HOME: "Home Internet",
+    VisitReason.APPOINTMENT: "Appointment",
+    VisitReason.PICKUP: "In-Store Pickup",
+    VisitReason.SUPPORT: "Account / Billing Support",
+    VisitReason.OTHER: "Something Else",
+}
+
+
 # Which capability/agent each intent maps to. Used by the router and, later, by
 # the analytics that tells the dev team which capability to invest in.
 INTENT_TO_CAPABILITY = {

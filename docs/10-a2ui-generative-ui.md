@@ -6,7 +6,7 @@ the chat renders as rich, interactive cards. The tool decides *what* to show; th
 client decides *how* to render it. This keeps the agent↔UI contract explicit and
 makes the chat feel like a workspace, not just a text box.
 
-Five element types ship today. The default view leads with first-step CTA tiles
+Six element types ship today. The default view leads with first-step CTA tiles
 (see [Default chat view](#default-chat-view-first-step-ctas)); the rest are
 revealed from the sidebar or returned inline by the graph:
 
@@ -23,6 +23,11 @@ revealed from the sidebar or returned inline by the graph:
   how to apply a discount, why a first bill is high), from the **OST (One Source of
   Truth)** server. Returned *inline by the graph* when triage routes a question to
   knowledge, and also opened from a "Read article" link in The Opener.
+- **Store queue** — the current front-of-store check-in queue (*queue* server —
+  the one MCP tool here that reads the app's own data instead of fronting a mock
+  external system, see [doc 19](19-store-checkin-queue.md)). Tapping a waiting
+  row's **Assist** claims it and starts a chat turn pre-filled with the
+  customer's name/phone/visit reason.
 
 No typing an order id or ticket number from memory.
 
@@ -133,7 +138,8 @@ backend/app/mcp/
 ├── system_stub.py     # "system"  server: get_system_enhancements → system_enhancements
 │                       #                   answer_system_question  (system Q&A)
 ├── news_stub.py       # "news"    server: get_morning_huddle      → morning_huddle (DB-backed)
-└── ost_stub.py        # "ost"     server: search_articles / get_article → knowledge_article
+├── ost_stub.py        # "ost"     server: search_articles / get_article → knowledge_article
+└── queue_stub.py      # "queue"   server: get_queue                → queue (DB-backed, live)
 ```
 
 Each stub represents a **distinct upstream system** (orders, ticketing, product
@@ -141,6 +147,10 @@ release notes, field news, knowledge base), registered on the shared `MCPClient`
 under its own server name. The **news** server reads its feed from the
 `huddle_items` table (managed on the Settings page via `/api/huddle`); the **OST**
 server is the knowledge base that answers how-to / "details about" questions.
+The **queue** server is the one exception to "represents an upstream system" —
+it reads the app's own `queue_entries` table (see
+[doc 19](19-store-checkin-queue.md)), reusing the A2UI pipeline for consistency
+rather than because it's fronting mock external data.
 
 ### `MCPClient` (stub)
 
@@ -170,6 +180,7 @@ GET /api/mcp/system-enhancements      → system_enhancements
 GET /api/mcp/morning-huddle           → morning_huddle
 GET /api/mcp/ost-search?q=…           → knowledge_article (best match)
 GET /api/mcp/ost-article?id=OST-1002  → knowledge_article (by id; used by huddle links)
+GET /api/mcp/queue                    → queue (see doc 19 for the check-in/assist write endpoints)
 ```
 
 Defined in [`backend/app/api/mcp.py`](../backend/app/api/mcp.py), registered in

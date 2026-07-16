@@ -53,6 +53,7 @@ dev team should build next, so the assistant keeps getting better.
 16. [System Enhancements Generation](docs/15-system-enhancements-generation.md) — the "What's new" card, regenerated from git commit history on every deploy instead of hand-maintained.
 17. [Observability](docs/16-observability.md) — conversation health, guardrail integrity (incl. log-only prompt-injection detection), true token economics (cost by intent/outcome), sales-intent segmentation, and a fallback-rate alert wired to System Health, added to CX Monitor.
 18. [Reseeding the Deployed Environment](docs/17-reseeding-deployed-data.md) — the exact runbook for repopulating demo data after a deploy, plus a matching Claude Code skill.
+19. [Store Check-In & Queue](docs/19-store-checkin-queue.md) — front-of-store customer intake (visit reason + name/phone), a live queue card, and one-tap "Assist" hand-off into the normal chat flow.
 
 ## 60-second quickstart
 
@@ -70,10 +71,12 @@ cd ../frontend && npm install && npm run dev      # terminal C  -> http://localh
 ```
 
 Open http://localhost:5173. The chat leads with **first-step CTA tiles** (Fix an
-activation, Unblock an order, …) that prefill the composer, plus **"Look up"**
-tiles that reveal MCP-backed *recent orders* / *open tickets* cards on demand.
-Pick one (or just type), then watch the assistant diagnose, ask you to confirm the
-fix, and resolve it — or escalate to the Resolution Desk. Full details in the
+activation, Unblock an order, …) that prefill the composer, a **Front desk**
+group to check a walk-in customer in and view/assist the live queue
+([doc 19](docs/19-store-checkin-queue.md)), plus **"Look up"** tiles that reveal
+MCP-backed *recent orders* / *open tickets* cards on demand. Pick one (or just
+type), then watch the assistant diagnose, ask you to confirm the fix, and
+resolve it — or escalate to the Resolution Desk. Full details in the
 [runbook](docs/05-local-setup-runbook.md).
 
 > **Go live with Claude:** put `ANTHROPIC_API_KEY=...` in `backend/.env`
@@ -94,7 +97,7 @@ fix, and resolve it — or escalate to the Resolution Desk. Full details in the
 
 | Tab | What it is |
 |---|---|
-| **Rep Assist** | The conversational chat — first-step CTA tiles + on-demand A2UI recent-orders/open-tickets cards ([doc 10](docs/10-a2ui-generative-ui.md)) |
+| **Rep Assist** | The conversational chat — first-step CTA tiles, front-desk check-in/queue ([doc 19](docs/19-store-checkin-queue.md)), + on-demand A2UI recent-orders/open-tickets cards ([doc 10](docs/10-a2ui-generative-ui.md)) |
 | **Resolution Desk** | Tier 1/2 ticket queue with AI-assisted triage (education / agent_action / system_defect) and one-click resolution, plus the original resolve/feedback form ([doc 03](docs/03-hitl-ticketing-workflow.md)) |
 | **Performance** | Engagement/deflection KPIs + AI exec summary ([doc 08](docs/08-operations-dashboard.md)) |
 | **CX Monitor** | LangSmith latency/token/cost telemetry ([doc 09](docs/09-cx-monitor.md)) |

@@ -58,3 +58,10 @@ def ost_article(id: str = Query(...)) -> dict:
     """One Source of Truth: a specific article by id (used by Morning Huddle links)."""
     client = get_mcp_client()
     return client.call_tool("ost", "get_article", {"article_id": id})
+
+
+@router.get("/queue")
+def queue(limit: int = Query(20, ge=1, le=50)) -> dict:
+    """The current store check-in queue, as an A2UI `queue` element."""
+    client = get_mcp_client()
+    return client.call_tool("queue", "get_queue", {"limit": limit})

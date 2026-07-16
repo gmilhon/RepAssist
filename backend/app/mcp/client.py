@@ -42,7 +42,7 @@ class MCPClient:
 def get_mcp_client() -> MCPClient:
     """Singleton client with the prototype's stub servers registered."""
     client = MCPClient()
-    from . import jira_stub, news_stub, orders_stub, ost_stub, system_stub, tickets_stub
+    from . import jira_stub, news_stub, orders_stub, ost_stub, queue_stub, system_stub, tickets_stub
 
     orders_stub.register(client)
     tickets_stub.register(client)
@@ -50,4 +50,5 @@ def get_mcp_client() -> MCPClient:
     news_stub.register(client)
     ost_stub.register(client)
     jira_stub.register(client)
+    queue_stub.register(client)
     return client

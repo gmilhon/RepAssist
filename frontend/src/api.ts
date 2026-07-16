@@ -1,4 +1,4 @@
-import type { A2UIResponse, CallAgentResult, CandidateDefect, CapabilityGap, ChatResponse, CXOverview, EmailSettings, EmailSubscriber, FileDefectResult, HuddleItem, JiraDefectItem, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, ProductionAnalyzeResult, ProductionIssue, ProductionOverview, SendReportResult, SystemHealth, Ticket, TicketAnalyzeResult } from "./types";
+import type { A2UIResponse, CallAgentResult, CandidateDefect, CapabilityGap, ChatResponse, CheckInResult, CXOverview, EmailSettings, EmailSubscriber, FileDefectResult, HuddleItem, JiraDefectItem, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, ProductionAnalyzeResult, ProductionIssue, ProductionOverview, QueueEntry, SendReportResult, SystemHealth, Ticket, TicketAnalyzeResult } from "./types";
 
 async function http<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -67,6 +67,17 @@ export const api = {
   morningHuddle: () => http<A2UIResponse>("/api/mcp/morning-huddle"),
 
   ostArticle: (id: string) => http<A2UIResponse>(`/api/mcp/ost-article${qs({ id })}`),
+
+  queue: () => http<A2UIResponse>("/api/mcp/queue"),
+
+  checkIn: (body: { customer_name?: string; customer_phone?: string; reason: string }) =>
+    http<CheckInResult>("/api/queue/checkin", { method: "POST", body: JSON.stringify(body) }),
+
+  assistQueueEntry: (id: string, rep_id = "rep.demo", thread_id?: string | null) =>
+    http<{ entry: QueueEntry }>(`/api/queue/${id}/assist`, {
+      method: "POST",
+      body: JSON.stringify({ rep_id, thread_id: thread_id ?? null }),
+    }),
 
   // Morning Huddle management (Settings)
   listHuddleItems: () => http<HuddleItem[]>("/api/huddle/items"),

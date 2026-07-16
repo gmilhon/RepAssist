@@ -5,6 +5,8 @@ import type {
   A2UIMorningHuddle,
   A2UIOpenTickets,
   A2UIOrder,
+  A2UIQueue,
+  A2UIQueueEntry,
   A2UIRecentOrders,
   A2UISystemEnhancements,
   A2UITicket,
@@ -21,10 +23,12 @@ export function A2UIRenderer({
   elements,
   onAction,
   onOpenArticle,
+  onAssist,
 }: {
   elements: A2UIElement[];
   onAction: (prompt: string, entities?: Record<string, string>) => void;
   onOpenArticle?: (articleId: string) => void;
+  onAssist?: (entry: A2UIQueueEntry) => void;
 }) {
   return (
     <>
@@ -40,6 +44,8 @@ export function A2UIRenderer({
             return <MorningHuddleCard key={i} el={el} onOpenArticle={onOpenArticle} />;
           case "knowledge_article":
             return <KnowledgeArticleCard key={i} el={el} />;
+          case "queue":
+            return <QueueCard key={i} el={el} onAssist={onAssist} />;
           default:
             return null; // unknown element types are ignored, not fatal
         }
@@ -267,6 +273,70 @@ function MorningHuddleCard({
         </>
       )}
     </div>
+  );
+}
+
+function QueueCard({
+  el,
+  onAssist,
+}: {
+  el: A2UIQueue;
+  onAssist?: (entry: A2UIQueueEntry) => void;
+}) {
+  return (
+    <div className="a2ui-card">
+      <div className="a2ui-card-head">
+        <span className="a2ui-card-eyebrow">🧑‍🤝‍🧑 Store queue</span>
+        <h4 className="a2ui-card-title">{el.title}</h4>
+        {el.subtitle && <p className="a2ui-card-sub">{el.subtitle}</p>}
+      </div>
+      {el.entries.length === 0 ? (
+        <p className="a2ui-empty">No one's checked in right now.</p>
+      ) : (
+        <div className="a2ui-orders">
+          {el.entries.map((e) => (
+            <QueueRow key={e.id} entry={e} onAssist={onAssist} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function QueueRow({
+  entry,
+  onAssist,
+}: {
+  entry: A2UIQueueEntry;
+  onAssist?: (entry: A2UIQueueEntry) => void;
+}) {
+  const inProgress = entry.status === "in_progress";
+  const showBothIdentifiers = Boolean(entry.customer_phone && entry.customer_name);
+  return (
+    <button
+      className="a2ui-order"
+      disabled={inProgress}
+      onClick={() => !inProgress && onAssist?.(entry)}
+      title={inProgress ? "Already being helped" : `Assist ${entry.customer_name ?? entry.customer_phone}`}
+    >
+      <div className="a2ui-order-top">
+        <span className="a2ui-order-id">{entry.customer_name ?? entry.customer_phone ?? "Customer"}</span>
+        <span className={`a2ui-queue-pill a2ui-queue-pill--${inProgress ? "progress" : "waiting"}`}>
+          {inProgress ? "Being helped" : "Waiting"}
+        </span>
+      </div>
+      <div className="a2ui-order-meta">{entry.reason_label}</div>
+      <div className="a2ui-order-foot">
+        <span className="a2ui-order-cust">
+          {showBothIdentifiers ? entry.customer_phone : ""}
+          <span className="a2ui-order-time">
+            {showBothIdentifiers ? " · " : ""}
+            {entry.wait_label} {inProgress ? "in" : "waiting"}
+          </span>
+        </span>
+        <span className="a2ui-order-cta">{inProgress ? "In progress" : "Assist →"}</span>
+      </div>
+    </button>
   );
 }
 

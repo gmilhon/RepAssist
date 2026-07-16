@@ -229,6 +229,38 @@ class ActionAudit(SQLModel, table=True):
     success: bool = True
 
 
+def _queue_id() -> str:
+    return "Q-" + uuid.uuid4().hex[:8].upper()
+
+
+class QueueStatus(str, Enum):
+    WAITING = "waiting"          # checked in, not yet being helped
+    IN_PROGRESS = "in_progress"  # a rep tapped "Assist" and is working with them
+
+
+class QueueEntry(SQLModel, table=True):
+    """A customer checked in at the store, waiting for or currently receiving
+    help. Created by the "Check In" CTA; the "View Queue" CTA lists these as
+    an A2UI `queue` card, and tapping a row's Assist button claims the entry
+    and drops the rep into a normal chat thread with the customer's name/phone
+    and visit reason pre-filled as entities."""
+
+    __tablename__ = "queue_entries"
+
+    id: str = Field(default_factory=_queue_id, primary_key=True)
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
+
+    customer_name: Optional[str] = None
+    customer_phone: Optional[str] = None
+    reason: str = "other"  # VisitReason value
+
+    status: str = QueueStatus.WAITING
+    assigned_rep_id: Optional[str] = None
+    thread_id: Optional[str] = None  # chat thread once a rep starts assisting
+    started_at: Optional[datetime] = None
+
+
 class GuardrailEvent(SQLModel, table=True):
     """One row per prompt-injection pattern match (see
     docs/16-observability.md). Detection never blocks or alters the turn;

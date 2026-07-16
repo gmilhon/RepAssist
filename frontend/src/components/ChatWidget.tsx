@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { api } from "../api";
-import type { A2UIElement, ChatResponse, ConfirmationPayload, ResolutionCard } from "../types";
+import type { A2UIElement, A2UIQueueEntry, ChatResponse, ConfirmationPayload, ResolutionCard } from "../types";
+import { VISIT_REASONS } from "../types";
 import { A2UIRenderer } from "./A2UI";
 
 interface Msg {
@@ -20,7 +21,7 @@ const FIRST_STEPS: { icon: string; label: string; prompt: string }[] = [
   { icon: "🎁", label: "Request a credit", prompt: "The customer is requesting a bill credit." },
 ];
 
-type LookupKind = "orders" | "tickets" | "system" | "huddle";
+type LookupKind = "orders" | "tickets" | "system" | "huddle" | "queue";
 
 // Context lookups — tapping one reveals the matching A2UI card in the chat.
 const LOOKUPS: { icon: string; label: string; kind: LookupKind }[] = [
@@ -60,6 +61,13 @@ export default function ChatWidget() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
 
+  // Check-in form state
+  const [checkInOpen, setCheckInOpen] = useState(false);
+  const [ciReason, setCiReason] = useState(VISIT_REASONS[0].value);
+  const [ciName, setCiName] = useState("");
+  const [ciPhone, setCiPhone] = useState("");
+  const [ciError, setCiError] = useState<string | null>(null);
+
   function scrollDown() {
     requestAnimationFrame(() => {
       scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -73,12 +81,61 @@ export default function ChatWidget() {
         kind === "orders" ? await api.recentOrders()
         : kind === "tickets" ? await api.openTickets()
         : kind === "system" ? await api.systemEnhancements()
+        : kind === "queue" ? await api.queue()
         : await api.morningHuddle();
       setMessages((m) => [...m, { role: "assistant", a2ui: res.elements }]);
       scrollDown();
     } catch {
       /* MCP unavailable — silently ignore */
     }
+  }
+
+  async function submitCheckIn() {
+    if (!ciName.trim() && !ciPhone.trim()) {
+      setCiError("Enter the customer's name or phone number.");
+      return;
+    }
+    setCiError(null);
+    setBusy(true);
+    try {
+      const res = await api.checkIn({
+        customer_name: ciName.trim() || undefined,
+        customer_phone: ciPhone.trim() || undefined,
+        reason: ciReason,
+      });
+      const label = res.entry.customer_name ?? res.entry.customer_phone ?? "Customer";
+      const reasonLabel = VISIT_REASONS.find((r) => r.value === ciReason)?.label ?? ciReason;
+      setMessages((m) => [
+        ...m,
+        {
+          role: "assistant",
+          content: `✅ ${label} checked in — ${reasonLabel}. #${res.queue_position} in line.`,
+        },
+      ]);
+      setCheckInOpen(false);
+      setCiName("");
+      setCiPhone("");
+      setCiReason(VISIT_REASONS[0].value);
+      scrollDown();
+    } catch (e) {
+      setCiError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Queue card "Assist" → claim the entry, then drop into a normal chat turn
+  // with the customer's name/phone/reason already known.
+  async function assistFromQueue(entry: A2UIQueueEntry) {
+    try {
+      await api.assistQueueEntry(entry.id, "rep.demo", threadId);
+    } catch {
+      /* best-effort — still let the rep start the conversation */
+    }
+    const entities: Record<string, string> = { visit_reason: entry.reason };
+    if (entry.customer_name) entities.customer_name = entry.customer_name;
+    if (entry.customer_phone) entities.customer_phone = entry.customer_phone;
+    send(entry.prompt, entities);
   }
 
   // Morning-Huddle "Read article" link → reveal the linked OST article card.
@@ -170,6 +227,8 @@ export default function ChatWidget() {
     setThreadId(null);
     setPending(null);
     setInput("");
+    setCheckInOpen(false);
+    setCiError(null);
   }
 
   return (
@@ -185,6 +244,26 @@ export default function ChatWidget() {
               <span className="cta-tile-label">{s.label}</span>
             </button>
           ))}
+        </div>
+
+        <div className="cta-subhead">Front desk</div>
+        <div className="cta-tiles">
+          <button
+            className="cta-tile"
+            disabled={busy}
+            onClick={() => {
+              setCiError(null);
+              setCheckInOpen(true);
+            }}
+          >
+            <span className="cta-tile-icon">📝</span>
+            <span className="cta-tile-label">Check In</span>
+          </button>
+          <button className="cta-tile cta-tile--lookup" disabled={busy} onClick={() => showLookup("queue")}>
+            <span className="cta-tile-icon">🧑‍🤝‍🧑</span>
+            <span className="cta-tile-label">View queue</span>
+            <span className="cta-tile-chevron">›</span>
+          </button>
         </div>
 
         <div className="cta-subhead">Look up</div>
@@ -251,9 +330,57 @@ export default function ChatWidget() {
             <div key={i} className={`bubble ${m.role}`}>
               {m.content && <div className="bubble-text">{m.content}</div>}
               {m.card && <Card card={m.card} />}
-              {m.a2ui && <A2UIRenderer elements={m.a2ui} onAction={send} onOpenArticle={openArticle} />}
+              {m.a2ui && (
+                <A2UIRenderer elements={m.a2ui} onAction={send} onOpenArticle={openArticle} onAssist={assistFromQueue} />
+              )}
             </div>
           ))}
+
+          {checkInOpen && (
+            <div className="bubble assistant">
+              <div className="confirm-card checkin-card">
+                <div className="confirm-head">📝 Check in a customer</div>
+                <div className="checkin-field">
+                  <label htmlFor="ci-reason">Reason for visit</label>
+                  <select id="ci-reason" value={ciReason} onChange={(e) => setCiReason(e.target.value)}>
+                    {VISIT_REASONS.map((r) => (
+                      <option key={r.value} value={r.value}>{r.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="checkin-row">
+                  <div className="checkin-field">
+                    <label htmlFor="ci-name">Customer name</label>
+                    <input
+                      id="ci-name"
+                      value={ciName}
+                      placeholder="Jane Rivera"
+                      onChange={(e) => setCiName(e.target.value)}
+                    />
+                  </div>
+                  <div className="checkin-field">
+                    <label htmlFor="ci-phone">Phone number</label>
+                    <input
+                      id="ci-phone"
+                      value={ciPhone}
+                      placeholder="(555) 010-1001"
+                      onChange={(e) => setCiPhone(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <p className="checkin-hint">Name or phone number — at least one is required.</p>
+                {ciError && <p className="checkin-error">{ciError}</p>}
+                <div className="confirm-actions">
+                  <button className="btn primary" disabled={busy} onClick={submitCheckIn}>
+                    Check in
+                  </button>
+                  <button className="btn ghost" disabled={busy} onClick={() => setCheckInOpen(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {pending && (
             <div className="bubble assistant">

@@ -60,6 +60,17 @@ GAP_POOL = {
 REPS = [f"rep.{n}" for n in ("alvarez", "chen", "patel", "okafor", "santos", "kim")]
 TIER2 = ["tier2.alice", "tier2.marcus", "tier2.deepa"]
 
+# Store check-in queue is live "right now" state, not historical volume — a
+# handful of recent fixtures so "View queue" has something to show right
+# after a seed. (customer_name, customer_phone, reason, minutes_ago, status)
+QUEUE_SAMPLES = [
+    ("Devon Marsh",  None,               "new_service",  6,  "waiting"),
+    (None,           "(555) 019-2244",   "upgrade",      14, "waiting"),
+    ("Priya Nair",   "(555) 019-7781",   "appointment",  22, "waiting"),
+    ("Wes Okonkwo",  None,               "home",         9,  "in_progress"),
+    ("Grace Lin",    "(555) 019-3390",   "pickup",       31, "in_progress"),
+]
+
 _intent_keys = list(INTENTS)
 _intent_weights = [INTENTS[k][0] for k in _intent_keys]
 
@@ -127,7 +138,21 @@ def seed() -> dict:
                                      intent=intent, confidence=confidence, status="escalated",
                                      resolution_status="escalated", capability="human-tier-2",
                                      ticket_id=ticket)
-    return {"interactions": n_interactions, "tickets": n_tickets}
+
+    n_queue = _seed_queue()
+    return {"interactions": n_interactions, "tickets": n_tickets, "queue_entries": n_queue}
+
+
+def _seed_queue() -> int:
+    for name, phone, reason, minutes_ago, status in QUEUE_SAMPLES:
+        created = NOW - timedelta(minutes=minutes_ago)
+        started = NOW - timedelta(minutes=random.randint(1, minutes_ago)) if status == "in_progress" else None
+        db.create_queue_entry(
+            customer_name=name, customer_phone=phone, reason=reason, status=status,
+            assigned_rep_id=random.choice(REPS) if status == "in_progress" else None,
+            created_at=created, updated_at=(started or created), started_at=started,
+        )
+    return len(QUEUE_SAMPLES)
 
 
 def _make_ticket(intent: str, created: datetime) -> str:
@@ -161,7 +186,8 @@ def _make_ticket(intent: str, created: datetime) -> str:
 
 if __name__ == "__main__":
     result = seed()
-    print(f"Seeded {result['interactions']} interactions and {result['tickets']} tickets.")
+    print(f"Seeded {result['interactions']} interactions, {result['tickets']} tickets, "
+          f"{result['queue_entries']} queue entries.")
     m = db.metrics_overview()
     print(f"  conversations      : {m['engagement']['conversations']}")
     print(f"  containment rate   : {m['outcomes']['containment_rate']:.0%}")

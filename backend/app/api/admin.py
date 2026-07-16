@@ -318,6 +318,25 @@ VALUES
   (:created_at, :thread_id, :rep_id, :node, :source, :pattern, :snippet)
 """
 
+_QUEUE_SQL = """
+INSERT INTO queue_entries
+  (id, created_at, updated_at, customer_name, customer_phone, reason, status, assigned_rep_id, thread_id, started_at)
+VALUES
+  (:id, :created_at, :updated_at, :customer_name, :customer_phone, :reason, :status, :assigned_rep_id, :thread_id, :started_at)
+"""
+
+# Store check-in queue is live "right now" state, not historical volume — a
+# handful of recent fixtures so the "View queue" card has something to show
+# right after a seed, rather than years of stale waiting customers.
+# (customer_name, customer_phone, reason, minutes_ago, status)
+_QUEUE_SAMPLES = [
+    ("Devon Marsh",  None,               "new_service",  6,  "waiting"),
+    (None,           "(555) 019-2244",   "upgrade",      14, "waiting"),
+    ("Priya Nair",   "(555) 019-7781",   "appointment",  22, "waiting"),
+    ("Wes Okonkwo",  None,               "home",         9,  "in_progress"),
+    ("Grace Lin",    "(555) 019-3390",   "pickup",       31, "in_progress"),
+]
+
 # A handful of illustrative matches — real attempts should be rare, so the
 # seed sprinkles ~1 every few days across the whole window rather than
 # tying them to conversation volume. Mirrors backend/app/guardrail.py's
@@ -385,6 +404,7 @@ def _run_seed() -> dict:
         conn.execute("DELETE FROM llm_calls")
         conn.execute("DELETE FROM action_audit")
         conn.execute("DELETE FROM guardrail_events")
+        conn.execute("DELETE FROM queue_entries")
         conn.commit()
 
         # Process week by week to stay memory-efficient; use raw SQL for speed
@@ -503,6 +523,21 @@ def _run_seed() -> dict:
             conn.executemany(_GUARDRAIL_SQL, guardrail_rows)
             conn.commit()
 
+        now_dt = datetime.now(timezone.utc)
+        queue_rows: list[dict] = []
+        for name, phone, reason, minutes_ago, status in _QUEUE_SAMPLES:
+            created = now_dt - timedelta(minutes=minutes_ago)
+            started = now_dt - timedelta(minutes=rng.randint(1, minutes_ago)) if status == "in_progress" else None
+            queue_rows.append(dict(
+                id="Q-" + uuid.uuid4().hex[:8].upper(),
+                created_at=created.isoformat(), updated_at=(started or created).isoformat(),
+                customer_name=name, customer_phone=phone, reason=reason, status=status,
+                assigned_rep_id=rng.choice(REPS) if status == "in_progress" else None,
+                thread_id=None, started_at=started.isoformat() if started else None,
+            ))
+        conn.executemany(_QUEUE_SQL, queue_rows)
+        conn.commit()
+
     finally:
         conn.close()
 
@@ -516,6 +551,7 @@ def _run_seed() -> dict:
         "llm_calls": total_llm_calls,
         "actions_audited": total_actions,
         "guardrail_events": len(guardrail_rows),
+        "queue_entries": len(queue_rows),
         "weekly_avg_conversations": round(total_conversations / (days / 7)),
     }
 

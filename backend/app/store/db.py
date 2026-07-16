@@ -8,7 +8,17 @@ from typing import Optional
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from ..config import get_settings
-from .models import ActionAudit, Engagement, GapType, GuardrailEvent, LLMCall, Ticket, TicketStatus
+from .models import (
+    ActionAudit,
+    Engagement,
+    GapType,
+    GuardrailEvent,
+    LLMCall,
+    QueueEntry,
+    QueueStatus,
+    Ticket,
+    TicketStatus,
+)
 
 _settings = get_settings()
 _engine = create_engine(
@@ -95,6 +105,8 @@ def reset_demo() -> None:
             s.delete(a)
         for g in s.exec(select(GuardrailEvent)).all():
             s.delete(g)
+        for q in s.exec(select(QueueEntry)).all():
+            s.delete(q)
         s.commit()
 
 
@@ -153,8 +165,17 @@ def check_fallback_spike(window_minutes: int = 10, threshold: float = 0.05) -> O
     }
 
 
+def _aware(dt: datetime) -> datetime:
+    # SQLite round-trips lose tzinfo for ORM-written datetimes but not for the
+    # raw-SQL-bulk-inserted demo seed, so a seeded ticket resolved through the
+    # app mixes an aware created_at with a naive resolved_at (or vice versa).
+    # All our naive datetimes are UTC by construction (see models._now), so
+    # this normalization is correct, not a guess.
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
 def _hours(later: datetime, earlier: datetime) -> float:
-    return round((later - earlier).total_seconds() / 3600.0, 1)
+    return round((_aware(later) - _aware(earlier)).total_seconds() / 3600.0, 1)
 
 
 def metrics_overview(
@@ -389,6 +410,65 @@ def resolve_ticket(
         return ticket
 
 
+# --------------------------------------------------------------------------- #
+# Store check-in queue
+# --------------------------------------------------------------------------- #
+def create_queue_entry(**kwargs) -> tuple[QueueEntry, int]:
+    """Create a check-in and return it with its 1-indexed position among
+    customers still waiting (the entry itself included)."""
+    with Session(_engine) as s:
+        entry = QueueEntry(**kwargs)
+        s.add(entry)
+        s.commit()
+        s.refresh(entry)
+        position = len(
+            s.exec(
+                select(QueueEntry)
+                .where(QueueEntry.status == QueueStatus.WAITING)
+                .where(QueueEntry.created_at <= entry.created_at)
+            ).all()
+        )
+        return entry, position
+
+
+def list_queue(limit: int = 20) -> list[QueueEntry]:
+    """Customers still waiting or currently being helped, waiting first
+    (oldest first), then in-progress (most recently started first)."""
+    with Session(_engine) as s:
+        waiting = s.exec(
+            select(QueueEntry)
+            .where(QueueEntry.status == QueueStatus.WAITING)
+            .order_by(QueueEntry.created_at.asc())
+        ).all()
+        in_progress = s.exec(
+            select(QueueEntry)
+            .where(QueueEntry.status == QueueStatus.IN_PROGRESS)
+            .order_by(QueueEntry.started_at.desc())
+        ).all()
+        return list(waiting) + list(in_progress)[: max(limit - len(waiting), 0)]
+
+
+def get_queue_entry(entry_id: str) -> Optional[QueueEntry]:
+    with Session(_engine) as s:
+        return s.get(QueueEntry, entry_id)
+
+
+def assist_queue_entry(entry_id: str, rep_id: str, thread_id: Optional[str] = None) -> Optional[QueueEntry]:
+    with Session(_engine) as s:
+        entry = s.get(QueueEntry, entry_id)
+        if not entry:
+            return None
+        entry.status = QueueStatus.IN_PROGRESS
+        entry.assigned_rep_id = rep_id
+        entry.thread_id = thread_id
+        entry.started_at = datetime.now(timezone.utc)
+        entry.updated_at = entry.started_at
+        s.add(entry)
+        s.commit()
+        s.refresh(entry)
+        return entry
+
+
 def observability_overview(
     start: Optional[date] = None, end: Optional[date] = None
 ) -> dict:
@@ -418,6 +498,12 @@ def observability_overview(
         if hi:
             gr_stmt = gr_stmt.where(GuardrailEvent.created_at < hi)
         injections = list(s.exec(gr_stmt).all())
+
+    # Normalize once at the source: engagements mix aware (raw-SQL-seeded)
+    # and naive (ORM-written) created_at values (see _aware()), and this
+    # function sorts/min/max's them below.
+    for e in engagements:
+        e.created_at = _aware(e.created_at)
 
     messages = [e for e in engagements if e.kind == "message"]
     confirmations = [e for e in engagements if e.kind == "confirmation"]

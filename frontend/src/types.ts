@@ -92,12 +92,62 @@ export interface A2UIKnowledgeArticle {
   source: string;
 }
 
+export interface A2UIQueueEntry {
+  id: string;
+  customer_name: string | null;
+  customer_phone: string | null;
+  reason: string;
+  reason_label: string;
+  status: "waiting" | "in_progress";
+  wait_label: string;
+  assigned_rep_id: string | null;
+  prompt: string;
+}
+
+export interface A2UIQueue {
+  type: "queue";
+  title: string;
+  subtitle?: string;
+  entries: A2UIQueueEntry[];
+}
+
 export type A2UIElement =
   | A2UIRecentOrders
   | A2UIOpenTickets
   | A2UISystemEnhancements
   | A2UIMorningHuddle
-  | A2UIKnowledgeArticle;
+  | A2UIKnowledgeArticle
+  | A2UIQueue;
+
+// ── Store check-in ─────────────────────────────────────────────────────────
+
+export const VISIT_REASONS: { value: string; label: string }[] = [
+  { value: "new_service", label: "New to Verizon" },
+  { value: "upgrade", label: "Upgrade" },
+  { value: "home", label: "Home Internet" },
+  { value: "appointment", label: "Appointment" },
+  { value: "pickup", label: "In-Store Pickup" },
+  { value: "support", label: "Account / Billing Support" },
+  { value: "other", label: "Something Else" },
+];
+
+export interface QueueEntry {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  customer_name: string | null;
+  customer_phone: string | null;
+  reason: string;
+  status: "waiting" | "in_progress";
+  assigned_rep_id: string | null;
+  thread_id: string | null;
+  started_at: string | null;
+}
+
+export interface CheckInResult {
+  entry: QueueEntry;
+  queue_position: number;
+}
 
 // Morning Huddle items — managed on the Settings page
 export interface HuddleItem {
