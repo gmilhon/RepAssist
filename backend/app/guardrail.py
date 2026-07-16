@@ -1,12 +1,11 @@
-"""Prompt-injection pattern detection — log-only (see docs/17-observability-p1.md).
+"""Prompt-injection pattern detection — log-only (see docs/16-observability.md).
 
 A cheap regex first pass, not an LLM classifier — mirrors the existing
 entity-extraction approach in `llm.py` (deterministic, zero added cost/latency).
-Detections are recorded to `GuardrailEvent` for the CX Monitor guardrail panel;
-by explicit decision this never blocks or alters a turn. If the false-positive
-rate proves low enough in practice, upgrading to block-on-detection (or a
-model-based classifier for the ambiguous cases) is a natural follow-up — not
-built here.
+Detections are recorded to `GuardrailEvent` for the CX Monitor guardrail panel
+and never block or alter a turn. If the false-positive rate proves low enough
+in practice, upgrading to block-on-detection (or a model-based classifier for
+the ambiguous cases) is a natural follow-up — not built here.
 
 Two call sites, matching the two vectors OWASP LLM01 describes:
   - direct:   the rep's own typed message (llm.classify)

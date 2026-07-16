@@ -351,9 +351,9 @@ def resolve_ticket(
 def observability_overview(
     start: Optional[date] = None, end: Optional[date] = None
 ) -> dict:
-    """Conversation-health, sales-intent, and guardrail metrics — the P0 slice
-    of the observability proposal that's computable from data already
-    captured on Engagement/Ticket, plus the always-on ActionAudit trail.
+    """Conversation-health, sales-intent, and guardrail metrics, computed
+    from Engagement/Ticket data plus the always-on ActionAudit and
+    GuardrailEvent trails. See docs/16-observability.md.
     """
     lo, hi = _date_bounds(start, end)
     with Session(_engine) as s:
@@ -555,7 +555,7 @@ def llm_usage_overview(
     """True token-economics ledger — full token taxonomy, fallback rate per
     LLM function, and cost-of-failure — from the LLMCall table.
 
-    "Cost per graph node" (see docs/17-observability-p1.md) is delivered as
+    "Cost per graph node" (see docs/16-observability.md) is delivered as
     cost-by-function crossed with intent and outcome, not a per-resolver
     breakdown — the resolver nodes (activation/promo/pending_order/occ) call
     `agents_client`, not Claude, so `classify` (triage) and `compose` are the

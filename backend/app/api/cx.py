@@ -362,10 +362,10 @@ def _empty_live(start: Optional[date], end: Optional[date], settings) -> dict:
 
 
 def _with_observability(result: dict, start: Optional[date], end: Optional[date]) -> dict:
-    """Attach the P0 observability slice — conversation health, sales-intent
+    """Attach the observability slice — conversation health, sales-intent
     breakdown, guardrail audit, and true token economics — sourced from our
     own store, independent of whether LangSmith is configured. See
-    docs/16-observability-p0.md.
+    docs/16-observability.md.
     """
     from ..store import db
     result["observability"] = db.observability_overview(start, end)

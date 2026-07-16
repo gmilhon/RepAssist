@@ -51,8 +51,7 @@ dev team should build next, so the assistant keeps getting better.
 14. [System Health & Live Notifications](docs/13-system-health.md) — the topbar status badge, operator-set incidents, and real-time SSE toast notifications.
 15. [Production Monitor](docs/14-production-monitoring.md) — real-time escalation inflow, AI issue clustering, critical email alerts, and auto-filed JIRA defects (stub MCP).
 16. [System Enhancements Generation](docs/15-system-enhancements-generation.md) — the "What's new" card, regenerated from git commit history on every deploy instead of hand-maintained.
-17. [Observability P0](docs/16-observability-p0.md) — conversation health, guardrail integrity, true token economics, and sales-intent segmentation, added to CX Monitor.
-18. [Observability P1](docs/17-observability-p1.md) — cost by intent/outcome, log-only prompt-injection detection, a fallback-rate alert wired to System Health, and re-ask/abandonment/repeat-contact signals.
+17. [Observability](docs/16-observability.md) — conversation health, guardrail integrity (incl. log-only prompt-injection detection), true token economics (cost by intent/outcome), sales-intent segmentation, and a fallback-rate alert wired to System Health, added to CX Monitor.
 
 ## 60-second quickstart
 

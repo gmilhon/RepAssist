@@ -15,8 +15,7 @@ Below the LangSmith-sourced KPIs, the dashboard also renders an
 (including log-only prompt-injection detection), true token economics (cost
 by intent/outcome), and sales-intent segmentation — computed from Rep
 Assist's own store and available regardless of whether LangSmith is
-configured. See [Observability P0](16-observability-p0.md) and
-[Observability P1](17-observability-p1.md).
+configured. See [Observability](16-observability.md).
 
 ---
 
@@ -255,6 +254,6 @@ building `recent_traces` and the `by_intent` aggregation.
 | `frontend/src/api.ts` | `api.cxOverview()` method |
 | `frontend/src/App.tsx` | CX Monitor tab + dual header pills |
 | `frontend/src/styles.css` | CX dashboard styles (`cx-*` namespace) |
-| `backend/app/store/db.py` | `observability_overview()`, `llm_usage_overview()`, `check_fallback_spike()` — see [doc 16](16-observability-p0.md), [doc 17](17-observability-p1.md) |
+| `backend/app/store/db.py` | `observability_overview()`, `llm_usage_overview()`, `check_fallback_spike()` — see [doc 16](16-observability.md) |
 | `backend/app/llm.py` | `_log_usage()`, `tag_sales_intent()`, `_scan_and_log()` — token-taxonomy capture, sales-intent heuristic, injection scan |
-| `backend/app/guardrail.py` | Log-only prompt-injection pattern scanner — see [doc 17](17-observability-p1.md) |
+| `backend/app/guardrail.py` | Log-only prompt-injection pattern scanner — see [doc 16](16-observability.md) |

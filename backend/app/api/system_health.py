@@ -92,8 +92,8 @@ async def set_status(body: HealthUpdate) -> dict:
 
 def maybe_auto_degrade(reason: str) -> bool:
     """Auto-flag the service degraded on a sustained LLM fallback spike (see
-    docs/17-observability-p1.md — the fallback-rate alert decision). Called
-    from `llm._log_usage()`, not exposed as an endpoint.
+    docs/16-observability.md). Called from `llm._log_usage()`, not exposed
+    as an endpoint.
 
     Only acts when the current status is exactly "operational" — never
     overwrites a status an admin set manually (a real outage, or a degraded

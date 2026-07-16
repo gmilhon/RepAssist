@@ -68,13 +68,12 @@ def extract_entities(text: str) -> dict:
 
 
 # Sales-motion tagging — a deterministic keyword heuristic, not an LLM
-# classifier (a second model call per turn is too expensive for a P0 signal,
+# classifier (a second model call per turn is too expensive for this signal,
 # and reps rarely narrate their own sales motion in so many words anyway).
-# Ships only the three sales-intent codes confirmed in the observability
-# proposal (NSE/AAL/UP); anything else stays unclassified rather than guess.
-# This is a first-pass, low-precision signal — validate against real
+# Recognizes only NSE/AAL/UP; anything else stays unclassified rather than
+# guess. This is a first-pass, low-precision signal — validate against real
 # order/account "is this a new customer / new line / device swap" data before
-# using it for reporting decisions. See docs/16-observability-p0.md.
+# using it for reporting decisions. See docs/16-observability.md.
 _SALES_INTENT_RULES: list[tuple[str, tuple[str, ...]]] = [
     ("nse", ("new customer", "new account", "brand new line", "sign up for service",
              "signing up", "new to the network", "starting new service", "walk-in new",
@@ -177,7 +176,7 @@ def _log_usage(
 def _scan_and_log(
     text: str, node: str, source: str, *, thread_id: str | None = None, rep_id: str | None = None,
 ) -> None:
-    """Log-only prompt-injection pattern scan (see docs/17-observability-p1.md
+    """Log-only prompt-injection pattern scan (see docs/16-observability.md
     — never blocks or alters the turn). Best-effort; must never break the
     caller.
     """

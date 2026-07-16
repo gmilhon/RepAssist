@@ -221,9 +221,9 @@ class ActionAudit(SQLModel, table=True):
 
 
 class GuardrailEvent(SQLModel, table=True):
-    """One row per prompt-injection pattern match — P1 observability,
-    log-only by decision (see docs/17-observability-p1.md). Detection never
-    blocks or alters the turn; this is purely a monitoring signal.
+    """One row per prompt-injection pattern match (see
+    docs/16-observability.md). Detection never blocks or alters the turn;
+    this is purely a monitoring signal.
 
     `source` distinguishes where the pattern was found: `direct` (the rep's
     own typed message) vs `indirect` (data that flows into the prompt from
