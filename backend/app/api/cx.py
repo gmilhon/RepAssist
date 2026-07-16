@@ -361,6 +361,18 @@ def _empty_live(start: Optional[date], end: Optional[date], settings) -> dict:
     }
 
 
+def _with_observability(result: dict, start: Optional[date], end: Optional[date]) -> dict:
+    """Attach the P0 observability slice — conversation health, sales-intent
+    breakdown, guardrail audit, and true token economics — sourced from our
+    own store, independent of whether LangSmith is configured. See
+    docs/16-observability-p0.md.
+    """
+    from ..store import db
+    result["observability"] = db.observability_overview(start, end)
+    result["llm_usage"] = db.llm_usage_overview(start, end)
+    return result
+
+
 @router.get("/overview")
 def cx_overview(
     start: Optional[date] = Query(None, description="Start date YYYY-MM-DD (inclusive)"),
@@ -370,14 +382,14 @@ def cx_overview(
     settings = get_settings()
     if settings.langsmith_enabled and _SDK_AVAILABLE:
         try:
-            return _live_cx_overview(start, end, settings)
+            return _with_observability(_live_cx_overview(start, end, settings), start, end)
         except Exception as exc:
             msg = str(exc)
             # Project not found = key is valid but no traces sent yet
             if "not found" in msg.lower():
-                return _empty_live(start, end, settings)
+                return _with_observability(_empty_live(start, end, settings), start, end)
             # Any other error: fall back to mock so the UI never breaks
             result = _mock_cx_overview(start, end, settings)
             result["error"] = msg
-            return result
-    return _mock_cx_overview(start, end, settings)
+            return _with_observability(result, start, end)
+    return _with_observability(_mock_cx_overview(start, end, settings), start, end)

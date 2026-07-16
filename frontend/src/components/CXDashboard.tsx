@@ -3,6 +3,13 @@ import { api } from "../api";
 import type { CXOverview } from "../types";
 import SendReportButton from "./SendReportButton";
 
+const SALES_INTENT_LABEL: Record<string, string> = {
+  nse: "NSE · New Service & Equipment",
+  aal: "AAL · Add a Line",
+  up: "UP · Upgrade",
+  unclassified: "Unclassified",
+};
+
 // --------------------------------------------------------------------------- //
 // Helpers
 // --------------------------------------------------------------------------- //
@@ -195,6 +202,106 @@ function TraceRow({ t }: { t: CXOverview["recent_traces"][0] }) {
   );
 }
 
+function SalesIntentBar({
+  row, max,
+}: { row: CXOverview["observability"]["sales_intent"][0]; max: number }) {
+  const pct = max > 0 ? (row.count / max) * 100 : 0;
+  return (
+    <div className="cx-bar-row">
+      <span className="cx-bar-label">{SALES_INTENT_LABEL[row.sales_intent] ?? row.sales_intent}</span>
+      <div className="cx-bar-track">
+        <div className="cx-bar-fill" style={{ width: `${pct}%` }} />
+      </div>
+      <span className="cx-bar-value">{fmt(row.count)} · {fmtPct(row.containment_rate)} contained</span>
+    </div>
+  );
+}
+
+function GuardrailBanner({ guardrail }: { guardrail: CXOverview["observability"]["guardrail"] }) {
+  const clean = guardrail.unconfirmed_mutation_count === 0;
+  return (
+    <div className={`cx-guardrail-banner ${clean ? "cx-guardrail-banner--ok" : "cx-guardrail-banner--alarm"}`}>
+      <span className="cx-guardrail-icon">{clean ? "✓" : "⚠"}</span>
+      <div>
+        <strong>
+          {clean
+            ? "Confirm-gate invariant holding"
+            : `${guardrail.unconfirmed_mutation_count} unconfirmed mutation${guardrail.unconfirmed_mutation_count === 1 ? "" : "s"} detected`}
+        </strong>
+        <div className="cx-guardrail-sub">
+          {fmt(guardrail.actions_executed)} mutating action{guardrail.actions_executed === 1 ? "" : "s"} executed in range —
+          {clean
+            ? " every one passed through a rep-approved confirmation first."
+            : " see examples below. This should never happen; treat as an incident."}
+        </div>
+        {!clean && guardrail.unconfirmed_mutation_examples.length > 0 && (
+          <ul className="cx-guardrail-examples">
+            {guardrail.unconfirmed_mutation_examples.map((e, i) => (
+              <li key={i}>
+                {e.service}/{e.operation} · thread {e.thread_id ?? "—"} ·{" "}
+                {new Date(e.created_at).toLocaleString()}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TokenTaxonomyTable({ llm }: { llm: CXOverview["llm_usage"] }) {
+  const t = llm.token_taxonomy;
+  return (
+    <table className="cx-cost-table">
+      <tbody>
+        <tr><td>Input (avg / total)</td><td>{fmt(t.avg_input)} / {fmt(t.total_input)}</td></tr>
+        <tr><td>Output (avg / total)</td><td>{fmt(t.avg_output)} / {fmt(t.total_output)}</td></tr>
+        <tr>
+          <td>— of which reasoning</td>
+          <td>{fmt(t.avg_thinking)} / {fmt(t.total_thinking)}</td>
+        </tr>
+        <tr><td>Cache write (avg / total)</td><td>{fmt(t.avg_cache_creation)} / {fmt(t.total_cache_creation)}</td></tr>
+        <tr><td>Cache read (avg / total)</td><td>{fmt(t.avg_cache_read)} / {fmt(t.total_cache_read)}</td></tr>
+        <tr className="cx-cost-total">
+          <td>Total cost (all LLM calls)</td>
+          <td>${llm.cost_usd.total.toFixed(4)}</td>
+        </tr>
+        <tr>
+          <td>Cost of failure</td>
+          <td>
+            ${llm.cost_usd.cost_of_failure.toFixed(4)}
+            {llm.cost_usd.cost_of_failure > 0 && ` (${fmtPct(llm.cost_usd.cost_of_failure_pct)} of total)`}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  );
+}
+
+function FallbackTable({ rows }: { rows: CXOverview["llm_usage"]["by_function"] }) {
+  if (!rows.length) return <p className="cx-empty">No LLM calls recorded yet in this range.</p>;
+  return (
+    <div className="cx-table-wrap">
+      <table className="cx-trace-table">
+        <thead>
+          <tr><th>Function</th><th>Calls</th><th>Fallback rate</th><th>Avg latency</th><th>Cost</th></tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.function} className={r.fallback_rate > 0 ? "cx-trace-error" : ""}>
+              <td>{r.function}</td>
+              <td>{fmt(r.calls)}</td>
+              <td>{fmtPct(r.fallback_rate)} {r.fallback_calls > 0 && `(${r.fallback_calls})`}</td>
+              <td>{fmtMs(r.avg_latency_ms)}</td>
+              <td>${r.total_cost_usd.toFixed(4)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // --------------------------------------------------------------------------- //
 // Main component
 // --------------------------------------------------------------------------- //
@@ -384,6 +491,89 @@ export default function CXDashboard() {
                     </table>
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Observability (P0) ───────────────────────────────────── */}
+          <div className="cx-obs-head">
+            <h3 className="cx-section-title" style={{ marginBottom: 2 }}>Observability — beyond latency &amp; cost</h3>
+            <p className="muted" style={{ marginTop: 0 }}>
+              Conversation health, guardrail integrity, sales-intent segmentation, and true token
+              economics — computed from Rep Assist's own store, independent of LangSmith.
+            </p>
+          </div>
+
+          <div className="cx-kpi-row">
+            <KpiCard
+              label="Turns / Conversation (P50)"
+              value={fmt(data.observability.conversation_health.turns_per_conversation.p50)}
+              sub={`P90: ${fmt(data.observability.conversation_health.turns_per_conversation.p90)} · P99: ${fmt(data.observability.conversation_health.turns_per_conversation.p99)}`}
+            />
+            <KpiCard
+              label="Looping Conversations"
+              value={fmt(data.observability.conversation_health.looping_conversations)}
+              sub={`> ${data.observability.conversation_health.looping_threshold} turns, unresolved`}
+            />
+            <KpiCard
+              label="Confirmation Reversal"
+              value={fmtPct(data.observability.conversation_health.confirmation_reversal_rate)}
+              sub={`${fmt(data.observability.conversation_health.confirmations_declined)} declined of ${fmt(data.observability.conversation_health.confirmations_declined + data.observability.conversation_health.confirmations_approved)}`}
+            />
+            <KpiCard
+              label="Out-of-Scope Rate"
+              value={fmtPct(data.observability.conversation_health.out_of_scope_rate)}
+              sub={data.observability.conversation_health.out_of_scope_trend ?? "trend needs more data"}
+            />
+            <KpiCard
+              label="Reasoning Tokens (avg)"
+              value={fmt(data.llm_usage.token_taxonomy.avg_thinking)}
+              sub={`of ${fmt(data.llm_usage.token_taxonomy.avg_output)} avg output`}
+            />
+            <KpiCard
+              label="Cost of Failure"
+              value={`$${data.llm_usage.cost_usd.cost_of_failure.toFixed(4)}`}
+              sub={`${fmtPct(data.llm_usage.cost_usd.cost_of_failure_pct)} of $${data.llm_usage.cost_usd.total.toFixed(2)} total`}
+            />
+          </div>
+
+          <div className="cx-section">
+            <h3 className="cx-section-title">Guardrail — confirm-gate audit</h3>
+            <GuardrailBanner guardrail={data.observability.guardrail} />
+          </div>
+
+          <div className="cx-body">
+            <div className="cx-col">
+              <div className="cx-section">
+                <h3 className="cx-section-title">Sales-Intent Breakdown</h3>
+                <p className="cx-empty" style={{ marginBottom: 10 }}>
+                  Heuristic keyword tag, not a validated classifier — see docs/16.
+                </p>
+                {data.observability.sales_intent.length === 0 ? (
+                  <p className="cx-empty">No engagements in this range.</p>
+                ) : (
+                  <div className="cx-bars">
+                    {data.observability.sales_intent.map((row) => (
+                      <SalesIntentBar
+                        key={row.sales_intent}
+                        row={row}
+                        max={Math.max(...data.observability.sales_intent.map((r) => r.count), 1)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="cx-section">
+                <h3 className="cx-section-title">Full Token Taxonomy</h3>
+                <TokenTaxonomyTable llm={data.llm_usage} />
+              </div>
+            </div>
+
+            <div className="cx-col cx-col--wide">
+              <div className="cx-section">
+                <h3 className="cx-section-title">Fallback-to-Mock Rate by Function</h3>
+                <FallbackTable rows={data.llm_usage.by_function} />
               </div>
             </div>
           </div>

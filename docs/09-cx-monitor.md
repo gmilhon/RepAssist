@@ -10,6 +10,12 @@ deterministic sample data that mirrors the realistic patterns used by the YTD
 seed script. When a `LANGCHAIN_API_KEY` is present it switches to live
 LangSmith data automatically.
 
+Below the LangSmith-sourced KPIs, the dashboard also renders an
+**Observability** section — conversation health, guardrail integrity, true
+token economics, and sales-intent segmentation — computed from Rep Assist's
+own store and available regardless of whether LangSmith is configured. See
+[Observability P0](16-observability-p0.md).
+
 ---
 
 ## Architecture
@@ -247,3 +253,5 @@ building `recent_traces` and the `by_intent` aggregation.
 | `frontend/src/api.ts` | `api.cxOverview()` method |
 | `frontend/src/App.tsx` | CX Monitor tab + dual header pills |
 | `frontend/src/styles.css` | CX dashboard styles (`cx-*` namespace) |
+| `backend/app/store/db.py` | `observability_overview()`, `llm_usage_overview()` — see [doc 16](16-observability-p0.md) |
+| `backend/app/llm.py` | `_log_usage()`, `tag_sales_intent()` — token-taxonomy capture and sales-intent heuristic |

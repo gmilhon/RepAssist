@@ -130,6 +130,27 @@ GAP_POOL = {
     ],
 }
 
+# Sales-intent tagging mirrors the live heuristic's realistic hit rate — most
+# engagements stay unclassified; when tagged, the motion correlates loosely
+# with the functional intent (e.g. activation issues skew toward new-service
+# or upgrade flows). (sales_intent | None, weight) per functional intent.
+SALES_INTENT_MIX = {
+    "activation":    [("nse", 22), ("up", 16), ("aal", 7),  (None, 55)],
+    "pending_order": [("aal", 20), ("up", 15), ("nse", 6),  (None, 59)],
+    "promo":         [("nse", 8),  ("aal", 6),  ("up", 8),   (None, 78)],
+    "occ":           [("nse", 5),  ("aal", 5),  ("up", 5),   (None, 85)],
+    "billing":       [(None, 92), ("up", 4),   ("aal", 4)],
+    "other":         [(None, 95), ("nse", 2),  ("aal", 2), ("up", 1)],
+}
+
+
+def _pick_sales_intent(intent: str, rng: random.Random) -> str | None:
+    choices = SALES_INTENT_MIX.get(intent, [(None, 100)])
+    values  = [c[0] for c in choices]
+    weights = [c[1] for c in choices]
+    return rng.choices(values, weights=weights)[0]
+
+
 REPS  = [f"rep.{n}" for n in (
     "alvarez", "chen", "patel", "okafor", "santos", "kim",
     "rodriguez", "nguyen", "washington", "flores", "lee", "martin",
@@ -195,7 +216,7 @@ def _outcome(intent: str, rng: random.Random) -> str:
 
 def _make_ticket(
     tickets: list[dict], tkt_id: str, intent: str,
-    created: datetime, rep: str, rng: random.Random,
+    created: datetime, rep: str, rng: random.Random, sales_intent: str | None = None,
 ) -> None:
     summary  = rng.choice(SUMMARIES[intent])
     fate     = rng.random()
@@ -207,6 +228,7 @@ def _make_ticket(
         rep_id=rep,
         thread_id=f"seed-{uuid.uuid4().hex[:8]}",
         intent=intent,
+        sales_intent=sales_intent,
         priority="high" if intent in ("activation", "pending_order") else "normal",
         summary=summary,
         conversation=convo,
@@ -252,24 +274,71 @@ _seed_state: dict = {"running": False, "done": False, "result": None, "error": N
 _ENG_SQL = """
 INSERT INTO engagement
   (created_at, thread_id, rep_id, kind, intent, confidence,
-   status, resolution_status, capability, confirmed, ticket_id)
+   status, resolution_status, capability, confirmed, ticket_id, sales_intent)
 VALUES
   (:created_at, :thread_id, :rep_id, :kind, :intent, :confidence,
-   :status, :resolution_status, :capability, :confirmed, :ticket_id)
+   :status, :resolution_status, :capability, :confirmed, :ticket_id, :sales_intent)
 """
 
 _TKT_SQL = """
 INSERT INTO ticket
-  (id, created_at, updated_at, rep_id, thread_id, intent, priority, summary,
+  (id, created_at, updated_at, rep_id, thread_id, intent, sales_intent, priority, summary,
    order_id, account_id, conversation, order_context, trace,
    status, assigned_to, resolution_notes, root_cause_category,
    recommended_capability, gap_type, resolved_by, resolved_at)
 VALUES
-  (:id, :created_at, :updated_at, :rep_id, :thread_id, :intent, :priority, :summary,
+  (:id, :created_at, :updated_at, :rep_id, :thread_id, :intent, :sales_intent, :priority, :summary,
    :order_id, :account_id, :conversation, :order_context, :trace,
    :status, :assigned_to, :resolution_notes, :root_cause_category,
    :recommended_capability, :gap_type, :resolved_by, :resolved_at)
 """
+
+_LLM_SQL = """
+INSERT INTO llm_calls
+  (created_at, thread_id, function, model, success, fallback,
+   input_tokens, output_tokens, thinking_tokens, cache_creation_tokens, cache_read_tokens,
+   latency_ms, cost_usd)
+VALUES
+  (:created_at, :thread_id, :function, :model, :success, :fallback,
+   :input_tokens, :output_tokens, :thinking_tokens, :cache_creation_tokens, :cache_read_tokens,
+   :latency_ms, :cost_usd)
+"""
+
+_AUDIT_SQL = """
+INSERT INTO action_audit
+  (created_at, thread_id, rep_id, service, operation, approved, success)
+VALUES
+  (:created_at, :thread_id, :rep_id, :service, :operation, :approved, :success)
+"""
+
+# Plausible per-function token/latency/cost profile — mirrors what live calls
+# actually looked like when this instrumentation was built (see docs/16).
+_LLM_PROFILE = {
+    "classify": {"in": (700, 200), "out": (55, 20), "think": (0, 8), "lat": (2500, 4500)},
+    "compose":  {"in": (850, 250), "out": (95, 30), "think": (0, 5), "lat": (2000, 3800)},
+}
+_IN_RATE  = 3.0 / 1_000_000
+_OUT_RATE = 15.0 / 1_000_000
+_FALLBACK_RATE = 0.015  # ~1.5% of calls degrade to mock, same order as real transient failure rates
+
+
+def _llm_call_row(function: str, ts: str, thread: str, rng: random.Random) -> dict:
+    profile = _LLM_PROFILE[function]
+    fallback = rng.random() < _FALLBACK_RATE
+    if fallback:
+        return dict(created_at=ts, thread_id=thread, function=function, model="claude-sonnet-5",
+                    success=True, fallback=True, input_tokens=0, output_tokens=0, thinking_tokens=0,
+                    cache_creation_tokens=0, cache_read_tokens=0, latency_ms=0, cost_usd=0.0)
+    in_tok  = max(50, int(rng.gauss(*profile["in"])))
+    out_tok = max(20, int(rng.gauss(*profile["out"])))
+    think   = max(0, int(rng.gauss(*profile["think"])))
+    think   = min(think, out_tok)
+    lat     = max(300, int(rng.gauss(*profile["lat"])))
+    cost    = in_tok * _IN_RATE + out_tok * _OUT_RATE
+    return dict(created_at=ts, thread_id=thread, function=function, model="claude-sonnet-5",
+                success=True, fallback=False, input_tokens=in_tok, output_tokens=out_tok,
+                thinking_tokens=think, cache_creation_tokens=0, cache_read_tokens=0,
+                latency_ms=lat, cost_usd=round(cost, 6))
 
 
 def _run_seed() -> dict:
@@ -280,11 +349,15 @@ def _run_seed() -> dict:
     total_conversations = 0
     total_engagements   = 0
     total_tickets       = 0
+    total_llm_calls     = 0
+    total_actions       = 0
 
     conn = _engine.raw_connection()
     try:
         conn.execute("DELETE FROM engagement")
         conn.execute("DELETE FROM ticket")
+        conn.execute("DELETE FROM llm_calls")
+        conn.execute("DELETE FROM action_audit")
         conn.commit()
 
         # Process week by week to stay memory-efficient; use raw SQL for speed
@@ -293,6 +366,8 @@ def _run_seed() -> dict:
             week_end = min(d + timedelta(days=6), end)
             eng_rows: list[dict] = []
             tkt_rows: list[dict] = []
+            llm_rows: list[dict] = []
+            audit_rows: list[dict] = []
             threads:  set[str]   = set()
 
             cur = d
@@ -305,6 +380,7 @@ def _run_seed() -> dict:
                     _, _, (c_lo, c_hi), capability = INTENTS[intent]
                     conf   = round(rng.uniform(c_lo, c_hi), 2)
                     rep    = rng.choice(REPS)
+                    sales_intent = _pick_sales_intent(intent, rng)
                     thread = f"seed-{cur.isoformat()}-{uuid.uuid4().hex[:6]}"
                     ts     = datetime(
                         cur.year, cur.month, cur.day,
@@ -314,48 +390,66 @@ def _run_seed() -> dict:
                     threads.add(thread)
                     outcome = _outcome(intent, rng)
 
+                    # Every turn triages (classify) and composes a reply — same
+                    # 1:1 shape the live graph produces (see docs/16).
+                    llm_rows.append(_llm_call_row("classify", ts, thread, rng))
+                    llm_rows.append(_llm_call_row("compose", ts, thread, rng))
+
                     if outcome in ("resolved_confirm", "declined"):
                         approved = outcome == "resolved_confirm"
                         eng_rows.append(dict(
                             created_at=ts, thread_id=thread, rep_id=rep, kind="message",
                             intent=intent, confidence=conf, status="needs_confirmation",
                             resolution_status=None, capability=None, confirmed=None, ticket_id=None,
+                            sales_intent=sales_intent,
                         ))
                         eng_rows.append(dict(
                             created_at=ts, thread_id=thread, rep_id=rep, kind="confirmation",
                             intent=intent, confidence=conf, status="answered",
                             resolution_status="resolved" if approved else "cancelled",
                             capability=capability, confirmed=approved, ticket_id=None,
+                            sales_intent=sales_intent,
                         ))
+                        if approved:
+                            audit_rows.append(dict(
+                                created_at=ts, thread_id=thread, rep_id=rep,
+                                service=capability, operation="EXECUTE",
+                                approved=True, success=True,
+                            ))
 
                     elif outcome == "resolved_direct":
                         eng_rows.append(dict(
                             created_at=ts, thread_id=thread, rep_id=rep, kind="message",
                             intent=intent, confidence=conf, status="answered",
                             resolution_status="resolved", capability=capability,
-                            confirmed=None, ticket_id=None,
+                            confirmed=None, ticket_id=None, sales_intent=sales_intent,
                         ))
 
                     else:
-                        tkt_id = "TCK-" + uuid.uuid4().hex[:8].upper()
+                        tkt_id = "TCK-" + uuid.uuid4().hex[:12].upper()
                         _make_ticket(tkt_rows, tkt_id, intent,
-                                     datetime.fromisoformat(ts), rep, rng)
+                                     datetime.fromisoformat(ts), rep, rng, sales_intent)
                         eng_rows.append(dict(
                             created_at=ts, thread_id=thread, rep_id=rep, kind="message",
                             intent=intent, confidence=conf, status="escalated",
                             resolution_status="escalated", capability="human-tier-2",
-                            confirmed=None, ticket_id=tkt_id,
+                            confirmed=None, ticket_id=tkt_id, sales_intent=sales_intent,
                         ))
 
                 cur += timedelta(days=1)
 
             conn.executemany(_ENG_SQL, eng_rows)
             conn.executemany(_TKT_SQL, tkt_rows)
+            conn.executemany(_LLM_SQL, llm_rows)
+            if audit_rows:
+                conn.executemany(_AUDIT_SQL, audit_rows)
             conn.commit()
 
             total_conversations += len(threads)
             total_engagements   += len(eng_rows)
             total_tickets       += len(tkt_rows)
+            total_llm_calls     += len(llm_rows)
+            total_actions       += len(audit_rows)
             d = week_end + timedelta(days=1)
 
     finally:
@@ -368,6 +462,8 @@ def _run_seed() -> dict:
         "conversations": total_conversations,
         "engagements": total_engagements,
         "tickets": total_tickets,
+        "llm_calls": total_llm_calls,
+        "actions_audited": total_actions,
         "weekly_avg_conversations": round(total_conversations / (days / 7)),
     }
 

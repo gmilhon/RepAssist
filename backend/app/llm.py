@@ -10,9 +10,11 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 
 from .config import get_settings
 from .schemas import ExecutiveSummary, ProductionAnalysis, Resolution, SystemEnhancementsDoc, TriageResult
+from .store import db
 
 logger = logging.getLogger("repassist.llm")
 
@@ -64,6 +66,35 @@ def extract_entities(text: str) -> dict:
     return out
 
 
+# Sales-motion tagging — a deterministic keyword heuristic, not an LLM
+# classifier (a second model call per turn is too expensive for a P0 signal,
+# and reps rarely narrate their own sales motion in so many words anyway).
+# Ships only the three sales-intent codes confirmed in the observability
+# proposal (NSE/AAL/UP); anything else stays unclassified rather than guess.
+# This is a first-pass, low-precision signal — validate against real
+# order/account "is this a new customer / new line / device swap" data before
+# using it for reporting decisions. See docs/16-observability-p0.md.
+_SALES_INTENT_RULES: list[tuple[str, tuple[str, ...]]] = [
+    ("nse", ("new customer", "new account", "brand new line", "sign up for service",
+             "signing up", "new to the network", "starting new service", "walk-in new",
+             "open a new account", "new service and equipment", "brand new customer")),
+    ("aal", ("add a line", "additional line", "another line", "add line",
+             "adding a line", "new line on the account", "extra line", "add-a-line")),
+    ("up", ("upgrade", "trade in", "trade-in", "eligible for upgrade",
+            "device upgrade", "new phone for", "swap the device", "replace the device",
+            "upgrading")),
+]
+
+
+def tag_sales_intent(text: str) -> str | None:
+    """Best-effort sales-motion tag (nse | aal | up | None). See module note above."""
+    t = text.lower()
+    for code, keywords in _SALES_INTENT_RULES:
+        if any(k in t for k in keywords):
+            return code
+    return None
+
+
 def _client():
     import anthropic
 
@@ -80,13 +111,63 @@ def _client():
     return client
 
 
+def _log_usage(
+    function: str,
+    model: str,
+    latency_ms: int,
+    *,
+    thread_id: str | None = None,
+    resp=None,
+    success: bool = True,
+    fallback: bool = False,
+) -> None:
+    """Persist the full token taxonomy + cost for one LLM call attempt —
+    live (resp set) or fallback/mock (resp=None, zero-cost). Best-effort;
+    analytics must never break the caller, same guarantee as
+    db.record_engagement.
+    """
+    input_tok = output_tok = thinking_tok = cache_creation = cache_read = 0
+    cost = 0.0
+    if resp is not None:
+        usage = getattr(resp, "usage", None)
+        input_tok = getattr(usage, "input_tokens", 0) or 0
+        output_tok = getattr(usage, "output_tokens", 0) or 0
+        cache_creation = getattr(usage, "cache_creation_input_tokens", 0) or 0
+        cache_read = getattr(usage, "cache_read_input_tokens", 0) or 0
+        details = getattr(usage, "output_tokens_details", None)
+        thinking_tok = (getattr(details, "thinking_tokens", 0) or 0) if details else 0
+
+        settings = get_settings()
+        in_rate = settings.langsmith_input_cost_per_million / 1_000_000
+        out_rate = settings.langsmith_output_cost_per_million / 1_000_000
+        # Anthropic doesn't return line-item cache pricing on the response —
+        # approximate the standard surcharge/discount: cache writes ~1.25x the
+        # base input rate (5-minute TTL), cache reads ~0.1x.
+        cost = (
+            input_tok * in_rate
+            + cache_creation * in_rate * 1.25
+            + cache_read * in_rate * 0.1
+            + output_tok * out_rate
+        )
+
+    db.record_llm_call(
+        thread_id=thread_id, function=function, model=model or "mock",
+        success=success, fallback=fallback,
+        input_tokens=input_tok, output_tokens=output_tok, thinking_tokens=thinking_tok,
+        cache_creation_tokens=cache_creation, cache_read_tokens=cache_read,
+        latency_ms=latency_ms, cost_usd=round(cost, 6),
+    )
+
+
 # --------------------------------------------------------------------------- #
 # Triage / classification
 # --------------------------------------------------------------------------- #
-def classify(text: str) -> TriageResult:
+def classify(text: str, thread_id: str | None = None) -> TriageResult:
     settings = get_settings()
     if not settings.llm_enabled:
+        _log_usage("classify", settings.anthropic_model, 0, thread_id=thread_id, fallback=True)
         return _mock_classify(text)
+    t0 = time.monotonic()
     try:
         client = _client()
         resp = client.messages.parse(
@@ -99,9 +180,13 @@ def classify(text: str) -> TriageResult:
         result = resp.parsed_output
         if result is None:
             raise ValueError("empty parsed_output")
+        _log_usage("classify", settings.anthropic_model, int((time.monotonic() - t0) * 1000),
+                   thread_id=thread_id, resp=resp)
         return result
     except Exception as exc:  # noqa: BLE001 - intentional graceful degradation
         logger.warning("Live triage failed (%s); using rule-based fallback", exc)
+        _log_usage("classify", settings.anthropic_model, int((time.monotonic() - t0) * 1000),
+                   thread_id=thread_id, success=False, fallback=True)
         return _mock_classify(text)
 
 
@@ -156,10 +241,15 @@ def _mock_classify(text: str) -> TriageResult:
 # --------------------------------------------------------------------------- #
 # Reply composition
 # --------------------------------------------------------------------------- #
-def compose_reply(resolution: Resolution, order_context: dict | None, ticket_id: str | None) -> str:
+def compose_reply(
+    resolution: Resolution, order_context: dict | None, ticket_id: str | None,
+    thread_id: str | None = None,
+) -> str:
     settings = get_settings()
     if not settings.llm_enabled:
+        _log_usage("compose", settings.anthropic_model, 0, thread_id=thread_id, fallback=True)
         return _mock_compose(resolution, ticket_id)
+    t0 = time.monotonic()
     try:
         client = _client()
         context = {
@@ -175,9 +265,13 @@ def compose_reply(resolution: Resolution, order_context: dict | None, ticket_id:
         )
         parts = [b.text for b in resp.content if getattr(b, "type", "") == "text"]
         text = "".join(parts).strip()
+        _log_usage("compose", settings.anthropic_model, int((time.monotonic() - t0) * 1000),
+                   thread_id=thread_id, resp=resp)
         return text or _mock_compose(resolution, ticket_id)
     except Exception as exc:  # noqa: BLE001
         logger.warning("Live compose failed (%s); using template fallback", exc)
+        _log_usage("compose", settings.anthropic_model, int((time.monotonic() - t0) * 1000),
+                   thread_id=thread_id, success=False, fallback=True)
         return _mock_compose(resolution, ticket_id)
 
 
@@ -198,7 +292,9 @@ def generate_executive_summary(overview: dict, gaps: list[dict]) -> dict:
     """
     settings = get_settings()
     if not settings.llm_enabled:
+        _log_usage("executive_summary", settings.anthropic_model, 0, fallback=True)
         return _mock_executive_summary(overview, gaps)
+    t0 = time.monotonic()
     try:
         client = _client()
         prompt = _build_summary_prompt(overview, gaps)
@@ -212,9 +308,12 @@ def generate_executive_summary(overview: dict, gaps: list[dict]) -> dict:
         result = resp.parsed_output
         if result is None:
             raise ValueError("empty parsed_output")
+        _log_usage("executive_summary", settings.anthropic_model, int((time.monotonic() - t0) * 1000), resp=resp)
         return result.model_dump()
     except Exception as exc:  # noqa: BLE001
         logger.warning("Executive summary generation failed (%s); using fallback", exc)
+        _log_usage("executive_summary", settings.anthropic_model, int((time.monotonic() - t0) * 1000),
+                   success=False, fallback=True)
         return _mock_executive_summary(overview, gaps)
 
 
@@ -379,7 +478,9 @@ def analyze_production_issues(tickets: list[dict], window_hours: int) -> list[di
         return []
     settings = get_settings()
     if not settings.llm_enabled:
+        _log_usage("production_analysis", settings.anthropic_model, 0, fallback=True)
         return _mock_production_analysis(tickets)
+    t0 = time.monotonic()
     try:
         client = _client()
         lines = [
@@ -401,6 +502,7 @@ def analyze_production_issues(tickets: list[dict], window_hours: int) -> list[di
         result = resp.parsed_output
         if result is None:
             raise ValueError("empty parsed_output")
+        _log_usage("production_analysis", settings.anthropic_model, int((time.monotonic() - t0) * 1000), resp=resp)
         known = {t["id"] for t in tickets}
         findings = []
         for issue in result.issues:
@@ -410,6 +512,8 @@ def analyze_production_issues(tickets: list[dict], window_hours: int) -> list[di
         return findings
     except Exception as exc:  # noqa: BLE001
         logger.warning("Production analysis failed (%s); using fallback", exc)
+        _log_usage("production_analysis", settings.anthropic_model, int((time.monotonic() - t0) * 1000),
+                   success=False, fallback=True)
         return _mock_production_analysis(tickets)
 
 
@@ -570,6 +674,7 @@ def generate_system_enhancements(commit_log: str, previous: list[dict] | None = 
         f"RECENT COMMIT HISTORY (newest first):\n{commit_log}\n\n"
         f"Produce the updated enhancements list and 3 suggested follow-up questions."
     )
+    t0 = time.monotonic()
     resp = client.messages.parse(
         model=settings.anthropic_model,
         max_tokens=8192,
@@ -579,5 +684,8 @@ def generate_system_enhancements(commit_log: str, previous: list[dict] | None = 
     )
     result = resp.parsed_output
     if result is None:
+        _log_usage("enhancements", settings.anthropic_model, int((time.monotonic() - t0) * 1000),
+                   resp=resp, success=False)
         raise ValueError("empty parsed_output")
+    _log_usage("enhancements", settings.anthropic_model, int((time.monotonic() - t0) * 1000), resp=resp)
     return result.model_dump()

@@ -275,6 +275,58 @@ export interface CXOverview {
     error_count: number;
   }>;
   recent_traces: CXTrace[];
+  observability: ObservabilityOverview;
+  llm_usage: LLMUsageOverview;
+}
+
+// ── Observability P0 (see docs/16-observability-p0.md) ────────────────────
+
+export interface ObservabilityOverview {
+  generated_at: string;
+  conversation_health: {
+    turns_per_conversation: { p50: number; p90: number; p99: number; conversations_measured: number };
+    looping_threshold: number;
+    looping_conversations: number;
+    confirmation_reversal_rate: number;
+    confirmations_declined: number;
+    confirmations_approved: number;
+    out_of_scope_rate: number;
+    out_of_scope_trend: string | null;
+  };
+  sales_intent: Array<{
+    sales_intent: string; // nse | aal | up | unclassified
+    count: number;
+    auto_resolved: number;
+    escalated: number;
+    avg_confidence: number;
+    containment_rate: number;
+  }>;
+  guardrail: {
+    actions_executed: number;
+    unconfirmed_mutation_count: number;
+    unconfirmed_mutation_examples: Array<{
+      thread_id: string | null; service: string; operation: string; created_at: string;
+    }>;
+  };
+}
+
+export interface LLMUsageOverview {
+  generated_at: string;
+  calls_recorded: number;
+  token_taxonomy: {
+    avg_input: number; avg_output: number; avg_thinking: number;
+    avg_cache_creation: number; avg_cache_read: number;
+    total_input: number; total_output: number; total_thinking: number;
+    total_cache_creation: number; total_cache_read: number;
+  };
+  cost_usd: {
+    total: number; avg_per_call: number;
+    cost_of_failure: number; cost_of_failure_pct: number;
+  };
+  by_function: Array<{
+    function: string; calls: number; fallback_calls: number;
+    total_cost_usd: number; avg_latency_ms: number; fallback_rate: number;
+  }>;
 }
 
 export interface SystemHealth {

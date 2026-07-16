@@ -68,7 +68,7 @@ def _trace(node: str, **detail) -> list[dict]:
 # --------------------------------------------------------------------------- #
 def triage(state: GraphState) -> dict:
     text = _last_user_text(state)
-    result = llm.classify(text)
+    result = llm.classify(text, thread_id=state.get("thread_id"))
 
     # Merge newly-extracted entities with any carried from earlier turns.
     entities = {**(state.get("entities") or {}), **llm.extract_entities(text)}
@@ -79,6 +79,9 @@ def triage(state: GraphState) -> dict:
 
     intent = result.intent
     confidence = result.confidence
+    # Best-effort heuristic; carry forward the prior turn's tag if this turn
+    # doesn't hit any keyword (a rep rarely repeats "add a line" every message).
+    sales_intent = llm.tag_sales_intent(text) or state.get("sales_intent")
 
     # Slot-fill: if the assistant just asked for an id and the rep's reply now
     # supplies it, resume the prior intent instead of re-classifying the bare id.
@@ -95,6 +98,7 @@ def triage(state: GraphState) -> dict:
     return {
         "intent": intent,
         "confidence": confidence,
+        "sales_intent": sales_intent,
         "entities": entities,
         "order_context": ctx,
         "triage_summary": result.summary,  # ignored by state schema but handy in trace
@@ -366,6 +370,19 @@ def confirm(state: GraphState) -> dict:
         }
 
     exec_result = agents_client.execute(ProposedAction(**action))
+    # Audit trail for the single execute() call site in the whole app — the
+    # graph structurally cannot reach this line without `approved` being True
+    # above, so `approved` here should always persist as True. Monitored on
+    # the CX Monitor guardrail panel as an invariant, not a rate: any False
+    # row is a real incident (a refactor broke the confirm gate), not noise.
+    db.record_action_audit(
+        thread_id=state.get("thread_id"),
+        rep_id=state.get("rep_id"),
+        service=action.get("service", ""),
+        operation=action.get("operation", ""),
+        approved=approved,
+        success=exec_result.success,
+    )
     if exec_result.success:
         return {
             "route": "compose",
@@ -401,6 +418,7 @@ def ticket_fallback(state: GraphState) -> dict:
         rep_id=state.get("rep_id"),
         thread_id=state.get("thread_id"),
         intent=intent,
+        sales_intent=state.get("sales_intent"),
         priority=priority,
         summary=diagnosis.get("summary") or state.get("triage_summary")
         or _last_user_text(state)[:160],
@@ -439,7 +457,8 @@ def ticket_fallback(state: GraphState) -> dict:
 # --------------------------------------------------------------------------- #
 def compose(state: GraphState) -> dict:
     res = Resolution(**(state.get("resolution") or {"status": "info", "summary": ""}))
-    text = llm.compose_reply(res, state.get("order_context"), state.get("ticket_id"))
+    text = llm.compose_reply(res, state.get("order_context"), state.get("ticket_id"),
+                              thread_id=state.get("thread_id"))
 
     card = {
         "intent": state.get("intent"),

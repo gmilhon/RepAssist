@@ -16,7 +16,9 @@ def _now() -> datetime:
 
 
 def _ticket_id() -> str:
-    return "TCK-" + uuid.uuid4().hex[:8].upper()
+    # 12 hex chars (48 bits) — 8 chars (32 bits) collides ~25% of the time by
+    # the time volume reaches tens of thousands of tickets (birthday paradox).
+    return "TCK-" + uuid.uuid4().hex[:12].upper()
 
 
 class TicketStatus(str, Enum):
@@ -54,6 +56,7 @@ class Engagement(SQLModel, table=True):
     capability: Optional[str] = None          # which agent/skill handled it
     confirmed: Optional[bool] = None          # for confirmation turns
     ticket_id: Optional[str] = None
+    sales_intent: Optional[str] = None        # nse | aal | up | None (heuristic tag, see llm.tag_sales_intent)
 
 
 class Ticket(SQLModel, table=True):
@@ -65,6 +68,7 @@ class Ticket(SQLModel, table=True):
     rep_id: Optional[str] = None
     thread_id: Optional[str] = None
     intent: str = "other"
+    sales_intent: Optional[str] = None  # nse | aal | up | None (heuristic tag)
     priority: str = "normal"  # low | normal | high
     summary: str = ""
     order_id: Optional[str] = None
@@ -117,7 +121,7 @@ class HuddleItem(SQLModel, table=True):
 
 
 def _issue_id() -> str:
-    return "PRD-" + uuid.uuid4().hex[:8].upper()
+    return "PRD-" + uuid.uuid4().hex[:12].upper()
 
 
 class ProductionIssue(SQLModel, table=True):
@@ -161,3 +165,56 @@ class JiraDefect(SQLModel, table=True):
     labels: list = Field(default_factory=list, sa_column=Column(JSON))
     status: str = "Open"
     issue_id: Optional[str] = None        # back-reference to ProductionIssue.id
+
+
+class LLMCall(SQLModel, table=True):
+    """One row per Anthropic API call (or attempted call), across every LLM
+    function in the app — conversational (classify, compose) and background
+    (executive summary, production analysis, enhancements generation).
+
+    This is the "true token economics" ledger: full token taxonomy (not just
+    input/output), whether the call succeeded or degraded to the offline mock
+    fallback, and per-call cost — the data neither aggregate CX Monitor totals
+    nor LangSmith's default view break out on their own.
+    """
+
+    __tablename__ = "llm_calls"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=_now)
+    thread_id: Optional[str] = None       # None for non-conversational (background) calls
+    function: str = ""                    # classify | compose | executive_summary | production_analysis | enhancements
+    model: str = ""
+
+    success: bool = True                  # False when the live call raised and fell back to mock
+    fallback: bool = False                # True whenever the mock/offline path was used (disabled key or failure)
+
+    input_tokens: int = 0
+    output_tokens: int = 0
+    thinking_tokens: int = 0              # subset of output_tokens spent on extended-thinking reasoning
+    cache_creation_tokens: int = 0
+    cache_read_tokens: int = 0
+
+    latency_ms: int = 0
+    cost_usd: float = 0.0
+
+
+class ActionAudit(SQLModel, table=True):
+    """One row per mutating action actually executed against a downstream
+    agent (the single `agents_client.execute()` call site in
+    `graph/nodes.confirm`). `approved` should be True on every row by
+    construction — the graph cannot reach `execute()` without a rep-approved
+    LangGraph interrupt/resume first. This table is the continuous proof of
+    that invariant (and the audit trail regulators/Trust & Safety expect),
+    not a gap-closer for a bypass that exists today."""
+
+    __tablename__ = "action_audit"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=_now)
+    thread_id: Optional[str] = None
+    rep_id: Optional[str] = None
+    service: str = ""
+    operation: str = ""
+    approved: bool = True
+    success: bool = True

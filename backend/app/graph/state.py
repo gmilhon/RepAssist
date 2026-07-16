@@ -18,6 +18,7 @@ class GraphState(TypedDict, total=False):
     # Triage output
     intent: Optional[str]
     confidence: Optional[float]
+    sales_intent: Optional[str]         # nse | aal | up | None — heuristic tag, see llm.tag_sales_intent
     triage_summary: Optional[str]
     entities: dict
     order_context: Optional[dict]
