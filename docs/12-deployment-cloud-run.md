@@ -117,19 +117,15 @@ on the machine running the deploy.
 
 ## Seeding synthetic history (deployed)
 
-The database ships empty. To populate realistic history for demos, call the
-token-protected admin endpoint (see also
-[Operations Dashboard](08-operations-dashboard.md)):
-
-```bash
-TOKEN=$(gcloud secrets versions access latest --secret rep-assist-admin-token)
-BASE=https://rep-assist-374044178474.us-central1.run.app
-
-# kick off the background seed (Jan 1 → today, ~5,700 conversations/week)
-curl -s -X POST "$BASE/api/admin/seed" -H "X-Admin-Token: $TOKEN"
-# poll until done
-curl -s "$BASE/api/admin/seed/status" -H "X-Admin-Token: $TOKEN"
-```
+The database ships empty, and **every redeploy wipes it again** — a fresh
+revision means a fresh, empty SQLite file (see
+[Persistence caveat](#persistence-caveat) below). Populate realistic demo
+history via the token-protected admin endpoint after every deploy — full
+runbook with the exact polling pattern, timing expectations, and a
+troubleshooting table: [Reseeding the Deployed Environment](17-reseeding-deployed-data.md).
+A Claude Code skill
+([`.claude/skills/reseed-deployed-env`](../.claude/skills/reseed-deployed-env/SKILL.md))
+runs the same procedure on request.
 
 The seed runs in the background (FastAPI `BackgroundTasks`), inserts week-by-week
 via raw SQL `executemany` for speed, and reports totals via the status endpoint.

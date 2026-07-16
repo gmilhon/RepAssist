@@ -52,6 +52,7 @@ dev team should build next, so the assistant keeps getting better.
 15. [Production Monitor](docs/14-production-monitoring.md) — real-time escalation inflow, AI issue clustering, critical email alerts, and auto-filed JIRA defects (stub MCP).
 16. [System Enhancements Generation](docs/15-system-enhancements-generation.md) — the "What's new" card, regenerated from git commit history on every deploy instead of hand-maintained.
 17. [Observability](docs/16-observability.md) — conversation health, guardrail integrity (incl. log-only prompt-injection detection), true token economics (cost by intent/outcome), sales-intent segmentation, and a fallback-rate alert wired to System Health, added to CX Monitor.
+18. [Reseeding the Deployed Environment](docs/17-reseeding-deployed-data.md) — the exact runbook for repopulating demo data after a deploy, plus a matching Claude Code skill.
 
 ## 60-second quickstart
 
