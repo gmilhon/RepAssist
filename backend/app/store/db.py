@@ -415,37 +415,43 @@ def resolve_ticket(
 # --------------------------------------------------------------------------- #
 def create_queue_entry(**kwargs) -> tuple[QueueEntry, int]:
     """Create a check-in and return it with its 1-indexed position among
-    customers still waiting (the entry itself included)."""
+    customers still waiting (the entry itself included).
+
+    Sorts/counts in Python rather than via SQL ORDER BY / WHERE on
+    `created_at`: the demo seed bulk-inserts that column as ISO text
+    (`...T...+00:00`) via raw SQL, while the ORM writes it as SQLAlchemy's
+    own `datetime` serialization (`... ` space, no offset) — two different
+    text representations in the same column. SQLite compares them
+    lexicographically, which silently misorders rows; comparing the parsed
+    `datetime` objects (via `_aware`) is correct regardless of how each row
+    was written. See `_aware()`'s docstring for the same issue elsewhere.
+    """
     with Session(_engine) as s:
         entry = QueueEntry(**kwargs)
         s.add(entry)
         s.commit()
         s.refresh(entry)
-        position = len(
-            s.exec(
-                select(QueueEntry)
-                .where(QueueEntry.status == QueueStatus.WAITING)
-                .where(QueueEntry.created_at <= entry.created_at)
-            ).all()
-        )
+        waiting = s.exec(select(QueueEntry).where(QueueEntry.status == QueueStatus.WAITING)).all()
+        position = sum(1 for w in waiting if _aware(w.created_at) <= _aware(entry.created_at))
         return entry, position
 
 
 def list_queue(limit: int = 20) -> list[QueueEntry]:
     """Customers still waiting or currently being helped, waiting first
-    (oldest first), then in-progress (most recently started first)."""
+    (oldest first), then in-progress (most recently started first).
+    Sorted in Python for the same mixed-timestamp-format reason as
+    `create_queue_entry` above."""
     with Session(_engine) as s:
-        waiting = s.exec(
-            select(QueueEntry)
-            .where(QueueEntry.status == QueueStatus.WAITING)
-            .order_by(QueueEntry.created_at.asc())
-        ).all()
-        in_progress = s.exec(
-            select(QueueEntry)
-            .where(QueueEntry.status == QueueStatus.IN_PROGRESS)
-            .order_by(QueueEntry.started_at.desc())
-        ).all()
-        return list(waiting) + list(in_progress)[: max(limit - len(waiting), 0)]
+        waiting = sorted(
+            s.exec(select(QueueEntry).where(QueueEntry.status == QueueStatus.WAITING)).all(),
+            key=lambda e: _aware(e.created_at),
+        )
+        in_progress = sorted(
+            s.exec(select(QueueEntry).where(QueueEntry.status == QueueStatus.IN_PROGRESS)).all(),
+            key=lambda e: _aware(e.started_at or e.created_at),
+            reverse=True,
+        )
+        return list(waiting) + in_progress[: max(limit - len(waiting), 0)]
 
 
 def get_queue_entry(entry_id: str) -> Optional[QueueEntry]:
