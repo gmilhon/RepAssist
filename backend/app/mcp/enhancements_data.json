@@ -1,11 +1,25 @@
 {
-  "generated_at": "2026-07-16T02:04:45.810583+00:00",
-  "last_commit_sha": "f9d63037fb4e216cc8e367e8686cc4cc89a184d4",
+  "generated_at": "2026-07-16T05:03:36.860839+00:00",
+  "last_commit_sha": "e4271ee0ca1025d3628a34428c75c78529ca2886",
   "enhancements": [
     {
       "tag": "New",
-      "title": "System health status indicator",
-      "detail": "A colored badge in the top bar now shows at a glance whether everything is running normally (green), there's a known issue (yellow), or there's a serious outage (red). Tap it to see what's affected, any workaround, and live connection speed to each server region.",
+      "title": "AI-assisted Resolution Desk for ticket triage",
+      "detail": "Rep Assist can now scan your open and in-review tickets and sort them into three buckets: ones you can solve by sharing a help article, ones it can fix for you automatically, and ones that need to be flagged as a system problem. Each bucket comes with a one-tap action so you can clear tickets faster.",
+      "keywords": [
+        "resolution desk",
+        "ticket triage",
+        "analyze tickets",
+        "one-click fix",
+        "bucket",
+        "auto resolve"
+      ],
+      "answer": "Tap Analyze on the Resolution Desk and Rep Assist looks at your open and in-review tickets, then groups them into three buckets: ones that just need a help article shared with the customer, ones Rep Assist can fix automatically (like a stuck activation or a blocked order), and ones that look like a real system problem that needs an engineering ticket filed. Each bucket has a one-click action button, so you can work through a lot of tickets quickly instead of handling every one from scratch."
+    },
+    {
+      "tag": "Improved",
+      "title": "System health status indicator now catches problems automatically",
+      "detail": "The colored badge in the top bar still shows whether everything is running normally (green), there's a known issue (yellow), or a serious outage (red), and tapping it shows what's affected and live connection speed to each server region. Now it can also flip itself to yellow and pop up a toast on your screen automatically if Rep Assist's automated fixes start failing more than usual — even before an admin notices.",
       "keywords": [
         "system status",
         "outage",
@@ -13,9 +27,10 @@
         "down",
         "slow",
         "server issue",
-        "green yellow red"
+        "green yellow red",
+        "auto alert"
       ],
-      "answer": "The health badge at the top of the screen turns yellow or red when there's a known issue, and tapping it opens a panel with details, any workaround, and whether it's serious enough to be a hard stop. It also shows live round-trip times to the East, Central, and West server regions so you can tell if it's just you or a wider slowdown. Updates now push to your screen instantly when an admin posts a status change, instead of waiting up to a minute."
+      "answer": "The health badge at the top of the screen turns yellow or red when there's a known issue, and tapping it opens a panel with details, any workaround, and live round-trip times to the East, Central, and West server regions. On top of admins posting status changes, the system now watches itself in the background — if automated troubleshooting starts failing more often than normal, it automatically marks the system degraded and pushes a toast notification to your screen without waiting for a human to spot it. An admin still has to clear that warning manually once the issue is resolved."
     },
     {
       "tag": "Improved",
@@ -99,23 +114,11 @@
         "ticket status"
       ],
       "answer": "Tap 'Recent orders' or 'My open tickets' on the chat start screen to reveal a card listing your recent orders or open tickets, complete with status, priority, and a time-ago label, so you can quickly find the one you need without searching manually."
-    },
-    {
-      "tag": "New",
-      "title": "Briefings section with What's New",
-      "detail": "A new Briefings area gives you on-demand access to today's Opener and this What's New card, so you can always check in on recent updates to Rep Assist.",
-      "keywords": [
-        "briefings",
-        "what's new",
-        "updates",
-        "enhancements"
-      ],
-      "answer": "The Briefings tiles let you pull up today's Opener or this What's New card whenever you want, instead of only seeing them once at the start of your shift. It's the same card you're looking at right now."
     }
   ],
   "suggestions": [
-    "What does the system health badge tell me?",
-    "How does The Opener's to-do list work?",
-    "Can I look up my recent orders from chat?"
+    "How does the new Resolution Desk sort my tickets?",
+    "What happens when the system health badge turns yellow?",
+    "How do I use the one-tap starter tiles?"
   ]
 }
