@@ -58,6 +58,18 @@ priority(capability) = Σ weight(gap_type) over its resolved tickets
 So three "missing agent" tickets (3+3+3 = 9) outrank five "training" tickets
 (5×1 = 5): the list reflects *resolvable automation value*, not raw volume.
 
+## AI-classified tickets feed the identical backlog
+
+The [AI Assisted Resolution Desk](03-hitl-ticketing-workflow.md#ai-assisted-resolution-desk)'s
+`system_defect` one-click action (`POST /api/tickets/{id}/file-defect`) calls
+the same `resolve_ticket()` write path as the manual form — `status=resolved`,
+a real `gap_type`, and a `recommended_capability` — so it scores into
+`capability_gaps()` exactly like a ticket resolved through the original
+feedback form; no separate aggregation logic was needed. The `education`
+and `agent_action` one-click actions instead resolve with `gap_type=none`
+(status `closed`), the same as picking "Close (no gap)" by hand, because
+sharing an article or running an existing resolver isn't a capability gap.
+
 ## The Insights view
 
 `GET /api/insights/capability-gaps` returns the ranked backlog; the **Insights**

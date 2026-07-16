@@ -173,6 +173,44 @@ export interface Ticket {
   recommended_capability: string | null;
   gap_type: string | null;
   resolved_by: string | null;
+  // AI Assisted Resolution Desk classification (set by POST /api/tickets/analyze)
+  ai_category: "education" | "agent_action" | "system_defect" | null;
+  ai_reasoning: string | null;
+  ai_article_id: string | null;
+  ai_article_title: string | null;
+  ai_capability: string | null;
+  ai_analyzed_at: string | null;
+}
+
+export interface TicketAnalyzeResult {
+  analyzed: number;
+  education: number;
+  agent_action: number;
+  system_defect: number;
+  tickets: Ticket[];
+}
+
+export interface CallAgentResult {
+  resolved: boolean;
+  ticket: Ticket;
+  diagnosis: {
+    root_cause: string | null;
+    summary: string;
+    actions_taken?: string[];
+  };
+}
+
+export interface CandidateDefect {
+  key: string;
+  url: string;
+  summary: string;
+  status: string;
+  labels: string[];
+}
+
+export interface FileDefectResult {
+  ticket: Ticket;
+  defect_key: string;
 }
 
 export interface CapabilityGap {

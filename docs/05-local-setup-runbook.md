@@ -76,9 +76,14 @@ reveal MCP-backed *recent orders* / *open tickets* cards on demand
 | `Why is the customer's first bill so high?` | Answers from the knowledge base. |
 | `Customer wants to rename their smartwatch watch face` | No agent/knowledge → opens a **ticket**. |
 
-Then open the **Resolution Desk** tab, claim the ticket, fill in the resolve
-form (set a *recommended agent/skill* and *gap type*), and **Resolve & flag
-capability gap**. The **Operations** tab shows it ranked in the capability backlog.
+Then open the **Resolution Desk** tab. With the filter on **Open** or **In
+review**, click **Analyze** to bucket the backlog with AI (education /
+agent_action / system_defect) and resolve the smartwatch ticket with its
+one-click suggested action — or use the original flow: claim the ticket,
+fill in the resolve form (set a *recommended agent/skill* and *gap type*),
+and **Resolve & flag capability gap**. Either way, the **Operations** tab
+shows it ranked in the capability backlog. See the
+[AI Assisted Resolution Desk](03-hitl-ticketing-workflow.md#ai-assisted-resolution-desk).
 
 ### Populate the Operations dashboard
 

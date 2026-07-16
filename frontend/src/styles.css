@@ -335,6 +335,7 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 .desk { display: grid; grid-template-columns: 340px 1fr; height: 100%; }
 .queue { background: #fff; border-right: 1px solid var(--line); overflow-y: auto; }
 .queue-head { display: flex; align-items: center; justify-content: space-between; padding: 16px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: #fff; }
+.queue-head-actions { display: flex; align-items: center; gap: 8px; }
 .queue-head select, .form-row select, select { padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; }
 .queue-item { display: block; width: 100%; text-align: left; background: none; border: none; border-bottom: 1px solid var(--line); padding: 12px 16px; cursor: pointer; }
 .queue-item:hover { background: #fafbfc; }
@@ -370,6 +371,34 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .form-row select { width: 100%; }
 .form-actions { display: flex; gap: 10px; margin-top: 16px; }
+
+/* ---- AI Assisted Resolution Desk ---- */
+.ai-stats { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.ai-stat { flex: 1; text-align: center; border-radius: 8px; padding: 8px 4px; background: #eef0f2; }
+.ai-stat-count { display: block; font-size: 18px; font-weight: 700; }
+.ai-stat-label { display: block; font-size: 10px; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.3px; }
+.ai-stat.education { background: #e8f0fb; }
+.ai-stat.education .ai-stat-count { color: var(--info); }
+.ai-stat.agent_action { background: #e6f4ea; }
+.ai-stat.agent_action .ai-stat-count { color: var(--ok); }
+.ai-stat.system_defect { background: #fdeaea; }
+.ai-stat.system_defect .ai-stat-count { color: var(--vz-red); }
+
+.ai-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 6px; border-radius: 5px; }
+.ai-badge.education { background: #e8f0fb; color: var(--info); }
+.ai-badge.agent_action { background: #e6f4ea; color: var(--ok); }
+.ai-badge.system_defect { background: #fdeaea; color: var(--vz-red); }
+
+.ai-suggestion { margin-top: 20px; border: 1px solid var(--line); background: #fafbfc; border-radius: 10px; padding: 14px 16px; max-width: 760px; }
+.ai-suggestion h4 { margin-top: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--ink-2); }
+.ai-reasoning { font-size: 13px; color: var(--ink-2); margin: 4px 0 12px; }
+.ai-action-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ai-action-row select { flex: 1; min-width: 220px; }
+.ai-capability-hint { font-size: 13px; }
+.ai-diagnosis-fail { flex-basis: 100%; font-size: 12px; color: var(--warn); margin: 6px 0 0; }
+.ai-action-col { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.ai-action-col label { font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.ai-action-col select { width: 100%; min-width: 280px; }
 
 /* ---- operations dashboard ---- */
 .dash { padding: 22px 26px; overflow-y: auto; height: 100%; }

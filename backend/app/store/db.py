@@ -53,6 +53,20 @@ def init_db() -> None:
             conn.commit()
         except Exception:  # noqa: BLE001 - column already exists
             pass
+        for stmt in (
+            "ALTER TABLE ticket ADD COLUMN ai_category VARCHAR",
+            "ALTER TABLE ticket ADD COLUMN ai_reasoning VARCHAR",
+            "ALTER TABLE ticket ADD COLUMN ai_article_id VARCHAR",
+            "ALTER TABLE ticket ADD COLUMN ai_article_title VARCHAR",
+            "ALTER TABLE ticket ADD COLUMN ai_capability VARCHAR",
+            "ALTER TABLE ticket ADD COLUMN ai_analyzed_at DATETIME",
+            "ALTER TABLE jira_defects ADD COLUMN ticket_ids JSON DEFAULT '[]'",
+        ):
+            try:
+                conn.execute(text(stmt))
+                conn.commit()
+            except Exception:  # noqa: BLE001 - column already exists
+                pass
 
 
 # --------------------------------------------------------------------------- #
@@ -314,6 +328,33 @@ def claim_ticket(ticket_id: str, agent: str) -> Optional[Ticket]:
         ticket.status = TicketStatus.IN_REVIEW
         ticket.assigned_to = agent
         ticket.updated_at = datetime.now(timezone.utc)
+        s.add(ticket)
+        s.commit()
+        s.refresh(ticket)
+        return ticket
+
+
+def set_ticket_ai_classification(
+    ticket_id: str,
+    *,
+    category: str,
+    reasoning: str,
+    article_id: Optional[str] = None,
+    article_title: Optional[str] = None,
+    capability: Optional[str] = None,
+    analyzed_at: datetime,
+) -> Optional[Ticket]:
+    with Session(_engine) as s:
+        ticket = s.get(Ticket, ticket_id)
+        if not ticket:
+            return None
+        ticket.ai_category = category
+        ticket.ai_reasoning = reasoning
+        ticket.ai_article_id = article_id
+        ticket.ai_article_title = article_title
+        ticket.ai_capability = capability
+        ticket.ai_analyzed_at = analyzed_at
+        ticket.updated_at = analyzed_at
         s.add(ticket)
         s.commit()
         s.refresh(ticket)

@@ -16,6 +16,11 @@ next steps.
   in the chat, served by a **stubbed MCP layer** ([doc 10](10-a2ui-generative-ui.md)).
 - ✅ **Tier 1/2 Resolution Desk** (ServiceNow replacement) with full context
   capture and a feedback form.
+- ✅ **AI Assisted Resolution Desk** — a Claude classifier (same offline-fallback
+  pattern as the rest of the LLM layer) buckets the open/in_review backlog into
+  education / agent_action / system_defect and drives a one-click resolution per
+  bucket: a real OST article lookup, the existing resolver's diagnose→execute,
+  or file/attach a JIRA-stub defect ([doc 03](03-hitl-ticketing-workflow.md)).
 - ✅ **Performance dashboard** (deflection KPIs + an AI-written executive summary)
   and **capability backlog** analytics that rank what to build next.
 - ✅ **CX Monitor** — latency/token/cost telemetry via LangSmith ([doc 09](09-cx-monitor.md)).
@@ -134,6 +139,12 @@ selective auto-approval for the safest, highest-confidence actions.
 
 ### 7. Resolution Desk hardening
 - [ ] Add SLA timers, queues/assignment rules, and notifications if needed.
+- [ ] Tune the AI classification prompt against a real ticket corpus; decide
+      whether `agent_action`'s one-click `execute` needs a confidence
+      threshold or a supervisor-approval step before it's trusted unattended
+      at production volume (today it's still a rep-initiated click, same
+      confirmation-gate philosophy as the live chat, but worth revisiting as
+      volume grows).
 - [ ] Decide the ServiceNow boundary: fully replace this lane, or **bridge**
       selected tickets to enterprise ITSM via a connector.
 - [ ] Role-based views; per-ticket comments/history.

@@ -100,6 +100,27 @@ class ProductionAnalysis(BaseModel):
     )
 
 
+class TicketClassification(BaseModel):
+    """One escalated ticket bucketed for the Resolution Desk's AI-assisted triage."""
+
+    ticket_id: str = Field(description="The ticket id being classified.")
+    category: Literal["education", "agent_action", "system_defect"] = Field(
+        description="education = customer needs an explanation/how-to answer; "
+        "agent_action = an existing automated resolver (activation/pending_order/promo/occ "
+        "intents only) can likely fix it; system_defect = something is actually broken and "
+        "needs the dev team."
+    )
+    reasoning: str = Field(description="One sentence on why this ticket belongs in that bucket.")
+
+
+class TicketClassificationBatch(BaseModel):
+    """Structured output of a Resolution Desk backlog classification pass."""
+
+    classifications: list[TicketClassification] = Field(
+        description="One entry per ticket given, same order not required. Classify every ticket provided."
+    )
+
+
 class EnhancementItem(BaseModel):
     """One rep-facing entry in the 'What's new in Rep Assist' card."""
 

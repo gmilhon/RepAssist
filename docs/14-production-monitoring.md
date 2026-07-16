@@ -72,11 +72,17 @@ graph escalation                     Production Monitor (api/production.py)
   SMTP or subscribers the dashboard shows the alert **preview** inline instead.
   Alert body: red banner, problem, recommended fix, affected-ticket table.
 - **JIRA stub MCP** ([`mcp/jira_stub.py`](../backend/app/mcp/jira_stub.py))
-  exposes `create_issue` / `list_issues` / `get_issue` with the tool shape a
-  real MCP JIRA server would have; defects persist in SQLite (`jira_defects`).
-  The defect description carries `h2. Problem`, `h2. Recommended Fix`, and
-  `h2. Escalated Ticket Examples` with one entry per ticket (id, time, rep,
-  priority, intent, summary).
+  exposes `create_issue` / `list_issues` / `get_issue` / `attach_ticket` with
+  the tool shape a real MCP JIRA server would have; defects persist in SQLite
+  (`jira_defects`). The defect description carries `h2. Problem`,
+  `h2. Recommended Fix`, and `h2. Escalated Ticket Examples` with one entry
+  per ticket (id, time, rep, priority, intent, summary). `attach_ticket`
+  appends to an existing defect's `ticket_ids` instead of creating a
+  duplicate — it's the same board the AI Assisted Resolution Desk's
+  file/attach-defect action ([doc 03](03-hitl-ticketing-workflow.md#ai-assisted-resolution-desk))
+  writes to, so a defect can now originate from either an automatic
+  Production Monitor cluster or a Tier 1/2 rep resolving a ticket, and
+  accumulate tickets from both sources over its lifetime.
 - **SSE** (`GET /api/production/events`) uses the same pattern as
   [System Health](13-system-health.md), with one addition: escalations are
   created on **worker threads** (sync graph nodes), so the broadcast hops onto
@@ -105,7 +111,7 @@ Code: [`backend/app/api/production.py`](../backend/app/api/production.py).
 | Table | Purpose |
 |---|---|
 | `production_issues` | Detected issues: severity, category, title, problem/fix, ticket ids, status, `alert_sent`, `defect_key` |
-| `jira_defects` | The stub JIRA board: key (`REP-14xx`), summary, description, priority, labels, status |
+| `jira_defects` | The stub JIRA board: key (`REP-14xx`), summary, description, priority, labels, status, `ticket_ids` (originating tickets — can grow over time as more tickets are attached) |
 
 `email_subscribers` gained `subscribed_alerts` (Settings tab shows an
 **Alerts** toggle per subscriber; added via a best-effort `ALTER TABLE` in

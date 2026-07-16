@@ -88,6 +88,14 @@ class Ticket(SQLModel, table=True):
     resolved_by: Optional[str] = None
     resolved_at: Optional[datetime] = None
 
+    # --- AI Assisted Resolution Desk classification (set by POST /api/tickets/analyze) ---
+    ai_category: Optional[str] = None       # education | agent_action | system_defect
+    ai_reasoning: Optional[str] = None      # one-line why for this bucket
+    ai_article_id: Optional[str] = None     # OST article suggested, when category == education
+    ai_article_title: Optional[str] = None
+    ai_capability: Optional[str] = None     # capability suggested, when category == agent_action
+    ai_analyzed_at: Optional[datetime] = None
+
 
 class EmailSubscriber(SQLModel, table=True):
     """Recipients for scheduled/on-demand dashboard email reports."""
@@ -165,6 +173,7 @@ class JiraDefect(SQLModel, table=True):
     labels: list = Field(default_factory=list, sa_column=Column(JSON))
     status: str = "Open"
     issue_id: Optional[str] = None        # back-reference to ProductionIssue.id
+    ticket_ids: list = Field(default_factory=list, sa_column=Column(JSON))  # Resolution Desk tickets attached here
 
 
 class LLMCall(SQLModel, table=True):

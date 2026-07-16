@@ -37,12 +37,13 @@ def _to_dict(d: JiraDefect) -> dict:
         "labels": d.labels or [],
         "status": d.status,
         "issue_id": d.issue_id,
+        "ticket_ids": d.ticket_ids or [],
         "created_at": d.created_at.isoformat() if d.created_at else None,
     }
 
 
 def create_issue(args: dict) -> dict:
-    """Create a defect. args: summary, description, priority?, labels?, issue_id?"""
+    """Create a defect. args: summary, description, priority?, labels?, issue_id?, ticket_ids?"""
     with Session(_engine) as s:
         defect = JiraDefect(
             key=_next_key(s),
@@ -53,7 +54,28 @@ def create_issue(args: dict) -> dict:
             labels=args.get("labels") or [],
             status="Open",
             issue_id=args.get("issue_id"),
+            ticket_ids=args.get("ticket_ids") or [],
         )
+        s.add(defect)
+        s.commit()
+        s.refresh(defect)
+        return _to_dict(defect)
+
+
+def attach_ticket(args: dict) -> dict:
+    """Attach another originating ticket to an existing defect. args: key, ticket_id, note?"""
+    with Session(_engine) as s:
+        defect = s.get(JiraDefect, args.get("key") or "")
+        if not defect:
+            return {"error": "not_found"}
+        ticket_id = args.get("ticket_id")
+        ids = list(defect.ticket_ids or [])
+        if ticket_id and ticket_id not in ids:
+            ids.append(ticket_id)
+        defect.ticket_ids = ids
+        note = args.get("note")
+        if note:
+            defect.description = (defect.description or "") + f"\n\nh3. Also reported by {ticket_id}\n{note}"
         s.add(defect)
         s.commit()
         s.refresh(defect)
@@ -83,3 +105,4 @@ def register(client: MCPClient) -> None:
     client.register_tool("jira", "create_issue", create_issue)
     client.register_tool("jira", "list_issues", list_issues)
     client.register_tool("jira", "get_issue", get_issue)
+    client.register_tool("jira", "attach_ticket", attach_ticket)

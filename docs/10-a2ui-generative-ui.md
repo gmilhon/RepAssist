@@ -194,7 +194,12 @@ node calls the **OST** server's `search_articles`. On a hit it attaches the
 `knowledge_article` element to the composed reply (via the `article` state field);
 on a miss it falls back to a ticket. So "how do I apply a discount?" comes back as
 a short reply **plus a formatted article card**. The Morning-Huddle "Read article"
-links call `ost-article` by id to reveal the same card on demand.
+links call `ost-article` by id to reveal the same card on demand. The
+**AI Assisted Resolution Desk** ([doc 03](03-hitl-ticketing-workflow.md#ai-assisted-resolution-desk))
+is a second, non-chat consumer of the same `search_articles` tool — its
+Analyze pass looks up a real article for `education`-bucketed tickets
+instead of guessing one, and the rep can still override the AI's pick with a
+manual article search.
 
 ### Voice input
 

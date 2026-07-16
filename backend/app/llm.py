@@ -14,7 +14,14 @@ import time
 
 from . import guardrail
 from .config import get_settings
-from .schemas import ExecutiveSummary, ProductionAnalysis, Resolution, SystemEnhancementsDoc, TriageResult
+from .schemas import (
+    ExecutiveSummary,
+    ProductionAnalysis,
+    Resolution,
+    SystemEnhancementsDoc,
+    TicketClassificationBatch,
+    TriageResult,
+)
 from .store import db
 
 logger = logging.getLogger("repassist.llm")
@@ -661,6 +668,102 @@ def _mock_production_analysis(tickets: list[dict]) -> list[dict]:
         })
     findings.sort(key=lambda f: (f["severity"] != "critical", -len(f["ticket_ids"])))
     return findings
+
+
+# --------------------------------------------------------------------------- #
+# Resolution Desk — AI-assisted ticket triage (education / agent action / defect)
+# --------------------------------------------------------------------------- #
+
+# Intents with a real automated resolver behind agents_client.diagnose/execute.
+_AGENT_ACTION_INTENTS = {"activation", "pending_order", "promo", "occ"}
+
+RESOLUTION_CLASSIFY_SYSTEM = (
+    "You triage escalated Tier 1/2 support tickets for a retail Assisted Sales & "
+    "Service assistant into exactly one of three buckets:\n"
+    "- education: the customer needs an explanation, how-to, or policy answer — "
+    "nothing needs to change on the account/order, just knowledge shared back.\n"
+    "- agent_action: an existing automated resolver can likely fix this. ONLY use "
+    "this bucket when the ticket's intent is activation, pending_order, promo, or "
+    "occ — those are the only intents with a real automated resolver behind them. "
+    "Never use agent_action for any other intent.\n"
+    "- system_defect: something is actually broken (an error, a stuck workflow, "
+    "bad data, a missing capability) and needs the dev team's attention — this is "
+    "the default when the ticket isn't a pure knowledge question and isn't one of "
+    "the four automatable intents above.\n"
+    "Classify every ticket given. Give one sentence of reasoning per ticket."
+)
+
+
+def classify_resolution_tickets(tickets: list[dict]) -> list[dict]:
+    """Bucket a batch of escalated tickets for the Resolution Desk's Analyze pass.
+
+    Falls back to a deterministic intent-based rule set when no API key is set
+    or a live call fails — same offline-safe guarantee as the rest of the LLM layer.
+    """
+    if not tickets:
+        return []
+    settings = get_settings()
+    if not settings.llm_enabled:
+        _log_usage("resolution_classification", settings.anthropic_model, 0, fallback=True)
+        return _mock_classify_resolution(tickets)
+    t0 = time.monotonic()
+    try:
+        client = _client()
+        lines = [
+            f"- {t['id']} | intent={t['intent']} | priority={t['priority']} | {t['summary']}"
+            for t in tickets
+        ]
+        prompt = f"ESCALATED TICKETS TO CLASSIFY ({len(tickets)}):\n\n" + "\n".join(lines)
+        resp = client.messages.parse(
+            model=settings.anthropic_model,
+            max_tokens=4096,
+            system=RESOLUTION_CLASSIFY_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+            output_format=TicketClassificationBatch,
+        )
+        result = resp.parsed_output
+        if result is None:
+            raise ValueError("empty parsed_output")
+        _log_usage("resolution_classification", settings.anthropic_model,
+                   int((time.monotonic() - t0) * 1000), resp=resp)
+        by_id = {t["id"]: t for t in tickets}
+        out = []
+        for c in result.classifications:
+            ticket = by_id.get(c.ticket_id)
+            if not ticket:
+                continue
+            category = c.category
+            if category == "agent_action" and ticket["intent"] not in _AGENT_ACTION_INTENTS:
+                category = "system_defect"  # guardrail: no automated resolver exists for this intent
+            out.append({"ticket_id": c.ticket_id, "category": category, "reasoning": c.reasoning})
+        return out
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Resolution classification failed (%s); using fallback", exc)
+        _log_usage("resolution_classification", settings.anthropic_model,
+                   int((time.monotonic() - t0) * 1000), success=False, fallback=True)
+        return _mock_classify_resolution(tickets)
+
+
+_MOCK_REASONING = {
+    "agent_action": "Intent has an automated resolver that can likely fix this without a manual fix.",
+    "education": "This reads as a how-to/policy question the knowledge base already answers.",
+    "system_defect": "Doesn't match a knowledge question or an automatable intent — looks like a real defect.",
+}
+
+
+def _mock_classify_resolution(tickets: list[dict]) -> list[dict]:
+    """Deterministic intent-based bucketing for offline mode."""
+    out = []
+    for t in tickets:
+        intent = t.get("intent") or "other"
+        if intent in _AGENT_ACTION_INTENTS:
+            category = "agent_action"
+        elif intent in ("billing", "general"):
+            category = "education"
+        else:
+            category = "system_defect"
+        out.append({"ticket_id": t["id"], "category": category, "reasoning": _MOCK_REASONING[category]})
+    return out
 
 
 # --------------------------------------------------------------------------- #

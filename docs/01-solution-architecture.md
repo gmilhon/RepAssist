@@ -91,7 +91,7 @@ flowchart LR
 |---|---|---|
 | `ChatWidget` | Rep conversation, resolution cards, confirm/deny | [`frontend/src/components/ChatWidget.tsx`](../frontend/src/components/ChatWidget.tsx) |
 | `A2UIRenderer` | Generative-UI elements in chat (recent orders); `type`→component registry | [`frontend/src/components/A2UI.tsx`](../frontend/src/components/A2UI.tsx) |
-| `ReviewConsole` | Tier 1/2 ticket queue, detail, resolve + feedback | [`frontend/src/components/ReviewConsole.tsx`](../frontend/src/components/ReviewConsole.tsx) |
+| `ReviewConsole` | Tier 1/2 ticket queue, detail, resolve + feedback, plus AI-assisted triage (Analyze → education/agent_action/system_defect one-click resolution) | [`frontend/src/components/ReviewConsole.tsx`](../frontend/src/components/ReviewConsole.tsx) |
 | `OperationsDashboard` / `CXDashboard` | Performance KPIs + AI summary; LangSmith CX telemetry | [`frontend/src/components/`](../frontend/src/components) |
 | `SettingsPage` / `SendReportButton` | Email-report subscribers + on-demand send/preview | [`frontend/src/components/`](../frontend/src/components) |
 | API routers | HTTP surface (`chat, tickets, insights, metrics, cx, mcp, email, admin`) | [`backend/app/api/`](../backend/app/api) |
@@ -197,6 +197,12 @@ erDiagram
         string gap_type "missing_agent|agent_failed|missing_knowledge|bad_data|training|none"
         string resolved_by
         datetime resolved_at
+        string ai_category "education|agent_action|system_defect"
+        string ai_reasoning
+        string ai_article_id
+        string ai_article_title
+        string ai_capability
+        datetime ai_analyzed_at
     }
     CHECKPOINT {
         string thread_id PK
@@ -218,6 +224,7 @@ per-conversation state so a paused confirmation can resume on the next request.
 | **Deterministic offline fallback** | The assistant degrades gracefully (rule-based triage + templated replies) if the LLM is unavailable or unconfigured — no hard dependency for demos or outages. |
 | **Confirmation gate on writes** | Account-mutating actions require explicit rep approval — safety + auditability. |
 | **Feedback-as-backlog** | Tier 1/2 resolution captures *why* automation failed and *what to build*, turning support toil into a prioritized dev signal. |
+| **AI-assisted triage, human-triggered action** | The Resolution Desk's classifier buckets tickets and proposes a resolution, but every action is still a rep-initiated click (or an override) — the same confirmation-gate philosophy as the live chat: AI narrows the work, a human still triggers the write. |
 | **A2UI over an MCP boundary** | Tools return structured UI element specs (not prose); the chat renders them via a `type`→component registry. The stub `MCPClient` has a real `tools/call` shape, so a production MCP order service drops in without touching the API or UI. See [A2UI](10-a2ui-generative-ui.md). |
 | **One Cloud Run service (API + built UI)** | FastAPI serves the Vite bundle behind a SPA catch-all — one URL, no CORS, secrets in Secret Manager. See [Deployment](12-deployment-cloud-run.md). |
 

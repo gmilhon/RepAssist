@@ -1,4 +1,4 @@
-import type { A2UIResponse, CapabilityGap, ChatResponse, CXOverview, EmailSettings, EmailSubscriber, HuddleItem, JiraDefectItem, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, ProductionAnalyzeResult, ProductionIssue, ProductionOverview, SendReportResult, SystemHealth, Ticket } from "./types";
+import type { A2UIResponse, CallAgentResult, CandidateDefect, CapabilityGap, ChatResponse, CXOverview, EmailSettings, EmailSubscriber, FileDefectResult, HuddleItem, JiraDefectItem, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, ProductionAnalyzeResult, ProductionIssue, ProductionOverview, SendReportResult, SystemHealth, Ticket, TicketAnalyzeResult } from "./types";
 
 async function http<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -101,6 +101,36 @@ export const api = {
     }
   ) =>
     http<Ticket>(`/api/tickets/${id}/resolve`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  analyzeTickets: (status: "open" | "in_review") =>
+    http<TicketAnalyzeResult>("/api/tickets/analyze", {
+      method: "POST",
+      body: JSON.stringify({ status }),
+    }),
+
+  resolveEducation: (id: string, body: { article_id: string; resolved_by: string; notes?: string }) =>
+    http<Ticket>(`/api/tickets/${id}/resolve-education`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  callAgent: (id: string, resolved_by: string) =>
+    http<CallAgentResult>(`/api/tickets/${id}/call-agent`, {
+      method: "POST",
+      body: JSON.stringify({ resolved_by }),
+    }),
+
+  candidateDefects: (id: string) =>
+    http<{ issues: CandidateDefect[] }>(`/api/tickets/${id}/candidate-defects`),
+
+  fileDefect: (
+    id: string,
+    body: { resolved_by: string; gap_type: string; attach_to?: string; recommended_capability?: string }
+  ) =>
+    http<FileDefectResult>(`/api/tickets/${id}/file-defect`, {
       method: "POST",
       body: JSON.stringify(body),
     }),

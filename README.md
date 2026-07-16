@@ -26,7 +26,7 @@ dev team should build next, so the assistant keeps getting better.
 | Conversational orchestrator | LangGraph + FastAPI | [`backend/app/graph`](backend/app/graph), [`backend/app/api`](backend/app/api) |
 | **A2UI** (agent-to-UI) elements + stubbed MCP layer | FastAPI + React | [`backend/app/mcp`](backend/app/mcp), [`frontend/src/components/A2UI.tsx`](frontend/src/components/A2UI.tsx) |
 | "Existing" agents (mocked microservices) | FastAPI | [`backend/app/mock_services`](backend/app/mock_services) |
-| HITL ticketing + feedback store (ServiceNow replacement) | SQLite + SQLModel | [`backend/app/store`](backend/app/store) |
+| HITL ticketing + feedback store (ServiceNow replacement) + **AI Assisted Resolution Desk** (Claude ticket triage → education/agent_action/system_defect, one-click resolution) | SQLite + SQLModel + Claude | [`backend/app/store`](backend/app/store), [`backend/app/api/tickets.py`](backend/app/api/tickets.py) |
 | Observability (CX Monitor) + email reports | LangSmith + smtplib | [`backend/app/api/cx.py`](backend/app/api/cx.py), [`backend/app/api/email_reports.py`](backend/app/api/email_reports.py) |
 | **Production Monitor** — live escalation inflow, AI issue clustering, alerts, JIRA-stub defects | FastAPI SSE + Claude | [`backend/app/api/production.py`](backend/app/api/production.py), [`frontend/src/components/ProductionDashboard.tsx`](frontend/src/components/ProductionDashboard.tsx) |
 | LLM access (Claude + offline fallback) | official `anthropic` SDK | [`backend/app/llm.py`](backend/app/llm.py) |
@@ -38,7 +38,7 @@ dev team should build next, so the assistant keeps getting better.
 1. [Executive Summary](docs/00-executive-summary.md) — the one-pager for leadership.
 2. [Solution Architecture](docs/01-solution-architecture.md) — context/container/sequence diagrams, data model, security.
 3. [LangGraph Orchestration](docs/02-langgraph-orchestration.md) — the graph, state, nodes, and the human-in-the-loop interrupt.
-4. [HITL Ticketing Workflow](docs/03-hitl-ticketing-workflow.md) — how this replaces ServiceNow.
+4. [HITL Ticketing Workflow](docs/03-hitl-ticketing-workflow.md) — how this replaces ServiceNow, plus the AI Assisted Resolution Desk that Claude-classifies the backlog into education / agent_action / system_defect with a one-click resolution per bucket.
 5. [Feedback & Continuous Improvement](docs/04-feedback-and-continuous-improvement.md) — turning Tier 1/2 feedback into a dev backlog.
 6. [Local Setup Runbook](docs/05-local-setup-runbook.md) — step-by-step to run everything.
 7. [Roadmap & What You Need To Do](docs/06-roadmap-and-what-you-need-to-do.md) — productionization plan and your task list.
@@ -95,7 +95,7 @@ fix, and resolve it — or escalate to the Resolution Desk. Full details in the
 | Tab | What it is |
 |---|---|
 | **Rep Assist** | The conversational chat — first-step CTA tiles + on-demand A2UI recent-orders/open-tickets cards ([doc 10](docs/10-a2ui-generative-ui.md)) |
-| **Resolution Desk** | Tier 1/2 ticket queue + resolve/feedback ([doc 03](docs/03-hitl-ticketing-workflow.md)) |
+| **Resolution Desk** | Tier 1/2 ticket queue with AI-assisted triage (education / agent_action / system_defect) and one-click resolution, plus the original resolve/feedback form ([doc 03](docs/03-hitl-ticketing-workflow.md)) |
 | **Performance** | Engagement/deflection KPIs + AI exec summary ([doc 08](docs/08-operations-dashboard.md)) |
 | **CX Monitor** | LangSmith latency/token/cost telemetry ([doc 09](docs/09-cx-monitor.md)) |
 | **Production** | Real-time escalation inflow + AI issue detection, alerts, and defect filing ([doc 14](docs/14-production-monitoring.md)) |
