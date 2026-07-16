@@ -279,7 +279,7 @@ export interface CXOverview {
   llm_usage: LLMUsageOverview;
 }
 
-// ── Observability P0 (see docs/16-observability-p0.md) ────────────────────
+// ── Observability P0/P1 (see docs/16 and docs/17) ──────────────────────────
 
 export interface ObservabilityOverview {
   generated_at: string;
@@ -292,6 +292,9 @@ export interface ObservabilityOverview {
     confirmations_approved: number;
     out_of_scope_rate: number;
     out_of_scope_trend: string | null;
+    re_ask_rate: number;
+    abandonment_rate: number;
+    repeat_contact_rate: number;
   };
   sales_intent: Array<{
     sales_intent: string; // nse | aal | up | unclassified
@@ -306,6 +309,11 @@ export interface ObservabilityOverview {
     unconfirmed_mutation_count: number;
     unconfirmed_mutation_examples: Array<{
       thread_id: string | null; service: string; operation: string; created_at: string;
+    }>;
+    injection_attempts: number;
+    injection_examples: Array<{
+      thread_id: string | null; node: string; source: string;
+      pattern: string; snippet: string; created_at: string;
     }>;
   };
 }
@@ -327,6 +335,8 @@ export interface LLMUsageOverview {
     function: string; calls: number; fallback_calls: number;
     total_cost_usd: number; avg_latency_ms: number; fallback_rate: number;
   }>;
+  by_intent: Array<{ intent: string; calls: number; total_cost_usd: number }>;
+  by_outcome: Array<{ outcome: string; calls: number; total_cost_usd: number }>;
 }
 
 export interface SystemHealth {

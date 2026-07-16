@@ -22,9 +22,12 @@ next steps.
 - ✅ **Email reports** with subscriber management + SMTP/preview ([doc 11](11-email-reports.md)).
 - ✅ **Production Monitor** — real-time escalation inflow, AI issue clustering,
   critical email alerts, and auto-filed defects on a JIRA stub MCP ([doc 14](14-production-monitoring.md)).
-- ✅ **Observability P0** — conversation health, guardrail confirm-gate audit,
-  true token economics (full taxonomy incl. reasoning/cache tokens), and
-  sales-intent (NSE/AAL/UP) segmentation on CX Monitor ([doc 16](16-observability-p0.md)).
+- ✅ **Observability P0/P1** — conversation health (incl. re-ask/abandonment/
+  repeat-contact), guardrail confirm-gate audit + log-only prompt-injection
+  detection, true token economics (full taxonomy, cost by intent/outcome), a
+  fallback-rate alert wired to System Health, and sales-intent (NSE/AAL/UP)
+  segmentation on CX Monitor ([doc 16](16-observability-p0.md),
+  [doc 17](17-observability-p1.md)).
 - ✅ **Mocked existing-agent microservices** with realistic contracts.
 - ✅ Offline mock LLM + live Claude (official SDK, structured-output triage).
 - ✅ **Responsive UI** (phone / tablet / foldable) + **one-command Cloud Run
@@ -112,11 +115,10 @@ selective auto-approval for the safest, highest-confidence actions.
       CX Monitor ([doc 16](16-observability-p0.md)); wiring an actual alert
       threshold into System Health's "degraded" state is still open.
 - [ ] Health/readiness probes; graceful shutdown; rate limiting.
-- [ ] Observability P1/P2: cost-per-graph-node (needs per-node LangSmith
-      tagging), prompt-injection detection (direct + indirect, needs a
-      block-vs-observe decision), re-ask/abandonment/repeat-contact rates,
-      PII/PCI pattern detection (needs compliance sign-off), validated
-      sales-intent taxonomy beyond NSE/AAL/UP ([doc 16](16-observability-p0.md)).
+- [ ] Observability P2: PII/PCI pattern detection (deferred, needs compliance
+      sign-off before design). Also open, not decision-blocked: give
+      `Engagement` an order/account identifier so repeat-contact correlates
+      by customer, not just rep+intent ([doc 17](17-observability-p1.md)).
 
 ### 6. Frontend / sales-app embedding & A2UI
 - [ ] Embed `ChatWidget` in the sales-app shell (iframe or web component); pass the

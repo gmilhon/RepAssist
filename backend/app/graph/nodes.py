@@ -68,7 +68,7 @@ def _trace(node: str, **detail) -> list[dict]:
 # --------------------------------------------------------------------------- #
 def triage(state: GraphState) -> dict:
     text = _last_user_text(state)
-    result = llm.classify(text, thread_id=state.get("thread_id"))
+    result = llm.classify(text, thread_id=state.get("thread_id"), rep_id=state.get("rep_id"))
 
     # Merge newly-extracted entities with any carried from earlier turns.
     entities = {**(state.get("entities") or {}), **llm.extract_entities(text)}
@@ -458,7 +458,7 @@ def ticket_fallback(state: GraphState) -> dict:
 def compose(state: GraphState) -> dict:
     res = Resolution(**(state.get("resolution") or {"status": "info", "summary": ""}))
     text = llm.compose_reply(res, state.get("order_context"), state.get("ticket_id"),
-                              thread_id=state.get("thread_id"))
+                              thread_id=state.get("thread_id"), rep_id=state.get("rep_id"))
 
     card = {
         "intent": state.get("intent"),

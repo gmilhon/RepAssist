@@ -12,6 +12,7 @@ import logging
 import re
 import time
 
+from . import guardrail
 from .config import get_settings
 from .schemas import ExecutiveSummary, ProductionAnalysis, Resolution, SystemEnhancementsDoc, TriageResult
 from .store import db
@@ -158,11 +159,45 @@ def _log_usage(
         latency_ms=latency_ms, cost_usd=round(cost, 6),
     )
 
+    if fallback:
+        # Only worth checking the window on a fresh fallback — a run of
+        # successes can't newly cross the threshold.
+        try:
+            spike = db.check_fallback_spike()
+            if spike:
+                from .api import system_health
+                system_health.maybe_auto_degrade(
+                    f"Elevated LLM fallback rate: {spike['fallback_rate'] * 100:.0f}% over the last "
+                    f"{spike['window_minutes']} min ({spike['fallback_calls']}/{spike['calls']} calls)."
+                )
+        except Exception:  # noqa: BLE001 - alerting must never break the caller
+            pass
+
+
+def _scan_and_log(
+    text: str, node: str, source: str, *, thread_id: str | None = None, rep_id: str | None = None,
+) -> None:
+    """Log-only prompt-injection pattern scan (see docs/17-observability-p1.md
+    — never blocks or alters the turn). Best-effort; must never break the
+    caller.
+    """
+    try:
+        hit = guardrail.scan_for_injection(text)
+        if hit:
+            pattern, snippet = hit
+            db.record_guardrail_event(
+                thread_id=thread_id, rep_id=rep_id, node=node, source=source,
+                pattern=pattern, snippet=snippet,
+            )
+    except Exception:  # noqa: BLE001
+        pass
+
 
 # --------------------------------------------------------------------------- #
 # Triage / classification
 # --------------------------------------------------------------------------- #
-def classify(text: str, thread_id: str | None = None) -> TriageResult:
+def classify(text: str, thread_id: str | None = None, rep_id: str | None = None) -> TriageResult:
+    _scan_and_log(text, node="triage", source="direct", thread_id=thread_id, rep_id=rep_id)
     settings = get_settings()
     if not settings.llm_enabled:
         _log_usage("classify", settings.anthropic_model, 0, thread_id=thread_id, fallback=True)
@@ -243,8 +278,13 @@ def _mock_classify(text: str) -> TriageResult:
 # --------------------------------------------------------------------------- #
 def compose_reply(
     resolution: Resolution, order_context: dict | None, ticket_id: str | None,
-    thread_id: str | None = None,
+    thread_id: str | None = None, rep_id: str | None = None,
 ) -> str:
+    if order_context:
+        # Indirect vector — order_context is assembled from a downstream
+        # service, not typed by the rep, but flows into the prompt unfiltered.
+        _scan_and_log(str(order_context), node="compose", source="indirect",
+                      thread_id=thread_id, rep_id=rep_id)
     settings = get_settings()
     if not settings.llm_enabled:
         _log_usage("compose", settings.anthropic_model, 0, thread_id=thread_id, fallback=True)

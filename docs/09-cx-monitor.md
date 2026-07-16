@@ -11,10 +11,12 @@ seed script. When a `LANGCHAIN_API_KEY` is present it switches to live
 LangSmith data automatically.
 
 Below the LangSmith-sourced KPIs, the dashboard also renders an
-**Observability** section — conversation health, guardrail integrity, true
-token economics, and sales-intent segmentation — computed from Rep Assist's
-own store and available regardless of whether LangSmith is configured. See
-[Observability P0](16-observability-p0.md).
+**Observability** section — conversation health, guardrail integrity
+(including log-only prompt-injection detection), true token economics (cost
+by intent/outcome), and sales-intent segmentation — computed from Rep
+Assist's own store and available regardless of whether LangSmith is
+configured. See [Observability P0](16-observability-p0.md) and
+[Observability P1](17-observability-p1.md).
 
 ---
 
@@ -253,5 +255,6 @@ building `recent_traces` and the `by_intent` aggregation.
 | `frontend/src/api.ts` | `api.cxOverview()` method |
 | `frontend/src/App.tsx` | CX Monitor tab + dual header pills |
 | `frontend/src/styles.css` | CX dashboard styles (`cx-*` namespace) |
-| `backend/app/store/db.py` | `observability_overview()`, `llm_usage_overview()` — see [doc 16](16-observability-p0.md) |
-| `backend/app/llm.py` | `_log_usage()`, `tag_sales_intent()` — token-taxonomy capture and sales-intent heuristic |
+| `backend/app/store/db.py` | `observability_overview()`, `llm_usage_overview()`, `check_fallback_spike()` — see [doc 16](16-observability-p0.md), [doc 17](17-observability-p1.md) |
+| `backend/app/llm.py` | `_log_usage()`, `tag_sales_intent()`, `_scan_and_log()` — token-taxonomy capture, sales-intent heuristic, injection scan |
+| `backend/app/guardrail.py` | Log-only prompt-injection pattern scanner — see [doc 17](17-observability-p1.md) |

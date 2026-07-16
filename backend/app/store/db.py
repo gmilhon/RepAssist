@@ -8,7 +8,7 @@ from typing import Optional
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from ..config import get_settings
-from .models import ActionAudit, Engagement, GapType, LLMCall, Ticket, TicketStatus
+from .models import ActionAudit, Engagement, GapType, GuardrailEvent, LLMCall, Ticket, TicketStatus
 
 _settings = get_settings()
 _engine = create_engine(
@@ -79,6 +79,8 @@ def reset_demo() -> None:
             s.delete(c)
         for a in s.exec(select(ActionAudit)).all():
             s.delete(a)
+        for g in s.exec(select(GuardrailEvent)).all():
+            s.delete(g)
         s.commit()
 
 
@@ -100,6 +102,41 @@ def record_action_audit(**kwargs) -> None:
             s.commit()
     except Exception:  # noqa: BLE001 - analytics must not affect the confirm path
         pass
+
+
+def record_guardrail_event(**kwargs) -> None:
+    """Append one injection-pattern-match row (best-effort, log-only)."""
+    try:
+        with Session(_engine) as s:
+            s.add(GuardrailEvent(**kwargs))
+            s.commit()
+    except Exception:  # noqa: BLE001 - analytics must not affect the calling path
+        pass
+
+
+def check_fallback_spike(window_minutes: int = 10, threshold: float = 0.05) -> Optional[dict]:
+    """Pure query, no side effects: has the fallback-to-mock rate exceeded
+    `threshold` over the last `window_minutes`? Returns spike info or None.
+    Needs a minimum sample size so a single fallback in a quiet period
+    doesn't read as a 100% spike.
+    """
+    MIN_SAMPLE = 8
+    since = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
+    with Session(_engine) as s:
+        rows = list(s.exec(select(LLMCall).where(LLMCall.created_at >= since)).all())
+    if len(rows) < MIN_SAMPLE:
+        return None
+    fallback_count = sum(1 for r in rows if r.fallback)
+    rate = fallback_count / len(rows)
+    if rate <= threshold:
+        return None
+    return {
+        "window_minutes": window_minutes,
+        "threshold": threshold,
+        "calls": len(rows),
+        "fallback_calls": fallback_count,
+        "fallback_rate": round(rate, 3),
+    }
 
 
 def _hours(later: datetime, earlier: datetime) -> float:
@@ -334,17 +371,28 @@ def observability_overview(
             audit_stmt = audit_stmt.where(ActionAudit.created_at < hi)
         audits = list(s.exec(audit_stmt).all())
 
+        gr_stmt = select(GuardrailEvent)
+        if lo:
+            gr_stmt = gr_stmt.where(GuardrailEvent.created_at >= lo)
+        if hi:
+            gr_stmt = gr_stmt.where(GuardrailEvent.created_at < hi)
+        injections = list(s.exec(gr_stmt).all())
+
     messages = [e for e in engagements if e.kind == "message"]
     confirmations = [e for e in engagements if e.kind == "confirmation"]
 
     # --- conversation health: turns per thread ---
     turns_by_thread: dict[str, int] = Counter()
-    terminal_by_thread: dict[str, bool] = {}
     for e in messages:
-        if not e.thread_id:
-            continue
-        turns_by_thread[e.thread_id] += 1
-        if e.resolution_status in ("resolved", "escalated", "cancelled"):
+        if e.thread_id:
+            turns_by_thread[e.thread_id] += 1
+    # Terminal state can land on either the message row (direct resolve /
+    # escalate) or the separate confirmation row (confirm-flow resolve /
+    # cancel) — must scan all engagements, not just messages, or every
+    # confirm-flow thread reads as perpetually unresolved.
+    terminal_by_thread: dict[str, bool] = {}
+    for e in engagements:
+        if e.thread_id and e.resolution_status in ("resolved", "escalated", "cancelled"):
             terminal_by_thread[e.thread_id] = True
     turn_counts = sorted(turns_by_thread.values())
     n = len(turn_counts)
@@ -405,7 +453,63 @@ def observability_overview(
         sales_rows.append(row)
     sales_rows.sort(key=lambda r: r["count"], reverse=True)
 
-    # --- guardrail: unconfirmed-mutation invariant ---
+    # --- re-ask: same intent classified 2+ times in one thread before a terminal state ---
+    thread_seq: dict[str, list] = {}
+    for e in sorted(messages, key=lambda e: e.created_at):
+        if e.thread_id:
+            thread_seq.setdefault(e.thread_id, []).append(e)
+    re_ask_threads = 0
+    for seq in thread_seq.values():
+        seen_intents: set = set()
+        for e in seq:
+            if e.resolution_status in ("resolved", "escalated", "cancelled"):
+                break
+            if e.intent:
+                if e.intent in seen_intents:
+                    re_ask_threads += 1
+                    break
+                seen_intents.add(e.intent)
+    re_ask_rate = round(re_ask_threads / len(thread_seq), 3) if thread_seq else 0.0
+
+    # --- abandonment: thread has messages but never reaches a terminal state ---
+    abandoned_threads = [tid for tid in turns_by_thread if tid not in terminal_by_thread]
+    abandonment_rate = round(len(abandoned_threads) / len(turns_by_thread), 3) if turns_by_thread else 0.0
+
+    # --- repeat-contact: new thread for same rep+intent opened within 24h of a
+    # prior *resolved* thread — a proxy for a false-positive resolution.
+    thread_info: dict[str, dict] = {}
+    for e in engagements:
+        if not e.thread_id:
+            continue
+        info = thread_info.setdefault(e.thread_id, {
+            "rep_id": e.rep_id, "intent": e.intent,
+            "start": e.created_at, "end": e.created_at, "resolved": False,
+        })
+        info["start"] = min(info["start"], e.created_at)
+        info["end"] = max(info["end"], e.created_at)
+        if not info["intent"] and e.intent:
+            info["intent"] = e.intent
+        if e.resolution_status == "resolved":
+            info["resolved"] = True
+
+    by_rep_intent: dict[tuple, list[dict]] = {}
+    for info in thread_info.values():
+        by_rep_intent.setdefault((info["rep_id"], info["intent"]), []).append(info)
+
+    repeat_contacts = 0
+    for group in by_rep_intent.values():
+        group.sort(key=lambda i: i["start"])
+        resolved_ends: list[datetime] = []  # sliding window, O(n) amortized
+        for info in group:
+            while resolved_ends and (info["start"] - resolved_ends[0]) > timedelta(hours=24):
+                resolved_ends.pop(0)
+            if resolved_ends:
+                repeat_contacts += 1
+            if info["resolved"]:
+                resolved_ends.append(info["end"])
+    repeat_contact_rate = round(repeat_contacts / len(thread_info), 3) if thread_info else 0.0
+
+    # --- guardrail: unconfirmed-mutation invariant + injection-attempt log ---
     unapproved = [a for a in audits if not a.approved]
 
     return {
@@ -422,6 +526,9 @@ def observability_overview(
             "confirmations_approved": approved,
             "out_of_scope_rate": out_of_scope_rate,
             "out_of_scope_trend": trend_note,
+            "re_ask_rate": re_ask_rate,
+            "abandonment_rate": abandonment_rate,
+            "repeat_contact_rate": repeat_contact_rate,
         },
         "sales_intent": sales_rows,
         "guardrail": {
@@ -432,6 +539,12 @@ def observability_overview(
                  "created_at": a.created_at.isoformat()}
                 for a in unapproved[:5]
             ],
+            "injection_attempts": len(injections),  # log-only signal, see docs/17
+            "injection_examples": [
+                {"thread_id": g.thread_id, "node": g.node, "source": g.source,
+                 "pattern": g.pattern, "snippet": g.snippet, "created_at": g.created_at.isoformat()}
+                for g in injections[:5]
+            ],
         },
     }
 
@@ -440,7 +553,15 @@ def llm_usage_overview(
     start: Optional[date] = None, end: Optional[date] = None
 ) -> dict:
     """True token-economics ledger — full token taxonomy, fallback rate per
-    LLM function, and cost-of-failure — from the LLMCall table."""
+    LLM function, and cost-of-failure — from the LLMCall table.
+
+    "Cost per graph node" (see docs/17-observability-p1.md) is delivered as
+    cost-by-function crossed with intent and outcome, not a per-resolver
+    breakdown — the resolver nodes (activation/promo/pending_order/occ) call
+    `agents_client`, not Claude, so `classify` (triage) and `compose` are the
+    *only* two nodes that ever touch the LLM in this graph. That's the real,
+    honest granularity available.
+    """
     lo, hi = _date_bounds(start, end)
     with Session(_engine) as s:
         call_stmt = select(LLMCall)
@@ -457,6 +578,23 @@ def llm_usage_overview(
             esc_stmt = esc_stmt.where(Engagement.created_at < hi)
         escalated_threads = {t for t in s.exec(esc_stmt).all() if t}
 
+        meta_stmt = select(Engagement.thread_id, Engagement.intent, Engagement.resolution_status)
+        if lo:
+            meta_stmt = meta_stmt.where(Engagement.created_at >= lo)
+        if hi:
+            meta_stmt = meta_stmt.where(Engagement.created_at < hi)
+        meta_rows = list(s.exec(meta_stmt).all())
+
+    thread_intent: dict[str, str] = {}
+    thread_outcome: dict[str, str] = {}
+    for tid, intent, res_status in meta_rows:
+        if not tid:
+            continue
+        if intent and tid not in thread_intent:
+            thread_intent[tid] = intent
+        if res_status in ("resolved", "escalated", "cancelled"):
+            thread_outcome[tid] = res_status
+
     if not calls:
         return {
             "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -470,6 +608,8 @@ def llm_usage_overview(
             "cost_usd": {"total": 0.0, "avg_per_call": 0.0, "cost_of_failure": 0.0,
                          "cost_of_failure_pct": 0.0},
             "by_function": [],
+            "by_intent": [],
+            "by_outcome": [],
         }
 
     total_in  = sum(c.input_tokens for c in calls)
@@ -505,6 +645,29 @@ def llm_usage_overview(
         fn_rows.append(row)
     fn_rows.sort(key=lambda r: r["calls"], reverse=True)
 
+    by_intent: dict[str, dict] = {}
+    by_outcome: dict[str, dict] = {}
+    for c in calls:
+        intent  = thread_intent.get(c.thread_id, "unknown") if c.thread_id else "background"
+        outcome = thread_outcome.get(c.thread_id, "unresolved") if c.thread_id else "background"
+
+        ir = by_intent.setdefault(intent, {"intent": intent, "calls": 0, "total_cost_usd": 0.0})
+        ir["calls"] += 1
+        ir["total_cost_usd"] += c.cost_usd
+
+        orow = by_outcome.setdefault(outcome, {"outcome": outcome, "calls": 0, "total_cost_usd": 0.0})
+        orow["calls"] += 1
+        orow["total_cost_usd"] += c.cost_usd
+
+    intent_rows = sorted(
+        ({**r, "total_cost_usd": round(r["total_cost_usd"], 4)} for r in by_intent.values()),
+        key=lambda r: r["total_cost_usd"], reverse=True,
+    )
+    outcome_rows = sorted(
+        ({**r, "total_cost_usd": round(r["total_cost_usd"], 4)} for r in by_outcome.values()),
+        key=lambda r: r["total_cost_usd"], reverse=True,
+    )
+
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "calls_recorded": n,
@@ -522,6 +685,8 @@ def llm_usage_overview(
             "cost_of_failure_pct": round(cost_of_failure / total_cost, 3) if total_cost else 0.0,
         },
         "by_function": fn_rows,
+        "by_intent": intent_rows,
+        "by_outcome": outcome_rows,
     }
 
 

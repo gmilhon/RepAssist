@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-14T18:36:24.725484+00:00",
-  "last_commit_sha": "10025463d69b02a92b7ec85abcd9e20fde8a8cc2",
+  "generated_at": "2026-07-16T02:04:45.810583+00:00",
+  "last_commit_sha": "f9d63037fb4e216cc8e367e8686cc4cc89a184d4",
   "enhancements": [
     {
       "tag": "New",
@@ -115,7 +115,7 @@
   ],
   "suggestions": [
     "What does the system health badge tell me?",
-    "How do I use the starter tiles in chat?",
-    "What's new with The Opener?"
+    "How does The Opener's to-do list work?",
+    "Can I look up my recent orders from chat?"
   ]
 }

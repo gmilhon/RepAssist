@@ -249,6 +249,59 @@ function GuardrailBanner({ guardrail }: { guardrail: CXOverview["observability"]
   );
 }
 
+function InjectionBanner({ guardrail }: { guardrail: CXOverview["observability"]["guardrail"] }) {
+  const clean = guardrail.injection_attempts === 0;
+  return (
+    <div className={`cx-guardrail-banner ${clean ? "cx-guardrail-banner--ok" : "cx-guardrail-banner--watch"}`} style={{ marginTop: 10 }}>
+      <span className="cx-guardrail-icon">{clean ? "✓" : "👁"}</span>
+      <div>
+        <strong>
+          {clean
+            ? "No injection patterns detected"
+            : `${fmt(guardrail.injection_attempts)} injection pattern match${guardrail.injection_attempts === 1 ? "" : "es"} — log-only`}
+        </strong>
+        <div className="cx-guardrail-sub">
+          Regex first pass on rep input (direct) and order-context data flowing into prompts
+          (indirect) — never blocks the turn, by decision. See docs/17.
+        </div>
+        {!clean && guardrail.injection_examples.length > 0 && (
+          <ul className="cx-guardrail-examples">
+            {guardrail.injection_examples.map((e, i) => (
+              <li key={i}>
+                [{e.source}/{e.node}] {e.pattern} — "{e.snippet}" · {new Date(e.created_at).toLocaleString()}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CostSplitTable({
+  rows, keyField, label,
+}: { rows: Array<Record<string, any>>; keyField: string; label: string }) {
+  if (!rows.length) return <p className="cx-empty">No LLM calls recorded yet in this range.</p>;
+  const total = rows.reduce((s, r) => s + r.total_cost_usd, 0) || 1;
+  return (
+    <div className="cx-table-wrap">
+      <table className="cx-trace-table">
+        <thead><tr><th>{label}</th><th>Calls</th><th>Cost</th><th>Share</th></tr></thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r[keyField]}>
+              <td>{r[keyField]}</td>
+              <td>{fmt(r.calls)}</td>
+              <td>${r.total_cost_usd.toFixed(4)}</td>
+              <td>{fmtPct(r.total_cost_usd / total)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function TokenTaxonomyTable({ llm }: { llm: CXOverview["llm_usage"] }) {
   const t = llm.token_taxonomy;
   return (
@@ -537,9 +590,39 @@ export default function CXDashboard() {
             />
           </div>
 
+          {/* ── Observability (P1) ───────────────────────────────────── */}
+          <div className="cx-kpi-row">
+            <KpiCard
+              label="Re-ask Rate"
+              value={fmtPct(data.observability.conversation_health.re_ask_rate)}
+              sub="same intent asked twice, no resolution between"
+            />
+            <KpiCard
+              label="Abandonment Rate"
+              value={fmtPct(data.observability.conversation_health.abandonment_rate)}
+              sub="thread never reached a terminal state"
+            />
+            <KpiCard
+              label="Repeat-Contact Rate"
+              value={fmtPct(data.observability.conversation_health.repeat_contact_rate)}
+              sub="⚠ noisy proxy — see note below"
+            />
+            <KpiCard
+              label="Injection Attempts"
+              value={fmt(data.observability.guardrail.injection_attempts)}
+              sub="pattern matches, log-only"
+            />
+          </div>
+          <p className="cx-empty" style={{ margin: "-6px 0 20px" }}>
+            Repeat-contact correlates only by rep + intent (no order/account id on Engagement yet) —
+            for a busy rep this reads as "resolved this intent before within 24h," not necessarily
+            "the same customer came back." Treat as directional only. See docs/17.
+          </p>
+
           <div className="cx-section">
-            <h3 className="cx-section-title">Guardrail — confirm-gate audit</h3>
+            <h3 className="cx-section-title">Guardrail — confirm-gate audit &amp; injection log</h3>
             <GuardrailBanner guardrail={data.observability.guardrail} />
+            <InjectionBanner guardrail={data.observability.guardrail} />
           </div>
 
           <div className="cx-body">
@@ -574,6 +657,22 @@ export default function CXDashboard() {
               <div className="cx-section">
                 <h3 className="cx-section-title">Fallback-to-Mock Rate by Function</h3>
                 <FallbackTable rows={data.llm_usage.by_function} />
+              </div>
+
+              <div className="cx-section">
+                <h3 className="cx-section-title">Cost by Intent &amp; Outcome</h3>
+                <p className="cx-empty" style={{ marginBottom: 10 }}>
+                  "Cost per node" in this graph is only ever triage or compose — no resolver calls
+                  the LLM directly — so cost is broken out by intent/outcome instead. See docs/17.
+                </p>
+                <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                  <div style={{ flex: "1 1 260px" }}>
+                    <CostSplitTable rows={data.llm_usage.by_intent} keyField="intent" label="Intent" />
+                  </div>
+                  <div style={{ flex: "1 1 220px" }}>
+                    <CostSplitTable rows={data.llm_usage.by_outcome} keyField="outcome" label="Outcome" />
+                  </div>
+                </div>
               </div>
             </div>
           </div>

@@ -1335,11 +1335,15 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 .cx-guardrail-banner--alarm {
   background: rgba(238,0,0,0.06); border-color: rgba(238,0,0,0.3);
 }
+.cx-guardrail-banner--watch {
+  background: rgba(59,130,246,0.06); border-color: rgba(59,130,246,0.25);
+}
 .cx-guardrail-icon {
   font-size: 16px; line-height: 1; flex-shrink: 0; margin-top: 1px;
 }
 .cx-guardrail-banner--ok .cx-guardrail-icon { color: #16a34a; }
 .cx-guardrail-banner--alarm .cx-guardrail-icon { color: var(--vz-red); }
+.cx-guardrail-banner--watch .cx-guardrail-icon { color: #3b82f6; }
 .cx-guardrail-sub { color: var(--ink-2); margin-top: 3px; font-size: 12.5px; }
 .cx-guardrail-examples {
   margin: 8px 0 0; padding-left: 18px; font-size: 12px; color: var(--ink-2);

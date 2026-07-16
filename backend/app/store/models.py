@@ -218,3 +218,25 @@ class ActionAudit(SQLModel, table=True):
     operation: str = ""
     approved: bool = True
     success: bool = True
+
+
+class GuardrailEvent(SQLModel, table=True):
+    """One row per prompt-injection pattern match — P1 observability,
+    log-only by decision (see docs/17-observability-p1.md). Detection never
+    blocks or alters the turn; this is purely a monitoring signal.
+
+    `source` distinguishes where the pattern was found: `direct` (the rep's
+    own typed message) vs `indirect` (data that flows into the prompt from
+    elsewhere — order context, ticket/conversation history — the OWASP
+    LLM01 vector where an attacker never talks to the model directly)."""
+
+    __tablename__ = "guardrail_events"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=_now)
+    thread_id: Optional[str] = None
+    rep_id: Optional[str] = None
+    node: str = ""              # triage | compose — where the scan ran
+    source: str = "direct"      # direct | indirect
+    pattern: str = ""           # which pattern matched, for triage/tuning
+    snippet: str = ""           # short excerpt around the match, truncated
