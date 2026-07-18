@@ -30,7 +30,6 @@ export function A2UIRenderer({
   onAssist,
   onCoach,
   onWalkthrough,
-  onWatchVideo,
   actionsDisabled = false,
 }: {
   elements: A2UIElement[];
@@ -39,7 +38,6 @@ export function A2UIRenderer({
   onAssist?: (entry: A2UIQueueEntry) => void;
   onCoach?: (entry: A2UICoachingEntry) => void;
   onWalkthrough?: (e: A2UIEnhancement) => void;
-  onWatchVideo?: (e: A2UIEnhancement) => void;
   actionsDisabled?: boolean;
 }) {
   return (
@@ -51,7 +49,7 @@ export function A2UIRenderer({
           case "open_tickets":
             return <OpenTicketsCard key={i} el={el} onAction={onAction} />;
           case "system_enhancements":
-            return <SystemEnhancementsCard key={i} el={el} onAction={onAction} onWalkthrough={onWalkthrough} onWatchVideo={onWatchVideo} />;
+            return <SystemEnhancementsCard key={i} el={el} onAction={onAction} onWalkthrough={onWalkthrough} />;
           case "morning_huddle":
             return <MorningHuddleCard key={i} el={el} onOpenArticle={onOpenArticle} />;
           case "knowledge_article":
@@ -183,12 +181,10 @@ function SystemEnhancementsCard({
   el,
   onAction,
   onWalkthrough,
-  onWatchVideo,
 }: {
   el: A2UISystemEnhancements;
   onAction: (prompt: string, entities?: Record<string, string>) => void;
   onWalkthrough?: (e: A2UIEnhancement) => void;
-  onWatchVideo?: (e: A2UIEnhancement) => void;
 }) {
   return (
     <div className="a2ui-card">
@@ -204,18 +200,13 @@ function SystemEnhancementsCard({
             <div className="a2ui-enh-body">
               <div className="a2ui-enh-title">{e.title}</div>
               <div className="a2ui-enh-detail">{e.detail}</div>
-              <div className="a2ui-enh-actions">
-                {e.walkthrough && e.walkthrough.steps.length > 0 && (
+              {(e.walkthrough?.steps.length || e.gif_url || e.video_url) && (
+                <div className="a2ui-enh-actions">
                   <button className="a2ui-enh-how" onClick={() => onWalkthrough?.(e)}>
-                    📖 Show me how →
+                    📖 Show me how{e.gif_url ? " 🎞" : ""}{e.video_url ? " ▶" : ""} →
                   </button>
-                )}
-                {e.video_url && (
-                  <button className="a2ui-enh-how" onClick={() => onWatchVideo?.(e)}>
-                    ▶ Watch video
-                  </button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </li>
         ))}

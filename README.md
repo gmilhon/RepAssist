@@ -30,7 +30,7 @@ dev team should build next, so the assistant keeps getting better.
 | Observability (CX Monitor) + email reports | LangSmith + smtplib | [`backend/app/api/cx.py`](backend/app/api/cx.py), [`backend/app/api/email_reports.py`](backend/app/api/email_reports.py) |
 | **Production Monitor** — live escalation inflow, AI issue clustering, alerts, JIRA-stub defects | FastAPI SSE + Claude | [`backend/app/api/production.py`](backend/app/api/production.py), [`frontend/src/components/ProductionDashboard.tsx`](frontend/src/components/ProductionDashboard.tsx) |
 | **Store Check-In & Queue** + **Live Listen** — front-desk intake, and a read-only AI copilot over the live conversation (Playbook scoring, GenAI coaching, visit-summary email) | FastAPI + React + Claude | [`backend/app/api/queue.py`](backend/app/api/queue.py), [`backend/app/api/listen.py`](backend/app/api/listen.py), [`backend/app/api/coaching.py`](backend/app/api/coaching.py), [`backend/app/api/playbook.py`](backend/app/api/playbook.py) |
-| **Training & Enablement** — auto-generated rep walkthroughs, AI storyboard generator, training-video upload | FastAPI + React + Claude | [`backend/app/api/training.py`](backend/app/api/training.py), [`backend/app/mcp/system_stub.py`](backend/app/mcp/system_stub.py) |
+| **Training & Enablement** — one "Show me how" (auto-generated steps + animated demo GIF + uploaded video), AI storyboard generator | FastAPI + React + Claude | [`backend/app/api/training.py`](backend/app/api/training.py), [`backend/app/mcp/system_stub.py`](backend/app/mcp/system_stub.py) |
 | LLM access (Claude + offline fallback) | official `anthropic` SDK | [`backend/app/llm.py`](backend/app/llm.py) |
 | Cloud Run deployment (one service, API + UI) | Docker + gcloud | [`deploy.sh`](deploy.sh), [`backend/Dockerfile`](backend/Dockerfile) |
 | Architecture, diagrams, runbook, roadmap | Markdown + Mermaid | [`docs/`](docs/) |
@@ -57,7 +57,7 @@ dev team should build next, so the assistant keeps getting better.
 18. [Reseeding the Deployed Environment](docs/17-reseeding-deployed-data.md) — the exact runbook for repopulating demo data after a deploy, plus a matching Claude Code skill.
 19. [Store Check-In & Queue](docs/19-store-checkin-queue.md) — front-of-store customer intake (visit reason + name/phone), a live queue card, and one-tap "Assist" hand-off into the normal chat flow.
 20. [Live Listen](docs/20-live-listen.md) — a read-only AI copilot over a live rep–customer conversation: suggestion cards that hand off into the normal chat, a Playbook score at the end of the visit, GenAI per-rep coaching, and a one-tap customer visit-summary email.
-21. [Training & Enablement](docs/21-training-and-enablement.md) — auto-generated rep walkthroughs for every shipped feature, an AI storyboard/narration generator, and per-enhancement training-video upload.
+21. [Training & Enablement](docs/21-training-and-enablement.md) — one "Show me how" per feature combining auto-generated steps, an animated demo GIF, and an uploaded training video, plus an AI storyboard/narration generator.
 
 ## 60-second quickstart
 

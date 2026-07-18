@@ -110,22 +110,63 @@ def _video_url_for(title: str) -> str | None:
     return f"/api/training/video/{v.id}" if v else None
 
 
+# Committed demo GIFs, matched to enhancements by keyword. The .gif files live
+# under walkthrough_media/ and ship in the image (unlike uploaded videos).
+_MEDIA_DIR = Path(__file__).parent / "walkthrough_media"
+
+
+def _load_media_manifest() -> list[dict]:
+    try:
+        data = json.loads((_MEDIA_DIR / "walkthrough_media.json").read_text())
+        return data.get("media") or []
+    except Exception:
+        return []
+
+
+_MEDIA = _load_media_manifest()
+
+
+def _gif_for(e: dict) -> tuple[str | None, str | None]:
+    """(gif_url, caption) for the first manifest entry that matches this
+    enhancement's title — but only when the .gif file actually exists. Matched
+    on title only (not keywords) so a keyword like 'playbook' listed under an
+    unrelated feature doesn't pull in the wrong GIF."""
+    haystack = (e.get("title", "") or "").lower()
+    for m in _MEDIA:
+        if not (_MEDIA_DIR / m["gif"]).is_file():
+            continue
+        if any(term in haystack for term in m.get("match", [])):
+            return f"/api/training/walkthrough-media/{m['gif']}", m.get("caption")
+    return None, None
+
+
+def _enrich(e: dict) -> dict:
+    gif_url, gif_caption = _gif_for(e)
+    return {
+        **e,
+        "walkthrough": _ensure_walkthrough(e),
+        "video_url": _video_url_for(e.get("title", "")),
+        "gif_url": gif_url,
+        "gif_caption": gif_caption,
+    }
+
+
 def all_enhancements() -> list[dict]:
-    """Full enhancement records (incl. walkthrough/answer/video) for the Training UI."""
-    return [
-        {**e, "walkthrough": _ensure_walkthrough(e), "video_url": _video_url_for(e.get("title", ""))}
-        for e in (_data.get("enhancements") or [])
-    ]
+    """Full enhancement records (incl. walkthrough/answer/video/gif) for the Training UI."""
+    return [_enrich(e) for e in (_data.get("enhancements") or [])]
 
 
 def get_system_enhancements(arguments: dict) -> dict:
     """MCP tool: recent system enhancements as an A2UI element."""
     data = _data
-    enhancements = [
-        {"tag": e["tag"], "title": e["title"], "detail": e["detail"],
-         "walkthrough": _ensure_walkthrough(e), "video_url": _video_url_for(e["title"])}
-        for e in data["enhancements"]
-    ]
+    enhancements = []
+    for e in data["enhancements"]:
+        gif_url, gif_caption = _gif_for(e)
+        enhancements.append({
+            "tag": e["tag"], "title": e["title"], "detail": e["detail"],
+            "walkthrough": _ensure_walkthrough(e), "video_url": _video_url_for(e["title"]),
+            "gif_url": gif_url, "gif_caption": gif_caption,
+        })
     return {
         "elements": [
             {

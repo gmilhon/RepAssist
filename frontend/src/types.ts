@@ -57,6 +57,8 @@ export interface A2UIEnhancement {
   detail: string;
   walkthrough?: Walkthrough | null;
   video_url?: string | null;
+  gif_url?: string | null;
+  gif_caption?: string | null;
 }
 
 export interface A2UISystemEnhancements {

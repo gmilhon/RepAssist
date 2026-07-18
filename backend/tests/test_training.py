@@ -70,6 +70,23 @@ def test_video_upload_link_serve_delete():
     assert client.get(f"/api/training/video/{vid}").status_code == 404
 
 
+def test_walkthrough_media_serving_and_safety():
+    got = client.get("/api/training/walkthrough-media/live-listen.gif")
+    assert got.status_code == 200
+    assert got.headers["content-type"] == "image/gif" and got.content
+    assert client.get("/api/training/walkthrough-media/nope.gif").status_code == 404
+    # Names starting with '.' or containing separators are rejected.
+    assert client.get("/api/training/walkthrough-media/.hidden").status_code == 400
+
+
+def test_demo_gif_matched_to_live_listen_enhancement():
+    enh = client.get("/api/training/enhancements").json()
+    live_listen = [e for e in enh if "live listen" in e["title"].lower()]
+    if live_listen:  # present in the committed enhancements data
+        assert any((e.get("gif_url") or "").endswith("live-listen.gif") for e in live_listen)
+        assert all(e.get("gif_caption") for e in live_listen if e.get("gif_url"))
+
+
 def test_mock_storyboard_builds_from_walkthrough():
     wt = {"intro": "How to use it", "steps": [
         {"title": "Open the app", "detail": "Go to the chat.", "tip": None},

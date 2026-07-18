@@ -18,8 +18,7 @@ interface Msg {
   visit?: VisitRecap;
   grade?: PlaybookGrade;
   coaching?: CoachingResult;
-  walkthrough?: { title: string; steps: Walkthrough };
-  video?: { title: string; url: string };
+  walkthrough?: { title: string; steps: Walkthrough; gifUrl?: string | null; gifCaption?: string | null; videoUrl?: string | null };
 }
 
 // First-step CTAs — tapping one sends a starter prompt; the assistant then asks
@@ -167,17 +166,14 @@ export default function ChatWidget() {
     }
   }
 
-  // Show a feature walkthrough as a step-by-step card in the thread.
+  // Show a feature walkthrough — steps, then a demo GIF, then a video if one
+  // was uploaded — all in one card in the thread.
   function onWalkthrough(e: A2UIEnhancement) {
-    if (!e.walkthrough) return;
-    setMessages((m) => [...m, { role: "assistant", walkthrough: { title: e.title, steps: e.walkthrough! } }]);
-    scrollDown();
-  }
-
-  // Play an uploaded training video for an enhancement in the thread.
-  function onWatchVideo(e: A2UIEnhancement) {
-    if (!e.video_url) return;
-    setMessages((m) => [...m, { role: "assistant", video: { title: e.title, url: e.video_url! } }]);
+    const steps = e.walkthrough ?? { intro: "", steps: [] };
+    setMessages((m) => [...m, {
+      role: "assistant",
+      walkthrough: { title: e.title, steps, gifUrl: e.gif_url, gifCaption: e.gif_caption, videoUrl: e.video_url },
+    }]);
     scrollDown();
   }
 
@@ -748,7 +744,7 @@ export default function ChatWidget() {
               {m.content && <div className="bubble-text">{m.content}</div>}
               {m.card && <Card card={m.card} />}
               {m.a2ui && (
-                <A2UIRenderer elements={m.a2ui} onAction={a2uiAction} onOpenArticle={openArticle} onAssist={assistFromQueue} onCoach={onCoach} onWalkthrough={onWalkthrough} onWatchVideo={onWatchVideo} actionsDisabled={busy} />
+                <A2UIRenderer elements={m.a2ui} onAction={a2uiAction} onOpenArticle={openArticle} onAssist={assistFromQueue} onCoach={onCoach} onWalkthrough={onWalkthrough} actionsDisabled={busy} />
               )}
               {m.grade && <PlaybookScoreCard grade={m.grade} />}
               {m.visit && (
@@ -759,8 +755,7 @@ export default function ChatWidget() {
                 />
               )}
               {m.coaching && <CoachingCard result={m.coaching} />}
-              {m.walkthrough && <WalkthroughCard title={m.walkthrough.title} steps={m.walkthrough.steps} />}
-              {m.video && <VideoCard title={m.video.title} url={m.video.url} />}
+              {m.walkthrough && <WalkthroughCard walkthrough={m.walkthrough} />}
             </div>
           ))}
 
@@ -1157,36 +1152,45 @@ function CoachingCard({ result }: { result: CoachingResult }) {
   );
 }
 
-function WalkthroughCard({ title, steps }: { title: string; steps: Walkthrough }) {
+function WalkthroughCard({
+  walkthrough,
+}: {
+  walkthrough: { title: string; steps: Walkthrough; gifUrl?: string | null; gifCaption?: string | null; videoUrl?: string | null };
+}) {
+  const { title, steps, gifUrl, gifCaption, videoUrl } = walkthrough;
   return (
     <div className="wt-card">
       <div className="wt-head">
         <span className="wt-eyebrow">📺 How to · {title}</span>
       </div>
       {steps.intro && <p className="wt-intro">{steps.intro}</p>}
-      <ol className="wt-steps">
-        {steps.steps.map((s, i) => (
-          <li key={i} className="wt-step">
-            <span className="wt-step-num">{i + 1}</span>
-            <div className="wt-step-body">
-              <div className="wt-step-title">{s.title}</div>
-              <div className="wt-step-detail">{s.detail}</div>
-              {s.tip && <div className="wt-step-tip">💡 {s.tip}</div>}
-            </div>
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
-}
-
-function VideoCard({ title, url }: { title: string; url: string }) {
-  return (
-    <div className="video-card">
-      <div className="video-head">
-        <span className="video-eyebrow">▶ Training video · {title}</span>
-      </div>
-      <video className="video-player" src={url} controls preload="metadata" />
+      {steps.steps.length > 0 && (
+        <ol className="wt-steps">
+          {steps.steps.map((s, i) => (
+            <li key={i} className="wt-step">
+              <span className="wt-step-num">{i + 1}</span>
+              <div className="wt-step-body">
+                <div className="wt-step-title">{s.title}</div>
+                <div className="wt-step-detail">{s.detail}</div>
+                {s.tip && <div className="wt-step-tip">💡 {s.tip}</div>}
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+      {gifUrl && (
+        <div className="wt-media">
+          <div className="wt-media-label">🎞 Quick demo</div>
+          <img className="wt-gif" src={gifUrl} alt={`${title} demo`} />
+          {gifCaption && <div className="wt-media-cap">{gifCaption}</div>}
+        </div>
+      )}
+      {videoUrl && (
+        <div className="wt-media">
+          <div className="wt-media-label">▶ Training video</div>
+          <video className="wt-video" src={videoUrl} controls preload="metadata" />
+        </div>
+      )}
     </div>
   );
 }

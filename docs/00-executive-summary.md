@@ -101,8 +101,9 @@ runs locally *and* deploys to the cloud as one service. It includes:
   suggests issues over the live conversation, scores each visit against a
   **Playbook**, coaches the rep, and drafts a customer summary email
   ([doc 19](19-store-checkin-queue.md), [doc 20](20-live-listen.md));
-- **Training & Enablement** — auto-generated rep walkthroughs and an AI
-  storyboard/training-video pipeline ([doc 21](21-training-and-enablement.md));
+- **Training & Enablement** — auto-generated rep walkthroughs with animated demo
+  GIFs and uploaded videos in one "Show me how", plus an AI storyboard generator
+  ([doc 21](21-training-and-enablement.md));
 - **email reports** with subscriber management, and a responsive UI;
 - **one-command deployment** to Google Cloud Run (Secret Manager, [doc 12](12-deployment-cloud-run.md)).
 

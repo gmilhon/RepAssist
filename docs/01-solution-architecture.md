@@ -108,7 +108,7 @@ flowchart LR
 | API routers | HTTP surface (`chat, tickets, insights, metrics, cx, mcp, email, admin, queue, listen, coaching, playbook, training, huddle, production, system_health`) | [`backend/app/api/`](../backend/app/api) |
 | Orchestrator graph | Triage → route → resolve → confirm → compose | [`backend/app/graph/`](../backend/app/graph) |
 | **Live Listen** (read-only copilot) | Analyze a live transcript for triageable issues, grade the visit vs. the Playbook, generate coaching — no graph, no writes | [`listen.py`](../backend/app/api/listen.py), [`coaching.py`](../backend/app/api/coaching.py), [`playbook.py`](../backend/app/api/playbook.py) · [doc 20](20-live-listen.md) |
-| **Training & Enablement** | Rep walkthroughs (generated with the enhancements), AI storyboard generator, training-video upload | [`training.py`](../backend/app/api/training.py) · [doc 21](21-training-and-enablement.md) |
+| **Training & Enablement** | Unified "Show me how" (generated steps + committed demo GIF + uploaded video), AI storyboard generator, training-video upload | [`training.py`](../backend/app/api/training.py) · [doc 21](21-training-and-enablement.md) |
 | **MCP layer (stub)** | Agent-to-UI tool boundary; `orders` / `queue` / `news` / `ost` / `system` servers return A2UI elements | [`backend/app/mcp/`](../backend/app/mcp) |
 | LLM | Triage + reply composition, live-transcript analysis, Playbook grading, coaching, summaries, storyboards (all structured-output, offline-safe) | [`backend/app/llm.py`](../backend/app/llm.py) |
 | Agent adapter | HTTP client for existing agents (`diagnose` / `execute`) | [`backend/app/integrations/agents_client.py`](../backend/app/integrations/agents_client.py) |

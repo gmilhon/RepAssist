@@ -1,0 +1,14 @@
+{
+  "media": [
+    {
+      "gif": "live-listen.gif",
+      "caption": "Start a Live Listen, watch suggestions appear, then stop to see your Playbook score.",
+      "match": ["live listen", "playbook", "coaching", "docked transcript"]
+    },
+    {
+      "gif": "queue-eligibility.gif",
+      "caption": "Opportunity badges flag upgrade, fiber, and fixed-wireless eligibility right in the check-in queue.",
+      "match": ["opportunit", "eligibil", "fiber", "fixed wireless", "spot sales", "check in", "check-in", "walk-in", "front-desk queue", "front desk queue"]
+    }
+  ]
+}

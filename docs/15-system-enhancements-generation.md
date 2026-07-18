@@ -46,8 +46,10 @@ no change to the API or A2UI card shape reps already see.
   `EnhancementItem` includes a hands-on 3–6-step `walkthrough` (plus a detailed
   follow-up `answer`) teaching a rep to use that feature in the app. These are
   generated here so a rep's how-to always ships with the commit that added the
-  feature, and they power the **Training & Enablement** surface — in-chat
-  walkthroughs plus an AI storyboard/training-video pipeline. See
+  feature, and they power the **Training & Enablement** surface: the rep's single
+  **"Show me how"** unfolds the steps, an animated **demo GIF** of the flow (when
+  one is matched), and an uploaded **training video** (when attached) — plus an AI
+  storyboard generator for the Go-To-Channel team. See
   [Training & Enablement](21-training-and-enablement.md).
 - **No credentials → no-op, never a bad overwrite.** If `ANTHROPIC_API_KEY`
   isn't configured (or the venv is missing) the step is skipped with a warning

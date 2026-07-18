@@ -116,6 +116,21 @@ def upload_video(
     return _video_meta(video)
 
 
+_MEDIA_DIR = Path(__file__).resolve().parents[1] / "mcp" / "walkthrough_media"
+
+
+@router.get("/walkthrough-media/{name}")
+def get_walkthrough_media(name: str) -> FileResponse:
+    """Serve a committed demo GIF (or image) by filename, path-traversal safe."""
+    if "/" in name or "\\" in name or name.startswith("."):
+        raise HTTPException(400, "Invalid name")
+    path = (_MEDIA_DIR / name).resolve()
+    if _MEDIA_DIR.resolve() not in path.parents or not path.is_file():
+        raise HTTPException(404, "Media not found")
+    ctype = "image/gif" if path.suffix.lower() == ".gif" else "application/octet-stream"
+    return FileResponse(str(path), media_type=ctype)
+
+
 @router.get("/video/{video_id}")
 def get_video(video_id: int) -> FileResponse:
     video = db.get_enhancement_video(video_id)
