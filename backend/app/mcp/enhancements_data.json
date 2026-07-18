@@ -1,7 +1,35 @@
 {
-  "generated_at": "2026-07-18T04:10:11.027349+00:00",
-  "last_commit_sha": "2b99f41ff6fd6cf48fe805004e06676fa9f26b93",
+  "generated_at": "2026-07-18T05:09:56.844371+00:00",
+  "last_commit_sha": "b75f477887aa557f7ccb9c26c6f5dbc60bf3f8e2",
   "enhancements": [
+    {
+      "tag": "New",
+      "title": "Live Listen now scores your visits and coaches you afterward",
+      "detail": "After you end a Live Listen session, Rep Assist grades the conversation against the store's official playbook and gives you a 1-5 star score with what you did well and what to work on. A new Coaching tile lets you pull up past graded visits and get a suggested script for doing better next time.",
+      "keywords": [
+        "playbook",
+        "coaching",
+        "star rating",
+        "grade",
+        "visit score",
+        "strengths and gaps"
+      ],
+      "answer": "When you stop a Live Listen session, Rep Assist compares the conversation to the current playbook guidelines and shows a Playbook Score card with a star rating, a quick headline, and a breakdown of strengths and gaps. Tap the new Coaching tile in the sidebar to revisit any recent graded visit and get a personalized tip plus a suggested script — this is especially helpful if you missed positioning something the customer was eligible for."
+    },
+    {
+      "tag": "New",
+      "title": "Spot sales opportunities before you even start talking",
+      "detail": "Rep Assist now flags customers who may be eligible for things like an upgrade promo, Fiber Home Internet, or Fixed Wireless Internet with a 💡 badge in the check-in queue, and Live Listen calls out those opportunities right when you start the session.",
+      "keywords": [
+        "opportunity badge",
+        "sales eligibility",
+        "upgrade promo",
+        "fiber internet",
+        "fixed wireless",
+        "queue"
+      ],
+      "answer": "Look for the 💡 badge on a customer's entry in the front-desk queue card — it means Rep Assist has spotted something they may qualify for, like an upgrade promo or a home internet offer. When you start Live Listen with that customer, it will remind you out loud what to look for, and if you don't end up mentioning it, your visit score and coaching feedback will call that out afterward."
+    },
     {
       "tag": "Improved",
       "title": "Live Listen gets a docked transcript, smarter lookups, and visit-summary emails",
@@ -88,38 +116,11 @@
         "auto-fill"
       ],
       "answer": "Before, tapping a ticket card could make Rep Assist ask you for a missing order ID even though it already had the ticket. Now it looks up the ticket right away and gives you a recap of its status, priority, and suggested next steps. Tapping a recent order card also automatically fills in the order and account IDs so you don't have to re-enter them."
-    },
-    {
-      "tag": "New",
-      "title": "One-tap starter tiles for common tasks",
-      "detail": "The chat start screen now has quick-tap tiles for the most common jobs — Fix an activation, Unblock an order, Apply a promo, Explain a charge, and Request a credit — so you don't have to type out the request yourself.",
-      "keywords": [
-        "first steps",
-        "starter tiles",
-        "fix activation",
-        "unblock order",
-        "apply promo",
-        "request credit"
-      ],
-      "answer": "Instead of typing a request from scratch, you can tap one of the first-step tiles on the chat start screen — like 'Fix an activation' or 'Apply a promo' — and Rep Assist will kick off that conversation for you, then ask for whatever details it still needs."
-    },
-    {
-      "tag": "New",
-      "title": "Look up your recent orders and open tickets",
-      "detail": "Two 'Look up' tiles on the chat start screen let you pull up a card of your recent orders or your open tickets on demand, with status, priority, and how long ago each happened.",
-      "keywords": [
-        "recent orders",
-        "open tickets",
-        "look up",
-        "order status",
-        "ticket status"
-      ],
-      "answer": "Tap 'Recent orders' or 'My open tickets' on the chat start screen to reveal a card listing your recent orders or open tickets, complete with status, priority, and a time-ago label, so you can quickly find the one you need without searching manually."
     }
   ],
   "suggestions": [
-    "How does Live Listen send a visit summary to the customer?",
-    "What can the Resolution Desk automatically fix for me?",
-    "How do I check in a walk-in customer with their account number?"
+    "How does the Playbook score my Live Listen visits?",
+    "What do the opportunity badges in the queue mean?",
+    "How do I check in a walk-in customer?"
   ]
 }
