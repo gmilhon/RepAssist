@@ -128,6 +128,49 @@ class VisitSummary(BaseModel):
     )
 
 
+class PlaybookGuidelineScore(BaseModel):
+    """How the conversation measured against one Playbook guideline."""
+
+    guideline_id: int = Field(description="Id of the guideline being scored.")
+    category: str = Field(description="Guideline category, e.g. 'Customer Needs' or 'Sales Positioning'.")
+    guideline: str = Field(description="The guideline text, echoed back.")
+    met: bool = Field(description="Whether the rep met this guideline in the conversation.")
+    note: str = Field(description="One short sentence of evidence for the met/unmet call.")
+
+
+class PlaybookGrade(BaseModel):
+    """A rep-facing grade of a Live Listen conversation against the Playbook."""
+
+    stars: int = Field(description="Overall score, 1-5, of how well the rep followed the Playbook.", ge=1, le=5)
+    headline: str = Field(description="One-line verdict on the conversation.")
+    per_guideline: list[PlaybookGuidelineScore] = Field(
+        description="One entry per active guideline that was evaluated."
+    )
+    strengths: list[str] = Field(description="What the rep did well, in short phrases.")
+    gaps: list[str] = Field(description="What the rep missed or could improve, in short phrases.")
+
+
+class CoachingImprovement(BaseModel):
+    """One concrete improvement tied to a Playbook guideline."""
+
+    guideline: str = Field(description="The guideline this improvement relates to.")
+    suggestion: str = Field(description="Specific, actionable advice for next time.")
+
+
+class CoachingRecommendation(BaseModel):
+    """GenAI coaching for a rep on a past assisted conversation."""
+
+    summary: str = Field(description="2-3 sentence coaching overview of the conversation.")
+    what_went_well: list[str] = Field(description="Things the rep handled well.")
+    improvements: list[CoachingImprovement] = Field(
+        description="Prioritized, guideline-linked improvements for next time."
+    )
+    suggested_script: str = Field(
+        description="A short example of what the rep could have said to better meet the Playbook, "
+        "especially for positioning any sales opportunity."
+    )
+
+
 class ProposedAction(BaseModel):
     """A mutating fix an agent wants to apply — gated behind rep confirmation."""
 

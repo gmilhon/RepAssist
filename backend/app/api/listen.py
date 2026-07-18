@@ -23,6 +23,7 @@ from . import email_reports
 from .. import llm
 from ..graph.nodes import INTENT_CAPABILITY, NEEDS_ID
 from ..integrations import agents_client
+from ..mock_services.data import eligibility_badges, resolve_eligibility
 from ..schemas import DiagnoseRequest, Intent
 from ..store import db
 from ..store.models import ListenSession
@@ -135,6 +136,7 @@ def start(req: StartListenRequest) -> dict:
         raise HTTPException(404, "Queue entry not found")
     thread_id = req.thread_id or f"thr-{uuid.uuid4().hex[:10]}"
     db.assist_queue_entry(req.queue_entry_id, req.rep_id, thread_id)
+    eligibility = resolve_eligibility(entry.account_id)
     session = db.create_listen_session(
         rep_id=req.rep_id,
         thread_id=thread_id,
@@ -144,9 +146,16 @@ def start(req: StartListenRequest) -> dict:
         reason=entry.reason,
         account_id=entry.account_id,
         order_id=entry.order_id,
+        eligibility=eligibility,
         mode=req.mode,
     )
-    return {"session": session, "thread_id": thread_id, "entities": _session_entities(session)}
+    return {
+        "session": session,
+        "thread_id": thread_id,
+        "entities": _session_entities(session),
+        "eligibility": eligibility,
+        "opportunities": eligibility_badges(eligibility),
+    }
 
 
 @router.post("/{session_id}/analyze")
@@ -295,11 +304,33 @@ def stop(session_id: str) -> dict:
         except Exception as exc:  # noqa: BLE001 - summary is a nicety, not required
             logger.warning("Visit summary generation failed (%s)", exc)
             summary = None
+
+    # Grade the conversation against the active Playbook (stars + breakdown),
+    # persist it, and hand it back for the rep-facing score card. Best-effort.
+    grade = session.playbook_grade
+    if grade is None:
+        try:
+            guidelines = [
+                {"id": g.id, "category": g.category, "text": g.text}
+                for g in db.list_playbook_guidelines(active_only=True)
+            ]
+            result = llm.grade_playbook(
+                session.transcript or [], session.suggestions or [],
+                session.eligibility or {}, guidelines,
+                thread_id=session.thread_id, rep_id=session.rep_id,
+            )
+            grade = result.model_dump()
+            db.save_listen_grade(session_id, result.stars, grade)
+        except Exception as exc:  # noqa: BLE001 - grade is a nicety, not required
+            logger.warning("Playbook grading failed (%s)", exc)
+            grade = None
+
     recap = {
         "utterances": len(session.transcript or []),
         "suggestions": len(session.suggestions or []),
         "duration_label": _duration_label(session.created_at, session.ended_at or session.created_at),
         "summary": summary,
+        "grade": grade,
     }
     return {"session": session, "recap": recap}
 

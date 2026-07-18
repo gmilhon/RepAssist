@@ -113,6 +113,21 @@ class EmailSubscriber(SQLModel, table=True):
     created_at: datetime = Field(default_factory=_now)
 
 
+class PlaybookGuideline(SQLModel, table=True):
+    """A single Playbook guideline, managed from the Settings page. Guidelines
+    define the standard a rep is graded against after a Live Listen visit —
+    grouped into meeting customer needs and positioning sales opportunities."""
+
+    __tablename__ = "playbook_guidelines"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    category: str = "Customer Needs"   # "Customer Needs" | "Sales Positioning"
+    text: str = ""
+    active: bool = True
+    sort_order: int = 0
+    created_at: datetime = Field(default_factory=_now)
+
+
 class HuddleItem(SQLModel, table=True):
     """A Morning Huddle field-news item, managed from the Settings page and
     served by the 'news' MCP stub."""
@@ -298,9 +313,14 @@ class ListenSession(SQLModel, table=True):
     status: str = "active"             # "active" | "ended"
     ended_at: Optional[datetime] = None
 
+    eligibility: Optional[dict] = Field(default=None, sa_column=Column(JSON))  # sales opportunities for this customer
+
     transcript: list = Field(default_factory=list, sa_column=Column(JSON))   # [{speaker, text}]
     suggestions: list = Field(default_factory=list, sa_column=Column(JSON))  # surfaced suggestion dicts
     summary: Optional[dict] = Field(default=None, sa_column=Column(JSON))     # generated VisitSummary
+    playbook_score: Optional[int] = None                                     # 1-5 stars vs. the Playbook
+    playbook_grade: Optional[dict] = Field(default=None, sa_column=Column(JSON))  # full PlaybookGrade
+    coaching: Optional[dict] = Field(default=None, sa_column=Column(JSON))    # generated CoachingRecommendation
 
 
 class GuardrailEvent(SQLModel, table=True):

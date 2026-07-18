@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
-import type { A2UIElement, A2UIQueue, A2UIQueueEntry, ChatResponse, ConfirmationPayload, ListenSession, ListenUtterance, ResolutionCard, SendSummaryResult, VisitSummary } from "../types";
+import type { A2UICoachingEntry, A2UIElement, A2UIQueue, A2UIQueueEntry, ChatResponse, CoachingResult, ConfirmationPayload, ListenSession, ListenUtterance, PlaybookGrade, ResolutionCard, SendSummaryResult, VisitSummary } from "../types";
 import { VISIT_REASONS } from "../types";
-import { A2UIRenderer } from "./A2UI";
+import { A2UIRenderer, Stars } from "./A2UI";
 
 interface VisitRecap {
   sessionId: string;
@@ -16,6 +16,8 @@ interface Msg {
   card?: ResolutionCard | null;
   a2ui?: A2UIElement[];
   visit?: VisitRecap;
+  grade?: PlaybookGrade;
+  coaching?: CoachingResult;
 }
 
 // First-step CTAs — tapping one sends a starter prompt; the assistant then asks
@@ -149,6 +151,32 @@ export default function ChatWidget() {
       scrollDown();
     } catch {
       /* MCP unavailable — silently ignore */
+    }
+  }
+
+  // Coaching tile → card of recent graded visits.
+  async function showCoaching() {
+    try {
+      const res = await api.coachingRecent();
+      setMessages((m) => [...m, { role: "assistant", a2ui: res.elements }]);
+      scrollDown();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  // Select a graded visit → GenAI coaching recommendation card.
+  async function onCoach(entry: A2UICoachingEntry) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const res = await api.coachingRecommend(entry.session_id);
+      setMessages((m) => [...m, { role: "assistant", coaching: res }]);
+      scrollDown();
+    } catch (e) {
+      setMessages((m) => [...m, { role: "assistant", content: `Couldn't load coaching (${String(e)}).` }]);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -309,11 +337,14 @@ export default function ChatWidget() {
       }, 1000);
       const label = res.session.customer_name ?? res.session.customer_phone ?? "the customer";
       const reasonLabel = VISIT_REASONS.find((r) => r.value === res.session.reason)?.label ?? res.session.reason;
+      const oppLine = res.opportunities.length
+        ? ` 💡 Opportunities to position: ${res.opportunities.join(", ")}.`
+        : "";
       setMessages((m) => [
         ...m,
         {
           role: "assistant",
-          content: `🎧 Live Listen started — assisting ${label} (${reasonLabel}). I'll flag anything I can help with.`,
+          content: `🎧 Live Listen started — assisting ${label} (${reasonLabel}). I'll flag anything I can help with.${oppLine}`,
         },
       ]);
       if (listenMode === "demo") playDemoScript();
@@ -488,8 +519,10 @@ export default function ChatWidget() {
         role: "assistant",
         content: `🎧 Live Listen ended — ${res.recap.utterances} utterances, ${res.recap.suggestions} suggestions, ${res.recap.duration_label}.`,
       };
-      // Attach the generated visit summary so the recap card + "Send visit
-      // summary" button render inline in the thread.
+      // Attach the Playbook grade (stars) and the generated visit summary so
+      // the score card, summary card, and "Send visit summary" button render
+      // inline in the thread.
+      if (res.recap.grade) recapMsg.grade = res.recap.grade;
       if (res.recap.summary) {
         recapMsg.visit = {
           sessionId: session.id,
@@ -627,6 +660,11 @@ export default function ChatWidget() {
             <span className="cta-tile-label">View queue</span>
             <span className="cta-tile-chevron">›</span>
           </button>
+          <button className="cta-tile cta-tile--lookup" disabled={busy} onClick={showCoaching}>
+            <span className="cta-tile-icon">🎯</span>
+            <span className="cta-tile-label">Coaching</span>
+            <span className="cta-tile-chevron">›</span>
+          </button>
         </div>
 
         <div className="cta-subhead">Look up</div>
@@ -694,8 +732,9 @@ export default function ChatWidget() {
               {m.content && <div className="bubble-text">{m.content}</div>}
               {m.card && <Card card={m.card} />}
               {m.a2ui && (
-                <A2UIRenderer elements={m.a2ui} onAction={a2uiAction} onOpenArticle={openArticle} onAssist={assistFromQueue} actionsDisabled={busy} />
+                <A2UIRenderer elements={m.a2ui} onAction={a2uiAction} onOpenArticle={openArticle} onAssist={assistFromQueue} onCoach={onCoach} actionsDisabled={busy} />
               )}
+              {m.grade && <PlaybookScoreCard grade={m.grade} />}
               {m.visit && (
                 <VisitSummaryCard
                   visit={m.visit}
@@ -703,6 +742,7 @@ export default function ChatWidget() {
                   onSend={() => sendVisitSummary(m.visit!.sessionId)}
                 />
               )}
+              {m.coaching && <CoachingCard result={m.coaching} />}
             </div>
           ))}
 
@@ -1013,6 +1053,88 @@ function VisitSummaryCard({
         </button>
         {status && <span className="visit-status">{status}</span>}
       </div>
+    </div>
+  );
+}
+
+function PlaybookScoreCard({ grade }: { grade: PlaybookGrade }) {
+  return (
+    <div className="score-card">
+      <div className="score-head">
+        <span className="score-eyebrow">📋 Playbook score</span>
+        <Stars value={grade.stars} />
+      </div>
+      <p className="score-headline">{grade.headline}</p>
+      {grade.strengths.length > 0 && (
+        <div className="score-block">
+          <div className="score-label score-label--good">Did well</div>
+          <ul className="score-list">
+            {grade.strengths.map((s, i) => <li key={i}>{s}</li>)}
+          </ul>
+        </div>
+      )}
+      {grade.gaps.length > 0 && (
+        <div className="score-block">
+          <div className="score-label score-label--gap">To improve</div>
+          <ul className="score-list">
+            {grade.gaps.map((g, i) => <li key={i}>{g}</li>)}
+          </ul>
+        </div>
+      )}
+      <details className="score-details">
+        <summary>Guideline breakdown</summary>
+        <ul className="score-guidelines">
+          {grade.per_guideline.map((p) => (
+            <li key={p.guideline_id} className={p.met ? "met" : "unmet"}>
+              <span className="score-check">{p.met ? "✓" : "✗"}</span>
+              <span>
+                <b>{p.guideline}</b>
+                <span className="score-note"> — {p.note}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </details>
+    </div>
+  );
+}
+
+function CoachingCard({ result }: { result: CoachingResult }) {
+  const { coaching, customer_name, stars, grade } = result;
+  return (
+    <div className="coach-card">
+      <div className="coach-head">
+        <span className="coach-eyebrow">🎯 Coaching · {customer_name}</span>
+        <Stars value={stars} />
+      </div>
+      {grade?.headline && <p className="coach-headline">{grade.headline}</p>}
+      <p className="coach-summary">{coaching.summary}</p>
+      {coaching.what_went_well.length > 0 && (
+        <div className="score-block">
+          <div className="score-label score-label--good">What went well</div>
+          <ul className="score-list">
+            {coaching.what_went_well.map((s, i) => <li key={i}>{s}</li>)}
+          </ul>
+        </div>
+      )}
+      {coaching.improvements.length > 0 && (
+        <div className="score-block">
+          <div className="score-label score-label--gap">How to improve</div>
+          <ul className="coach-improvements">
+            {coaching.improvements.map((imp, i) => (
+              <li key={i}>
+                <b>{imp.guideline}</b> — {imp.suggestion}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {coaching.suggested_script && (
+        <div className="coach-script">
+          <div className="score-label">Try saying</div>
+          <p className="coach-script-text">“{coaching.suggested_script}”</p>
+        </div>
+      )}
     </div>
   );
 }

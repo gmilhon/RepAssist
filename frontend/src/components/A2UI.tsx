@@ -1,5 +1,7 @@
 import { useState } from "react";
 import type {
+  A2UICoaching,
+  A2UICoachingEntry,
   A2UIElement,
   A2UIKnowledgeArticle,
   A2UILiveSuggestion,
@@ -25,12 +27,14 @@ export function A2UIRenderer({
   onAction,
   onOpenArticle,
   onAssist,
+  onCoach,
   actionsDisabled = false,
 }: {
   elements: A2UIElement[];
   onAction: (prompt: string, entities?: Record<string, string>) => void;
   onOpenArticle?: (articleId: string) => void;
   onAssist?: (entry: A2UIQueueEntry) => void;
+  onCoach?: (entry: A2UICoachingEntry) => void;
   actionsDisabled?: boolean;
 }) {
   return (
@@ -51,6 +55,8 @@ export function A2UIRenderer({
             return <QueueCard key={i} el={el} onAssist={onAssist} />;
           case "live_suggestion":
             return <LiveSuggestionCard key={i} el={el} onAction={onAction} disabled={actionsDisabled} />;
+          case "coaching":
+            return <CoachingListCard key={i} el={el} onCoach={onCoach} disabled={actionsDisabled} />;
           default:
             return null; // unknown element types are ignored, not fatal
         }
@@ -331,6 +337,13 @@ function QueueRow({
         </span>
       </div>
       <div className="a2ui-order-meta">{entry.reason_label}</div>
+      {entry.opportunities && entry.opportunities.length > 0 && (
+        <div className="a2ui-opps">
+          {entry.opportunities.map((o) => (
+            <span key={o} className="a2ui-opp-badge">💡 {o}</span>
+          ))}
+        </div>
+      )}
       <div className="a2ui-order-foot">
         <span className="a2ui-order-cust">
           {showBothIdentifiers ? entry.customer_phone : ""}
@@ -342,6 +355,64 @@ function QueueRow({
         <span className="a2ui-order-cta">{inProgress ? "In progress" : "Assist →"}</span>
       </div>
     </button>
+  );
+}
+
+export function Stars({ value }: { value: number }) {
+  const n = Math.max(0, Math.min(5, Math.round(value)));
+  return (
+    <span className="stars" aria-label={`${n} out of 5`}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <span key={i} className={i <= n ? "star on" : "star"}>★</span>
+      ))}
+    </span>
+  );
+}
+
+function CoachingListCard({
+  el,
+  onCoach,
+  disabled = false,
+}: {
+  el: A2UICoaching;
+  onCoach?: (entry: A2UICoachingEntry) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="a2ui-card">
+      <div className="a2ui-card-head">
+        <span className="a2ui-card-eyebrow">🎯 Coaching</span>
+        <h4 className="a2ui-card-title">{el.title}</h4>
+        {el.subtitle && <p className="a2ui-card-sub">{el.subtitle}</p>}
+      </div>
+      {el.entries.length === 0 ? (
+        <p className="a2ui-empty">No graded visits yet — finish a Live Listen to see coaching.</p>
+      ) : (
+        <div className="a2ui-orders">
+          {el.entries.map((e) => (
+            <button
+              key={e.session_id}
+              className="a2ui-order"
+              disabled={disabled}
+              onClick={() => onCoach?.(e)}
+              title={`Coaching for ${e.customer_name}`}
+            >
+              <div className="a2ui-order-top">
+                <span className="a2ui-order-id">{e.customer_name}</span>
+                <Stars value={e.stars} />
+              </div>
+              <div className="a2ui-order-meta">{e.reason_label}</div>
+              <div className="a2ui-order-foot">
+                <span className="a2ui-order-cust">
+                  <span className="a2ui-order-time">{e.when_label}</span>
+                </span>
+                <span className="a2ui-order-cta">{e.has_coaching ? "View coaching →" : "Coach me →"}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

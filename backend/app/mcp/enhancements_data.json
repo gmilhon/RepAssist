@@ -1,25 +1,25 @@
 {
-  "generated_at": "2026-07-18T02:37:45.366657+00:00",
-  "last_commit_sha": "c2c46c4e0fad56b501c1b98cc0c69cf55b603c39",
+  "generated_at": "2026-07-18T04:10:11.027349+00:00",
+  "last_commit_sha": "2b99f41ff6fd6cf48fe805004e06676fa9f26b93",
   "enhancements": [
     {
-      "tag": "New",
-      "title": "Live Listen: real-time help during customer conversations",
-      "detail": "Tap the new Listen button while you're talking with a customer to have Rep Assist quietly follow along and suggest help — like a possible fix or next step — as cards right in your chat. You stay in control: nothing happens automatically, you just tap a suggestion to send it into the normal confirm-and-fix flow.",
+      "tag": "Improved",
+      "title": "Live Listen gets a docked transcript, smarter lookups, and visit-summary emails",
+      "detail": "The live transcript now stays pinned right above your message box instead of scrolling away, so it's easier to follow. Live Listen also uses the customer's known account or order info automatically (skipping extra questions), and when you end a session you can send the customer a short AI-written visit summary by email with one tap.",
       "keywords": [
         "listen",
         "live listen",
-        "real-time",
-        "transcription",
-        "suggestions",
-        "copilot"
+        "transcript",
+        "visit summary",
+        "email summary",
+        "account lookup"
       ],
-      "answer": "Live Listen lets you pick the checked-in customer you're speaking with, then Rep Assist transcribes the conversation as it happens (using your mic or a demo mode). In the background it watches for issues coming up in the conversation and drops suggestion cards into your chat — tap one and it hands the details straight into Rep Assist's normal chat flow, still asking you to confirm before it fixes or creates anything. It's read-only until you tap a suggestion, so it never takes action on its own."
+      "answer": "When you check in a customer with an account or order number, Live Listen now carries that straight into the conversation so it can look things up without stopping to ask you for it again. The transcript window is now docked above the chat box so it doesn't scroll out of view on your phone. When you stop a session, Rep Assist writes up a quick, customer-friendly recap of the visit and shows it as a card — tap 'Send visit summary' and it emails that recap to the customer (this uses a new email preference in Settings)."
     },
     {
       "tag": "New",
       "title": "Check in walk-in customers and manage the front-desk queue",
-      "detail": "A new Check In option lets you log a walk-in customer's name, phone, and reason for the visit. Everyone waiting shows up in a queue card, and tapping Assist on an entry pulls their info straight into chat so you can start helping them right away.",
+      "detail": "A new Check In option lets you log a walk-in customer's name, phone, and reason for the visit, plus their account or order number if you have it. Everyone waiting shows up in a queue card, and tapping Assist on an entry pulls their info straight into chat so you can start helping them right away.",
       "keywords": [
         "check in",
         "queue",
@@ -28,7 +28,7 @@
         "assist",
         "waiting"
       ],
-      "answer": "Use the new Check In button to log a walk-in customer with their visit reason and contact info, and they'll appear in the store's queue card in the order they arrived. When you're ready to help someone, tap Assist on their entry to claim it — Rep Assist drops you into the normal chat flow with their name and details already filled in, so you don't have to ask twice or retype anything."
+      "answer": "Use the new Check In button to log a walk-in customer with their visit reason, contact info, and account or order number if known, and they'll appear in the store's queue card in the order they arrived. When you're ready to help someone, tap Assist on their entry to claim it — Rep Assist drops you into the normal chat flow with their name and details already filled in, so you don't have to ask twice or retype anything."
     },
     {
       "tag": "New",
@@ -118,8 +118,8 @@
     }
   ],
   "suggestions": [
-    "How does Live Listen work during a customer conversation?",
-    "How do I check in a walk-in customer and see the queue?",
-    "What can the Resolution Desk fix automatically for me?"
+    "How does Live Listen send a visit summary to the customer?",
+    "What can the Resolution Desk automatically fix for me?",
+    "How do I check in a walk-in customer with their account number?"
   ]
 }

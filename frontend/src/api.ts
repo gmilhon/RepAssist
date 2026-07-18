@@ -1,4 +1,4 @@
-import type { A2UIResponse, AnalyzeResult, CallAgentResult, CandidateDefect, CapabilityGap, ChatResponse, CheckInResult, CXOverview, EmailSettings, EmailSubscriber, FileDefectResult, HuddleItem, JiraDefectItem, ListenUtterance, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, ProductionAnalyzeResult, ProductionIssue, ProductionOverview, QueueEntry, SendReportResult, SendSummaryResult, StartListenResult, StopListenResult, SystemHealth, Ticket, TicketAnalyzeResult } from "./types";
+import type { A2UIResponse, AnalyzeResult, CallAgentResult, CandidateDefect, CapabilityGap, ChatResponse, CheckInResult, CoachingResult, CXOverview, EmailSettings, EmailSubscriber, FileDefectResult, HuddleItem, JiraDefectItem, ListenUtterance, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, PlaybookGuideline, ProductionAnalyzeResult, ProductionIssue, ProductionOverview, QueueEntry, SendReportResult, SendSummaryResult, StartListenResult, StopListenResult, SystemHealth, Ticket, TicketAnalyzeResult } from "./types";
 
 async function http<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -97,6 +97,26 @@ export const api = {
 
   listenSendSummary: (session_id: string) =>
     http<SendSummaryResult>(`/api/listen/${session_id}/send-summary`, { method: "POST" }),
+
+  // Coaching
+  coachingRecent: () => http<A2UIResponse>("/api/coaching/recent"),
+  coachingRecommend: (session_id: string) =>
+    http<CoachingResult>(`/api/coaching/${session_id}`, { method: "POST" }),
+
+  // Playbook management (Settings)
+  listPlaybookGuidelines: () => http<PlaybookGuideline[]>("/api/playbook/guidelines"),
+  addPlaybookGuideline: (category: string, text: string) =>
+    http<PlaybookGuideline>("/api/playbook/guidelines", {
+      method: "POST",
+      body: JSON.stringify({ category, text }),
+    }),
+  updatePlaybookGuideline: (id: number, patch: Partial<Pick<PlaybookGuideline, "category" | "text" | "active" | "sort_order">>) =>
+    http<PlaybookGuideline>(`/api/playbook/guidelines/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+  removePlaybookGuideline: (id: number) =>
+    fetch(`/api/playbook/guidelines/${id}`, { method: "DELETE" }).then(() => undefined),
 
   // Morning Huddle management (Settings)
   listHuddleItems: () => http<HuddleItem[]>("/api/huddle/items"),

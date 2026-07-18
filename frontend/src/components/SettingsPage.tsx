@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import type { EmailSettings, EmailSubscriber, HuddleItem, OSTArticleRef, SystemHealth } from "../types";
+import type { EmailSettings, EmailSubscriber, HuddleItem, OSTArticleRef, PlaybookGuideline, SystemHealth } from "../types";
 
 const HUDDLE_CATEGORIES = ["To-Do", "Promo", "Device", "Policy", "Network", "News"];
+const PLAYBOOK_CATEGORIES = ["Customer Needs", "Sales Positioning"];
 
 export default function SettingsPage({ onHealthChange }: { onHealthChange?: () => void }) {
   const [subscribers, setSubscribers] = useState<EmailSubscriber[]>([]);
@@ -37,13 +38,21 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
   const [hError, setHError] = useState("");
   const [hAdding, setHAdding] = useState(false);
 
+  // Playbook state
+  const [guidelines, setGuidelines] = useState<PlaybookGuideline[]>([]);
+  const [pgCategory, setPgCategory] = useState("Customer Needs");
+  const [pgText, setPgText] = useState("");
+  const [pgError, setPgError] = useState("");
+  const [pgAdding, setPgAdding] = useState(false);
+
   async function reload() {
-    const [subs, settings, hItems, arts, sh] = await Promise.all([
+    const [subs, settings, hItems, arts, sh, gls] = await Promise.all([
       api.listSubscribers(),
       api.emailSettings(),
       api.listHuddleItems(),
       api.listHuddleArticles(),
       api.getSystemHealth(),
+      api.listPlaybookGuidelines(),
     ]);
     setSubscribers(subs);
     setSmtp(settings);
@@ -53,7 +62,34 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
     setShDesc(sh.description);
     setShWorkaround(sh.workaround);
     setShHardStop(sh.hard_stop);
+    setGuidelines(gls);
     setLoading(false);
+  }
+
+  async function handleAddGuideline(e: React.FormEvent) {
+    e.preventDefault();
+    if (!pgText.trim()) return;
+    setPgAdding(true);
+    setPgError("");
+    try {
+      await api.addPlaybookGuideline(pgCategory, pgText.trim());
+      setPgText("");
+      await reload();
+    } catch (err: any) {
+      setPgError(err.message ?? "Failed to add guideline");
+    } finally {
+      setPgAdding(false);
+    }
+  }
+
+  async function toggleGuideline(g: PlaybookGuideline) {
+    await api.updatePlaybookGuideline(g.id, { active: !g.active });
+    await reload();
+  }
+
+  async function removeGuideline(id: number) {
+    await api.removePlaybookGuideline(id);
+    await reload();
   }
 
   useEffect(() => { reload(); }, []);
@@ -357,6 +393,74 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
                 </button>
               </div>
               {addError && <div className="settings-add-error">{addError}</div>}
+            </form>
+          </>
+        )}
+      </div>
+
+      {/* ── Playbook ─────────────────────────────────────────────────── */}
+      <div className="settings-section">
+        <div className="settings-section-head">
+          <h3 className="settings-section-title">Playbook</h3>
+          <p className="settings-section-sub">
+            The standard every Live Listen visit is graded against. Guidelines cover meeting the
+            customer's needs and positioning sales opportunities. Toggle or edit them to change how
+            reps are scored and coached.
+          </p>
+        </div>
+        {loading ? (
+          <div className="settings-empty">Loading…</div>
+        ) : (
+          <>
+            {PLAYBOOK_CATEGORIES.map((cat) => {
+              const rows = guidelines.filter((g) => g.category === cat);
+              return (
+                <div key={cat} className="playbook-group">
+                  <div className="playbook-group-title">{cat}</div>
+                  {rows.length === 0 ? (
+                    <div className="settings-empty">No guidelines in this group yet.</div>
+                  ) : (
+                    <ul className="playbook-list">
+                      {rows.map((g) => (
+                        <li key={g.id} className={`playbook-row ${g.active ? "" : "playbook-row--off"}`}>
+                          <span className="playbook-text">{g.text}</span>
+                          <span className="playbook-actions">
+                            <button
+                              className={`settings-toggle ${g.active ? "on" : "off"}`}
+                              onClick={() => toggleGuideline(g)}
+                              title={g.active ? "Disable (won't be graded)" : "Enable"}
+                            >
+                              {g.active ? "On" : "Off"}
+                            </button>
+                            <button className="settings-remove" onClick={() => removeGuideline(g.id)} title="Remove guideline">✕</button>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+
+            <form className="settings-add-form" onSubmit={handleAddGuideline}>
+              <h4 className="settings-add-title">Add guideline</h4>
+              <div className="settings-add-row">
+                <select className="settings-input settings-input--name" value={pgCategory} onChange={e => setPgCategory(e.target.value)}>
+                  {PLAYBOOK_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <input
+                  type="text"
+                  className="settings-input"
+                  placeholder="e.g. Confirm the customer's next step before they leave"
+                  value={pgText}
+                  onChange={e => setPgText(e.target.value)}
+                  required
+                />
+                <button type="submit" className="btn" disabled={pgAdding}>
+                  {pgAdding ? "Adding…" : "Add"}
+                </button>
+              </div>
+              {pgError && <div className="settings-add-error">{pgError}</div>}
             </form>
           </>
         )}

@@ -455,6 +455,69 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 .visit-status { font-size: 12px; color: var(--ink-2); }
 .checkin-opt { font-weight: 400; color: var(--ink-2); font-size: 11px; }
 
+/* Star rating */
+.stars { display: inline-flex; gap: 1px; white-space: nowrap; }
+.stars .star { color: var(--line); font-size: 15px; line-height: 1; }
+.stars .star.on { color: #f5a623; }
+
+/* Queue eligibility / opportunity badges */
+.a2ui-opps { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 2px; }
+.a2ui-opp-badge {
+  font-size: 10.5px; font-weight: 600; color: var(--info);
+  background: #e7f0fb; border-radius: 999px; padding: 2px 8px; white-space: nowrap;
+}
+
+/* Playbook score card (rep-facing, at stop) */
+.score-card {
+  background: var(--card); border: 1px solid var(--line); border-left: 4px solid #f5a623;
+  border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 8px; max-width: 560px;
+}
+.score-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.score-eyebrow { font-size: 11px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: var(--ink-2); }
+.score-headline { font-size: 14px; font-weight: 600; color: var(--ink); margin: 0; }
+.score-block { display: flex; flex-direction: column; gap: 3px; }
+.score-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--ink-2); }
+.score-label--good { color: var(--ok); }
+.score-label--gap { color: var(--warn); }
+.score-list { margin: 0; padding-left: 18px; }
+.score-list li { font-size: 13px; color: var(--ink); line-height: 1.45; }
+.score-details { margin-top: 2px; }
+.score-details summary { font-size: 12px; color: var(--info); cursor: pointer; user-select: none; }
+.score-guidelines { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.score-guidelines li { display: flex; gap: 8px; font-size: 12.5px; line-height: 1.4; }
+.score-check { font-weight: 800; }
+.score-guidelines li.met .score-check { color: var(--ok); }
+.score-guidelines li.unmet .score-check { color: var(--vz-red); }
+.score-note { color: var(--ink-2); }
+
+/* Coaching recommendation card */
+.coach-card {
+  background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--info);
+  border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 8px; max-width: 560px;
+}
+.coach-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.coach-eyebrow { font-size: 12px; font-weight: 800; color: var(--info); }
+.coach-headline { font-size: 13px; font-weight: 600; color: var(--ink-2); margin: 0; }
+.coach-summary { font-size: 13.5px; color: var(--ink); line-height: 1.55; margin: 0; }
+.coach-improvements { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.coach-improvements li { font-size: 13px; color: var(--ink); line-height: 1.45; }
+.coach-script { background: var(--bg); border-radius: 8px; padding: 10px 12px; }
+.coach-script-text { font-size: 13.5px; color: var(--ink); font-style: italic; line-height: 1.5; margin: 4px 0 0; }
+
+/* Playbook management (Settings) */
+.playbook-group { margin-bottom: 14px; }
+.playbook-group-title { font-size: 12px; font-weight: 700; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+.playbook-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.playbook-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px;
+}
+.playbook-row--off { opacity: 0.55; }
+.playbook-text { font-size: 13.5px; color: var(--ink); line-height: 1.4; }
+.playbook-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
 /* live-suggestion card (reuses .a2ui-card + .a2ui-status tone pills) */
 .a2ui-suggest-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .a2ui-suggest-diag {

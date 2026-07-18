@@ -101,7 +101,24 @@ export interface A2UIQueueEntry {
   status: "waiting" | "in_progress";
   wait_label: string;
   assigned_rep_id: string | null;
+  opportunities?: string[];
   prompt: string;
+}
+
+export interface A2UICoachingEntry {
+  session_id: string;
+  customer_name: string;
+  reason_label: string;
+  stars: number;
+  when_label: string;
+  has_coaching: boolean;
+}
+
+export interface A2UICoaching {
+  type: "coaching";
+  title: string;
+  subtitle: string;
+  entries: A2UICoachingEntry[];
 }
 
 export interface A2UIQueue {
@@ -123,7 +140,8 @@ export type A2UIElement =
   | A2UIMorningHuddle
   | A2UIKnowledgeArticle
   | A2UIQueue
-  | A2UILiveSuggestion;
+  | A2UILiveSuggestion
+  | A2UICoaching;
 
 // ── Store check-in ─────────────────────────────────────────────────────────
 
@@ -181,6 +199,12 @@ export interface ListenSuggestion {
   diagnosis: ListenDiagnosis | null;
 }
 
+export interface Eligibility {
+  upgrade_promo: string | null;
+  fiber_eligible: boolean;
+  fwa_eligible: boolean;
+}
+
 export interface ListenSession {
   id: string;
   rep_id: string;
@@ -201,6 +225,8 @@ export interface StartListenResult {
   session: ListenSession;
   thread_id: string;
   entities: Record<string, string>;
+  eligibility: Eligibility;
+  opportunities: string[];
 }
 
 export interface AnalyzeResult {
@@ -215,6 +241,22 @@ export interface VisitSummary {
   closing: string;
 }
 
+export interface PlaybookGuidelineScore {
+  guideline_id: number;
+  category: string;
+  guideline: string;
+  met: boolean;
+  note: string;
+}
+
+export interface PlaybookGrade {
+  stars: number;
+  headline: string;
+  per_guideline: PlaybookGuidelineScore[];
+  strengths: string[];
+  gaps: string[];
+}
+
 export interface StopListenResult {
   session: ListenSession;
   recap: {
@@ -222,7 +264,37 @@ export interface StopListenResult {
     suggestions: number;
     duration_label: string;
     summary: VisitSummary | null;
+    grade: PlaybookGrade | null;
   };
+}
+
+export interface CoachingImprovement {
+  guideline: string;
+  suggestion: string;
+}
+
+export interface CoachingRecommendation {
+  summary: string;
+  what_went_well: string[];
+  improvements: CoachingImprovement[];
+  suggested_script: string;
+}
+
+export interface CoachingResult {
+  session_id: string;
+  customer_name: string;
+  stars: number;
+  grade: PlaybookGrade | null;
+  coaching: CoachingRecommendation;
+}
+
+export interface PlaybookGuideline {
+  id: number;
+  category: string;
+  text: string;
+  active: boolean;
+  sort_order: number;
+  created_at: string;
 }
 
 export interface SendSummaryResult {

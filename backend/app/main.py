@@ -11,8 +11,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .api import (
-    admin, chat, cx, email_reports, huddle, insights, listen, mcp, metrics,
-    production, queue, system_health, tickets,
+    admin, chat, coaching, cx, email_reports, huddle, insights, listen, mcp,
+    metrics, playbook, production, queue, system_health, tickets,
 )
 from .config import get_settings
 from .store import db
@@ -55,11 +55,14 @@ app.include_router(system_health.router)
 app.include_router(production.router)
 app.include_router(queue.router)
 app.include_router(listen.router)
+app.include_router(playbook.router)
+app.include_router(coaching.router)
 
 
 @app.on_event("startup")
 def _startup() -> None:
     db.init_db()
+    db.seed_playbook_defaults_if_empty()
     from .mcp import news_stub
     news_stub.seed_defaults_if_empty()
 

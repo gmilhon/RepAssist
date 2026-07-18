@@ -15,6 +15,7 @@ from .models import (
     GuardrailEvent,
     ListenSession,
     LLMCall,
+    PlaybookGuideline,
     QueueEntry,
     QueueStatus,
     Ticket,
@@ -78,6 +79,10 @@ def init_db() -> None:
             "ALTER TABLE listen_sessions ADD COLUMN account_id VARCHAR",
             "ALTER TABLE listen_sessions ADD COLUMN order_id VARCHAR",
             "ALTER TABLE listen_sessions ADD COLUMN summary JSON",
+            "ALTER TABLE listen_sessions ADD COLUMN eligibility JSON",
+            "ALTER TABLE listen_sessions ADD COLUMN playbook_score INTEGER",
+            "ALTER TABLE listen_sessions ADD COLUMN playbook_grade JSON",
+            "ALTER TABLE listen_sessions ADD COLUMN coaching JSON",
         ):
             try:
                 conn.execute(text(stmt))
@@ -559,6 +564,46 @@ def save_listen_summary(session_id: str, summary: dict) -> Optional[ListenSessio
         return session
 
 
+def save_listen_grade(session_id: str, score: int, grade: dict) -> Optional[ListenSession]:
+    """Persist the Playbook grade (stars + breakdown) on the session."""
+    with Session(_engine) as s:
+        session = s.get(ListenSession, session_id)
+        if not session:
+            return None
+        session.playbook_score = score
+        session.playbook_grade = grade
+        session.updated_at = datetime.now(timezone.utc)
+        s.add(session)
+        s.commit()
+        s.refresh(session)
+        return session
+
+
+def save_listen_coaching(session_id: str, coaching: dict) -> Optional[ListenSession]:
+    """Persist a generated coaching recommendation so it's reused, not re-called."""
+    with Session(_engine) as s:
+        session = s.get(ListenSession, session_id)
+        if not session:
+            return None
+        session.coaching = coaching
+        session.updated_at = datetime.now(timezone.utc)
+        s.add(session)
+        s.commit()
+        s.refresh(session)
+        return session
+
+
+def list_recent_graded_sessions(limit: int = 12) -> list[ListenSession]:
+    """Ended Live Listen sessions that carry a Playbook score, newest first —
+    the source for the Coaching card."""
+    with Session(_engine) as s:
+        rows = list(s.exec(
+            select(ListenSession).where(ListenSession.playbook_score != None)  # noqa: E711
+        ).all())
+    rows.sort(key=lambda r: _aware(r.ended_at or r.created_at), reverse=True)
+    return rows[:limit]
+
+
 def end_listen_session(session_id: str) -> Optional[ListenSession]:
     with Session(_engine) as s:
         session = s.get(ListenSession, session_id)
@@ -972,3 +1017,36 @@ def capability_gaps(
         result.append(row)
     result.sort(key=lambda r: (r["score"], r["ticket_count"]), reverse=True)
     return result
+
+
+# --------------------------------------------------------------------------- #
+# Playbook guidelines (managed in Settings; graded against after Live Listen)
+# --------------------------------------------------------------------------- #
+_PLAYBOOK_DEFAULTS = [
+    ("Customer Needs", "Greet the customer warmly and confirm what they came in for."),
+    ("Customer Needs", "Acknowledge and address every issue the customer raises."),
+    ("Customer Needs", "Confirm the fix or next step and set clear expectations before they leave."),
+    ("Sales Positioning", "Check the customer's upgrade eligibility and mention any available promo."),
+    ("Sales Positioning", "Position home internet (Fiber Home Internet or Fixed Wireless Internet) when the customer qualifies."),
+    ("Sales Positioning", "Tie any recommendation to the customer's stated needs, never pushy."),
+]
+
+
+def seed_playbook_defaults_if_empty() -> None:
+    """Populate the default Playbook the first time (idempotent)."""
+    with Session(_engine) as s:
+        if s.exec(select(PlaybookGuideline)).first():
+            return
+        for i, (category, text) in enumerate(_PLAYBOOK_DEFAULTS):
+            s.add(PlaybookGuideline(category=category, text=text, sort_order=i))
+        s.commit()
+
+
+def list_playbook_guidelines(active_only: bool = False) -> list[PlaybookGuideline]:
+    with Session(_engine) as s:
+        stmt = select(PlaybookGuideline)
+        if active_only:
+            stmt = stmt.where(PlaybookGuideline.active == True)  # noqa: E712
+        rows = list(s.exec(stmt).all())
+    rows.sort(key=lambda r: (r.sort_order, r.id or 0))
+    return rows

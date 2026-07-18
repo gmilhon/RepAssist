@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from ..mock_services.data import eligibility_badges, resolve_eligibility
 from ..schemas import VISIT_REASON_LABELS, VisitReason
 from ..store import db
 from .client import MCPClient
@@ -54,6 +55,8 @@ def get_queue(arguments: dict) -> dict:
             "status": e.status,  # waiting | in_progress
             "wait_label": _ago_label(int((now - _aware(e.created_at)).total_seconds() // 60)),
             "assigned_rep_id": e.assigned_rep_id,
+            # Sales opportunities the rep should position for this customer.
+            "opportunities": eligibility_badges(resolve_eligibility(e.account_id)),
             "prompt": (
                 f"I'm now assisting {e.customer_name or e.customer_phone or 'the customer'} — "
                 f"they're here for: {_reason_label(e.reason)}."

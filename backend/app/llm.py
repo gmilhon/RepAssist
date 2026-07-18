@@ -16,9 +16,13 @@ from . import guardrail
 from .config import get_settings
 from .schemas import (
     VISIT_REASON_LABELS,
+    CoachingImprovement,
+    CoachingRecommendation,
     ExecutiveSummary,
     LiveCoachResult,
     LiveSuggestion,
+    PlaybookGrade,
+    PlaybookGuidelineScore,
     ProductionAnalysis,
     Resolution,
     SystemEnhancementsDoc,
@@ -535,6 +539,223 @@ def _mock_visit_summary(name: str, reason_label: str, suggestions: list[dict]) -
         summary=summary,
         steps_taken=steps,
         closing=closing,
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Playbook grading + coaching (Live Listen)
+# --------------------------------------------------------------------------- #
+PLAYBOOK_GRADE_SYSTEM = (
+    "You are a retail sales-and-service coach grading a rep's in-store "
+    "conversation against a Playbook. The Playbook has two goals: making sure "
+    "the customer's needs are fully met, and positioning relevant sales "
+    "opportunities (device upgrades, home internet) naturally and without being "
+    "pushy. You are given the conversation transcript, the issues the assistant "
+    "flagged, the customer's known sales eligibility, and the active Playbook "
+    "guidelines. Grade honestly: award a high score only when the rep both "
+    "resolved the customer's needs AND positioned any available opportunity that "
+    "fit. If an opportunity existed and the rep never raised it, that is a real "
+    "gap. Score each guideline met/unmet with brief evidence, then give an "
+    "overall 1-5 star score, a one-line headline, and short strengths/gaps."
+)
+
+COACHING_SYSTEM = (
+    "You are a supportive retail coach giving a rep private, specific feedback "
+    "on a past in-store conversation, measured against the Playbook. Be "
+    "encouraging but concrete. Lead with what went well, then give prioritized, "
+    "guideline-linked improvements, and finish with a short example script of "
+    "what the rep could have said — especially to position any sales opportunity "
+    "that was available but not raised. Never invent facts not supported by the "
+    "transcript."
+)
+
+
+def _grade_context(transcript: list[dict], suggestions: list[dict],
+                   eligibility: dict, guidelines: list[dict]) -> str:
+    transcript_text = "\n".join(
+        f"{u.get('speaker')}: {u['text']}" if u.get("speaker") else u["text"]
+        for u in transcript
+    ) or "(no transcript captured)"
+    issues = [{"issue": s.get("title"), "detail": s.get("summary")} for s in suggestions]
+    return (
+        f"ACTIVE PLAYBOOK GUIDELINES:\n{json.dumps(guidelines, ensure_ascii=False, indent=2)}\n\n"
+        f"CUSTOMER SALES ELIGIBILITY:\n{json.dumps(eligibility or {}, ensure_ascii=False)}\n\n"
+        f"ISSUES THE ASSISTANT FLAGGED:\n{json.dumps(issues, ensure_ascii=False)}\n\n"
+        f"CONVERSATION TRANSCRIPT:\n{transcript_text}"
+    )
+
+
+def grade_playbook(
+    transcript: list[dict],
+    suggestions: list[dict],
+    eligibility: dict,
+    guidelines: list[dict],
+    thread_id: str | None = None,
+    rep_id: str | None = None,
+) -> PlaybookGrade:
+    """Grade a Live Listen conversation against the Playbook. Offline-safe."""
+    settings = get_settings()
+    if not settings.llm_enabled:
+        _log_usage("playbook_grade", settings.anthropic_model, 0, thread_id=thread_id, fallback=True)
+        return _mock_grade_playbook(transcript, suggestions, eligibility, guidelines)
+    t0 = time.monotonic()
+    try:
+        client = _client()
+        prompt = _grade_context(transcript, suggestions, eligibility, guidelines) + \
+            "\n\nGrade this conversation against the Playbook."
+        resp = client.messages.parse(
+            model=settings.anthropic_model,
+            max_tokens=2048,
+            system=PLAYBOOK_GRADE_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+            output_format=PlaybookGrade,
+        )
+        result = resp.parsed_output
+        if result is None:
+            raise ValueError("empty parsed_output")
+        result.stars = max(1, min(5, result.stars))
+        _log_usage("playbook_grade", settings.anthropic_model, int((time.monotonic() - t0) * 1000),
+                   thread_id=thread_id, resp=resp)
+        return result
+    except Exception as exc:  # noqa: BLE001 - intentional graceful degradation
+        logger.warning("Playbook grading failed (%s); using rule-based fallback", exc)
+        _log_usage("playbook_grade", settings.anthropic_model, int((time.monotonic() - t0) * 1000),
+                   thread_id=thread_id, success=False, fallback=True)
+        return _mock_grade_playbook(transcript, suggestions, eligibility, guidelines)
+
+
+_POSITIONING_WORDS = (
+    "upgrade", "trade-in", "trade in", "promo", "discount", "home internet",
+    "fiber", "fixed wireless", "internet", "new phone", "eligible",
+)
+
+
+def _has_opportunity(eligibility: dict) -> bool:
+    return bool(eligibility and (eligibility.get("upgrade_promo")
+                or eligibility.get("fiber_eligible") or eligibility.get("fwa_eligible")))
+
+
+def _mock_grade_playbook(transcript, suggestions, eligibility, guidelines) -> PlaybookGrade:
+    """Deterministic Playbook grade for offline mode."""
+    text = " ".join(u.get("text", "") for u in transcript).lower()
+    needs_met = bool(suggestions)
+    opp = _has_opportunity(eligibility)
+    positioned = any(w in text for w in _POSITIONING_WORDS)
+    stars = 3 + (1 if needs_met else 0) + (1 if (positioned or not opp) else -1)
+    stars = max(1, min(5, stars))
+
+    per: list[PlaybookGuidelineScore] = []
+    for g in guidelines:
+        is_sales = g.get("category") == "Sales Positioning"
+        met = (positioned or not opp) if is_sales else (needs_met or not suggestions)
+        note = (
+            ("Rep raised a relevant offer." if met else "No sales opportunity was positioned.")
+            if is_sales else
+            ("Customer's needs were addressed." if met else "Some needs may not have been fully resolved.")
+        )
+        per.append(PlaybookGuidelineScore(
+            guideline_id=int(g.get("id", 0)), category=g.get("category", ""),
+            guideline=g.get("text", ""), met=met, note=note,
+        ))
+
+    strengths = []
+    gaps = []
+    if needs_met:
+        strengths.append("Identified and worked the customer's issues.")
+    if opp and positioned:
+        strengths.append("Positioned an available sales opportunity.")
+    if opp and not positioned:
+        gaps.append("Missed positioning an available upgrade/home-internet opportunity.")
+    if not suggestions:
+        gaps.append("Little was captured — confirm needs were fully explored.")
+    headline = (
+        "Strong visit — needs met and opportunity positioned." if stars >= 4
+        else "Solid visit with room to position more." if stars == 3
+        else "Needs work — key Playbook steps were missed."
+    )
+    return PlaybookGrade(stars=stars, headline=headline, per_guideline=per,
+                         strengths=strengths or ["Kept the conversation moving."],
+                         gaps=gaps or ["Keep reinforcing next steps before the customer leaves."])
+
+
+def generate_coaching(
+    transcript: list[dict],
+    suggestions: list[dict],
+    eligibility: dict,
+    guidelines: list[dict],
+    grade: dict | None,
+    thread_id: str | None = None,
+    rep_id: str | None = None,
+) -> CoachingRecommendation:
+    """Generate GenAI coaching for a past conversation. Offline-safe."""
+    settings = get_settings()
+    if not settings.llm_enabled:
+        _log_usage("coaching", settings.anthropic_model, 0, thread_id=thread_id, fallback=True)
+        return _mock_coaching(eligibility, guidelines, grade)
+    t0 = time.monotonic()
+    try:
+        client = _client()
+        prompt = _grade_context(transcript, suggestions, eligibility, guidelines) + \
+            f"\n\nGRADE ALREADY GIVEN:\n{json.dumps(grade or {}, ensure_ascii=False)}\n\n" \
+            "Coach this rep on how to better meet the Playbook next time."
+        resp = client.messages.parse(
+            model=settings.anthropic_model,
+            max_tokens=2048,
+            system=COACHING_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+            output_format=CoachingRecommendation,
+        )
+        result = resp.parsed_output
+        if result is None:
+            raise ValueError("empty parsed_output")
+        _log_usage("coaching", settings.anthropic_model, int((time.monotonic() - t0) * 1000),
+                   thread_id=thread_id, resp=resp)
+        return result
+    except Exception as exc:  # noqa: BLE001 - intentional graceful degradation
+        logger.warning("Coaching generation failed (%s); using template fallback", exc)
+        _log_usage("coaching", settings.anthropic_model, int((time.monotonic() - t0) * 1000),
+                   thread_id=thread_id, success=False, fallback=True)
+        return _mock_coaching(eligibility, guidelines, grade)
+
+
+def _mock_coaching(eligibility, guidelines, grade) -> CoachingRecommendation:
+    """Deterministic coaching template for offline mode."""
+    grade = grade or {}
+    went_well = list(grade.get("strengths") or ["Kept the customer informed."])
+    improvements: list[CoachingImprovement] = []
+    for gd in (grade.get("per_guideline") or []):
+        if not gd.get("met"):
+            improvements.append(CoachingImprovement(
+                guideline=gd.get("guideline", ""),
+                suggestion=f"Next time, make sure to: {gd.get('guideline', '').lower()}",
+            ))
+    opp = _has_opportunity(eligibility)
+    script = "Great work resolving the issue today."
+    if opp:
+        if eligibility.get("upgrade_promo"):
+            script = ("Since we've got your account open — you're eligible for "
+                      f"{eligibility['upgrade_promo'].lower()}. Want me to show you the numbers?")
+        elif eligibility.get("fiber_eligible"):
+            script = ("While I have you — your address qualifies for Fiber Home Internet. "
+                      "Want me to check bundle pricing with your line?")
+        elif eligibility.get("fwa_eligible"):
+            script = ("One more thing — you qualify for Fixed Wireless Internet at home. "
+                      "It's an easy add — want the details?")
+    if not improvements:
+        improvements.append(CoachingImprovement(
+            guideline="Sales Positioning",
+            suggestion="Keep tying every recommendation back to what the customer told you.",
+        ))
+    stars = grade.get("stars", 3)
+    summary = (
+        f"This visit scored {stars}/5 against the Playbook. "
+        + ("Strong work overall — a small tweak or two would make it a 5."
+           if stars >= 4 else
+           "You covered the basics; the biggest opportunity is positioning offers that fit.")
+    )
+    return CoachingRecommendation(
+        summary=summary, what_went_well=went_well,
+        improvements=improvements, suggested_script=script,
     )
 
 
