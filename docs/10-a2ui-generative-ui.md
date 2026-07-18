@@ -6,9 +6,10 @@ the chat renders as rich, interactive cards. The tool decides *what* to show; th
 client decides *how* to render it. This keeps the agent↔UI contract explicit and
 makes the chat feel like a workspace, not just a text box.
 
-Six element types ship today. The default view leads with first-step CTA tiles
+Eight element types ship today. The default view leads with first-step CTA tiles
 (see [Default chat view](#default-chat-view-first-step-ctas)); the rest are
-revealed from the sidebar or returned inline by the graph:
+revealed from the sidebar, returned inline by the graph, or (for the last two)
+produced by the read-only [Live Listen](20-live-listen.md) copilot:
 
 - **Recent orders** — orders the rep has recently serviced (*orders* server). One
   tap picks up that order and starts the conversation.
@@ -28,13 +29,24 @@ revealed from the sidebar or returned inline by the graph:
   external system, see [doc 19](19-store-checkin-queue.md)). Tapping a waiting
   row's **Assist** claims it and starts a chat turn pre-filled with the
   customer's name/phone/visit reason.
+- **Live suggestion** (`live_suggestion`) — a card the Live Listen copilot
+  surfaces mid-conversation for an issue it can triage; **Accept** hands its
+  prepared prompt into the normal chat. Produced by the `listen` router, not an
+  MCP stub. See [Live Listen](20-live-listen.md).
+- **Coaching** (`coaching`) — a list of recently graded Live Listen visits with
+  their Playbook stars; selecting one loads GenAI coaching. Produced by the
+  `coaching` router.
 
 No typing an order id or ticket number from memory.
 
-> **Where the data comes from.** Elements are sourced from **MCP tools**. The
-> prototype ships a *stubbed* MCP layer with mock data so the feature is fully
-> functional offline; swapping in a real MCP service is a localized change
-> (see [Extending](#extending-swap-the-stub-for-a-real-mcp-server)).
+> **Where the data comes from.** Most elements are sourced from **MCP tools** —
+> the prototype ships a *stubbed* MCP layer with mock data so the feature is
+> fully functional offline, and swapping in a real MCP service is a localized
+> change (see [Extending](#extending-swap-the-stub-for-a-real-mcp-server)). The
+> two Live Listen elements (`live_suggestion`, `coaching`) are the exception:
+> they're returned directly by the Live Listen / Coaching routers but render
+> through the **same `A2UIRenderer` registry**, which is the point — any source
+> can emit an element as long as it matches the contract.
 
 ---
 
@@ -372,7 +384,7 @@ and delete `orders_stub.py`. Nothing in `api/mcp.py` or the frontend changes.
 | `backend/app/graph/nodes.py` | `clarify`, `system_help`, OST `knowledge`, slot-fill in `triage` |
 | `backend/app/graph/orchestrator.py` | Wires nodes; `a2ui` in `_shape` |
 | `backend/app/schemas.py`, `llm.py` | `system` intent + knowledge/how-to routing |
-| `frontend/src/components/A2UI.tsx` | `A2UIRenderer` registry + the five card components |
+| `frontend/src/components/A2UI.tsx` | `A2UIRenderer` registry + the per-type card components (orders, tickets, enhancements, huddle, queue, live-suggestion, coaching, knowledge-article) |
 | `frontend/src/components/ChatWidget.tsx` | CTA tiles, inline a2ui, article open, mic |
 | `frontend/src/components/SettingsPage.tsx` | The Opener management section |
 | `frontend/src/types.ts` | `A2UIElement` union + element/huddle interfaces |

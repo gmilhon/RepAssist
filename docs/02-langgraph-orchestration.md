@@ -9,6 +9,14 @@ reply.
 Code: [`backend/app/graph/`](../backend/app/graph) — `state.py`, `nodes.py`,
 `orchestrator.py`.
 
+> **What runs *outside* the graph — by design.** Only the rep's problem-solving
+> chat goes through this StateGraph. Fixed-shape or read-only surfaces
+> deliberately do not: front-desk **check-in** is an intake form
+> ([doc 19](19-store-checkin-queue.md)), and **Live Listen** is a read-only
+> copilot that analyzes/grades/coaches without ever routing here or executing a
+> write ([doc 20](20-live-listen.md)). Both re-enter this graph the moment a rep
+> **Accepts** — the single confirm-gated write path stays in one place.
+
 ## Why LangGraph
 
 - **Conditional routing** as first-class edges (triage → the right resolver).

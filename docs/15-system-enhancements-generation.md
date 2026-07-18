@@ -42,6 +42,13 @@ no change to the API or A2UI card shape reps already see.
 - **High-water mark.** `last_commit_sha` in the output file means each run only
   looks at commits since the last successful generation — an unrelated big
   commit range doesn't get re-summarized every deploy.
+- **Each entry also carries a rep walkthrough.** Every generated
+  `EnhancementItem` includes a hands-on 3–6-step `walkthrough` (plus a detailed
+  follow-up `answer`) teaching a rep to use that feature in the app. These are
+  generated here so a rep's how-to always ships with the commit that added the
+  feature, and they power the **Training & Enablement** surface — in-chat
+  walkthroughs plus an AI storyboard/training-video pipeline. See
+  [Training & Enablement](21-training-and-enablement.md).
 - **No credentials → no-op, never a bad overwrite.** If `ANTHROPIC_API_KEY`
   isn't configured (or the venv is missing) the step is skipped with a warning
   and the deploy continues; the previously generated file — or the small seed
@@ -75,7 +82,7 @@ up as a reviewable diff, same as any other content change.
 |---|---|
 | `backend/scripts/generate_enhancements.py` | Reads git log, calls the LLM, writes the data file |
 | `backend/app/llm.py` (`generate_system_enhancements`) | The structured-output Claude call; no offline fallback — the script skips instead |
-| `backend/app/schemas.py` (`EnhancementItem`, `SystemEnhancementsDoc`) | Structured-output schema: tag, title, detail, keywords, per-item answer, suggestions |
+| `backend/app/schemas.py` (`EnhancementItem`, `SystemEnhancementsDoc`, `Walkthrough`) | Structured-output schema: tag, title, detail, keywords, per-item answer, walkthrough, suggestions |
 | `backend/app/mcp/system_stub.py` | Loads `enhancements_data.json`, serves the existing `get_system_enhancements` / `answer_system_question` MCP tools |
 | `backend/app/mcp/enhancements_data.json` | Generated content — tracked in git |
 | `deploy.sh` (step 2c) | Runs the script before every deploy |

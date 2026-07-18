@@ -13,10 +13,12 @@ so you can build and demo the flow before wiring up a mail server.
 ## User flow
 
 1. **Settings tab** — add subscribers (email + optional name) and toggle their
-   subscriptions to **Performance** and/or **CX Monitor** reports, plus
-   **Alerts** (critical production-issue emails from the
-   [Production Monitor](14-production-monitoring.md)). A status badge
-   shows whether SMTP is configured.
+   subscriptions to **Performance** and/or **CX Monitor** reports, **Alerts**
+   (critical production-issue emails from the
+   [Production Monitor](14-production-monitoring.md)), and **Live Listen**
+   (customer-facing visit-summary emails from a
+   [Live Listen](20-live-listen.md) recap). A status badge shows whether SMTP
+   is configured.
 2. **Performance / CX Monitor tabs** — click **✉ Send Report**. The backend builds
    the report for the current date range and either:
    - **sends** it to active subscribers of that report type (SMTP configured), or
@@ -54,10 +56,17 @@ with email-client-safe inline styles.
 | `POST /api/email/send-report` | Build + send (or preview) a report |
 | `GET /api/email/settings` | SMTP status (no secrets returned) |
 
-Besides on-demand reports, the same SMTP machinery powers **critical
-production-issue alerts** (`send_production_alert`, called internally by the
-[Production Monitor](14-production-monitoring.md) — not an HTTP endpoint).
-Recipients are subscribers with `subscribed_alerts` enabled.
+Besides on-demand reports, the same SMTP machinery powers two internally-called
+emails (not HTTP endpoints on this router):
+
+- **Critical production-issue alerts** — `send_production_alert`, called by the
+  [Production Monitor](14-production-monitoring.md); recipients have
+  `subscribed_alerts` enabled.
+- **Live Listen visit summaries** — `send_visit_summary`
+  (`build_visit_summary_html`), a customer-facing recap triggered by the rep
+  from the [Live Listen](20-live-listen.md) stop recap
+  (`POST /api/listen/{id}/send-summary`); recipients have
+  `subscribed_visit_summary` enabled.
 
 **Send report body:** `{ "report_type": "performance" | "cx", "start"?, "end"? }`.
 
@@ -118,6 +127,12 @@ SMTP_TLS=true
 
 Both share a branded header and footer and respect the date range selected on the
 tab when **Send Report** is clicked.
+
+A third template — the **Live Listen visit summary** — is *customer-facing*
+rather than a dashboard: a warm greeting, a plain-language recap, the steps
+taken, and a closing, built by `build_visit_summary_html` from the
+`VisitSummary` the model drafts at the end of a visit. See
+[Live Listen](20-live-listen.md).
 
 ---
 

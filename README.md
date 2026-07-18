@@ -29,6 +29,8 @@ dev team should build next, so the assistant keeps getting better.
 | HITL ticketing + feedback store (ServiceNow replacement) + **AI Assisted Resolution Desk** (Claude ticket triage → education/agent_action/system_defect, one-click resolution) | SQLite + SQLModel + Claude | [`backend/app/store`](backend/app/store), [`backend/app/api/tickets.py`](backend/app/api/tickets.py) |
 | Observability (CX Monitor) + email reports | LangSmith + smtplib | [`backend/app/api/cx.py`](backend/app/api/cx.py), [`backend/app/api/email_reports.py`](backend/app/api/email_reports.py) |
 | **Production Monitor** — live escalation inflow, AI issue clustering, alerts, JIRA-stub defects | FastAPI SSE + Claude | [`backend/app/api/production.py`](backend/app/api/production.py), [`frontend/src/components/ProductionDashboard.tsx`](frontend/src/components/ProductionDashboard.tsx) |
+| **Store Check-In & Queue** + **Live Listen** — front-desk intake, and a read-only AI copilot over the live conversation (Playbook scoring, GenAI coaching, visit-summary email) | FastAPI + React + Claude | [`backend/app/api/queue.py`](backend/app/api/queue.py), [`backend/app/api/listen.py`](backend/app/api/listen.py), [`backend/app/api/coaching.py`](backend/app/api/coaching.py), [`backend/app/api/playbook.py`](backend/app/api/playbook.py) |
+| **Training & Enablement** — auto-generated rep walkthroughs, AI storyboard generator, training-video upload | FastAPI + React + Claude | [`backend/app/api/training.py`](backend/app/api/training.py), [`backend/app/mcp/system_stub.py`](backend/app/mcp/system_stub.py) |
 | LLM access (Claude + offline fallback) | official `anthropic` SDK | [`backend/app/llm.py`](backend/app/llm.py) |
 | Cloud Run deployment (one service, API + UI) | Docker + gcloud | [`deploy.sh`](deploy.sh), [`backend/Dockerfile`](backend/Dockerfile) |
 | Architecture, diagrams, runbook, roadmap | Markdown + Mermaid | [`docs/`](docs/) |
@@ -54,6 +56,8 @@ dev team should build next, so the assistant keeps getting better.
 17. [Observability](docs/16-observability.md) — conversation health, guardrail integrity (incl. log-only prompt-injection detection), true token economics (cost by intent/outcome), sales-intent segmentation, and a fallback-rate alert wired to System Health, added to CX Monitor.
 18. [Reseeding the Deployed Environment](docs/17-reseeding-deployed-data.md) — the exact runbook for repopulating demo data after a deploy, plus a matching Claude Code skill.
 19. [Store Check-In & Queue](docs/19-store-checkin-queue.md) — front-of-store customer intake (visit reason + name/phone), a live queue card, and one-tap "Assist" hand-off into the normal chat flow.
+20. [Live Listen](docs/20-live-listen.md) — a read-only AI copilot over a live rep–customer conversation: suggestion cards that hand off into the normal chat, a Playbook score at the end of the visit, GenAI per-rep coaching, and a one-tap customer visit-summary email.
+21. [Training & Enablement](docs/21-training-and-enablement.md) — auto-generated rep walkthroughs for every shipped feature, an AI storyboard/narration generator, and per-enhancement training-video upload.
 
 ## 60-second quickstart
 
@@ -76,8 +80,11 @@ group to check a walk-in customer in and view/assist the live queue
 ([doc 19](docs/19-store-checkin-queue.md)), plus **"Look up"** tiles that reveal
 MCP-backed *recent orders* / *open tickets* cards on demand. Pick one (or just
 type), then watch the assistant diagnose, ask you to confirm the fix, and
-resolve it — or escalate to the Resolution Desk. Full details in the
-[runbook](docs/05-local-setup-runbook.md).
+resolve it — or escalate to the Resolution Desk. A **headset** button starts
+**Live Listen**, a read-only AI copilot that watches the live conversation,
+suggests issues it can triage, then grades the visit against the Playbook and
+drafts a customer summary email ([doc 20](docs/20-live-listen.md)). Full details
+in the [runbook](docs/05-local-setup-runbook.md).
 
 > **Go live with Claude:** put `ANTHROPIC_API_KEY=...` in `backend/.env`
 > (copy from `.env.example`). With no key, the system runs fully offline using a
@@ -97,12 +104,12 @@ resolve it — or escalate to the Resolution Desk. Full details in the
 
 | Tab | What it is |
 |---|---|
-| **Rep Assist** | The conversational chat — first-step CTA tiles, front-desk check-in/queue ([doc 19](docs/19-store-checkin-queue.md)), + on-demand A2UI recent-orders/open-tickets cards ([doc 10](docs/10-a2ui-generative-ui.md)) |
+| **Rep Assist** | The conversational chat — first-step CTA tiles, front-desk check-in/queue + **Live Listen** copilot & Coaching ([doc 19](docs/19-store-checkin-queue.md), [doc 20](docs/20-live-listen.md)), + on-demand A2UI recent-orders/open-tickets cards ([doc 10](docs/10-a2ui-generative-ui.md)) |
 | **Resolution Desk** | Tier 1/2 ticket queue with AI-assisted triage (education / agent_action / system_defect) and one-click resolution, plus the original resolve/feedback form ([doc 03](docs/03-hitl-ticketing-workflow.md)) |
 | **Performance** | Engagement/deflection KPIs + AI exec summary ([doc 08](docs/08-operations-dashboard.md)) |
 | **CX Monitor** | LangSmith latency/token/cost telemetry ([doc 09](docs/09-cx-monitor.md)) |
 | **Production** | Real-time escalation inflow + AI issue detection, alerts, and defect filing ([doc 14](docs/14-production-monitoring.md)) |
-| **Settings** | Email-report subscribers + SMTP status ([doc 11](docs/11-email-reports.md)) |
+| **Settings** | Email-report subscribers + SMTP status ([doc 11](docs/11-email-reports.md)), the **Playbook** Live Listen grades against ([doc 20](docs/20-live-listen.md)), **Training & Enablement** ([doc 21](docs/21-training-and-enablement.md)), and *The Opener* morning-huddle items |
 
 The Performance and CX Monitor tabs can **email HTML reports** to subscribers
 (with an in-browser preview when SMTP isn't configured). The UI is **responsive**
