@@ -1,22 +1,22 @@
 {
-  "generated_at": "2026-07-18T06:37:33.195298+00:00",
-  "last_commit_sha": "e10f811bfdbd524c05abb513f48343bd8ace94fc",
+  "generated_at": "2026-07-18T17:32:07.787471+00:00",
+  "last_commit_sha": "64bf285b480afd8ac7bafa1660bfed32cecc1315",
   "enhancements": [
     {
-      "tag": "New",
-      "title": "Get a walkthrough or watch a video for any new feature",
-      "detail": "Every entry on the What's new card now has a 'Show me how' button that walks you through the exact steps right in chat. Some entries also have a 'Watch video' button with a short training clip you can play without leaving the app.",
+      "tag": "Improved",
+      "title": "'Show me how' now includes a visual demo, not just steps",
+      "detail": "Tapping 'Show me how' on any What's new entry opens one card that unfolds the step-by-step walkthrough, then a short animated demo clip of the real app (when one exists), then any uploaded training video — all in the same place. The separate 'Watch video' button is gone; look for a 🎞 or ▶ hint on the button so you know extra visuals are coming.",
       "keywords": [
         "show me how",
         "walkthrough",
+        "demo gif",
         "watch video",
         "training video",
-        "what's new",
-        "step by step"
+        "what's new"
       ],
-      "answer": "Open the What's new card and tap 'Show me how' on any entry to get a step-by-step guide shown right in your chat thread, with tips along the way. If a video has been added for that feature, you'll also see a 'Watch video' button that plays a short training clip inline without needing to leave the app.",
+      "answer": "Open the What's new card and tap 'Show me how' on any entry — you'll get a single unfolding card that shows the step-by-step guide first, followed by a short animated demo of the actual app in action (currently available for flows like Live Listen and the check-in queue), and then a training video if one's been added for that feature. There's no separate 'Watch video' button anymore — everything you need is inside the one card, and a 🎞 or ▶ icon on the 'Show me how' button tells you ahead of time whether extra visuals are included.",
       "walkthrough": {
-        "intro": "Learn how to pull up hands-on guidance for anything new in Rep Assist.",
+        "intro": "Learn how the updated 'Show me how' experience walks you through steps, a demo clip, and video all in one place.",
         "steps": [
           {
             "title": "Open the What's new card",
@@ -24,18 +24,23 @@
             "tip": null
           },
           {
-            "title": "Pick an entry that interests you",
-            "detail": "Browse the list and find a feature you want to learn more about.",
+            "title": "Check for a 🎞 or ▶ hint",
+            "detail": "Some entries show a small icon on the 'Show me how' button letting you know a demo GIF or video is included.",
             "tip": null
           },
           {
             "title": "Tap 'Show me how'",
-            "detail": "A step-by-step walkthrough appears right in the chat thread, showing you exactly what to tap and where.",
-            "tip": "Follow along at your own pace — the steps stay in the thread so you can scroll back to them."
+            "detail": "A step-by-step walkthrough appears right in the chat thread, showing exactly what to tap and where.",
+            "tip": null
           },
           {
-            "title": "Look for a 'Watch video' button",
-            "detail": "If one's available, tap it to play a short training video inline without leaving the app.",
+            "title": "Watch the demo clip play automatically",
+            "detail": "If a demo exists for that feature, a short animated clip of the real app appears right after the steps, in the same card.",
+            "tip": "The demo GIFs currently cover Live Listen end-to-end and the check-in queue with eligibility badges."
+          },
+          {
+            "title": "Watch the training video if there is one",
+            "detail": "If a video has been uploaded for that feature, it plays at the bottom of the same card — no need to leave the app or tap a separate button.",
             "tip": null
           }
         ]
@@ -349,8 +354,8 @@
     }
   ],
   "suggestions": [
-    "How do I watch a training video for a new feature?",
-    "What's new in the Settings page?",
-    "How does the Playbook Score and Coaching tile work?"
+    "What's different about 'Show me how' now?",
+    "How do I get a Playbook Score after a Live Listen visit?",
+    "How does the Resolution Desk sort my tickets?"
   ]
 }
