@@ -15,6 +15,7 @@ import time
 from . import guardrail
 from .config import get_settings
 from .schemas import (
+    VISIT_REASON_LABELS,
     ExecutiveSummary,
     LiveCoachResult,
     LiveSuggestion,
@@ -23,6 +24,7 @@ from .schemas import (
     SystemEnhancementsDoc,
     TicketClassificationBatch,
     TriageResult,
+    VisitSummary,
 )
 from .store import db
 
@@ -430,6 +432,110 @@ def _mock_analyze_live_transcript(window: str, prior_intents: list[str]) -> Live
             tone=_LISTEN_TONE.get(intent, "info"),
         ))
     return LiveCoachResult(suggestions=suggestions)
+
+
+# --------------------------------------------------------------------------- #
+# Live Listen visit summary (customer-facing recap email)
+# --------------------------------------------------------------------------- #
+VISIT_SUMMARY_SYSTEM = (
+    "You are Rep Assist writing a short, warm visit-summary email to a retail "
+    "customer on behalf of the store, after a rep helped them in person. Write "
+    "in plain, friendly, customer-facing language — no internal jargon, intent "
+    "codes, capability slugs, order/account ids, or agent names. Thank the "
+    "customer by name, recap what they came in for in 2-3 sentences, list the "
+    "concrete steps taken to address their issue(s) as short customer-friendly "
+    "bullets, and close warmly with any next steps (e.g. when to expect a fix). "
+    "If nothing actionable happened, keep steps_taken empty and still send a "
+    "gracious thank-you. Never invent actions that were not indicated."
+)
+
+
+def generate_visit_summary(
+    customer_name: str | None,
+    visit_reason: str,
+    transcript: list[dict],
+    suggestions: list[dict],
+    thread_id: str | None = None,
+    rep_id: str | None = None,
+) -> VisitSummary:
+    """Compose a customer-facing recap of a Live Listen visit for the summary
+    email. Offline-safe: falls back to a deterministic template with no API key
+    or on any live-call failure, like the rest of the LLM layer."""
+    name = (customer_name or "there").strip() or "there"
+    reason_label = VISIT_REASON_LABELS.get(visit_reason, "your visit")
+    settings = get_settings()
+    if not settings.llm_enabled:
+        _log_usage("visit_summary", settings.anthropic_model, 0, thread_id=thread_id, fallback=True)
+        return _mock_visit_summary(name, reason_label, suggestions)
+    t0 = time.monotonic()
+    try:
+        client = _client()
+        transcript_text = "\n".join(
+            f"{u.get('speaker')}: {u['text']}" if u.get("speaker") else u["text"]
+            for u in transcript
+        ) or "(no transcript captured)"
+        issues = [
+            {"issue": s.get("title"), "detail": s.get("summary"),
+             "diagnosis": (s.get("diagnosis") or {}).get("root_cause"),
+             "proposed": (s.get("diagnosis") or {}).get("human_prompt")}
+            for s in suggestions
+        ]
+        prompt = (
+            f"CUSTOMER NAME: {name}\n"
+            f"WHY THEY CAME IN: {reason_label}\n\n"
+            f"ISSUES THE ASSISTANT FLAGGED AND WHAT IT FOUND:\n"
+            f"{json.dumps(issues, ensure_ascii=False, indent=2)}\n\n"
+            f"CONVERSATION TRANSCRIPT:\n{transcript_text}\n\n"
+            f"Write the visit-summary email fields."
+        )
+        resp = client.messages.parse(
+            model=settings.anthropic_model,
+            max_tokens=1024,
+            system=VISIT_SUMMARY_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+            output_format=VisitSummary,
+        )
+        result = resp.parsed_output
+        if result is None:
+            raise ValueError("empty parsed_output")
+        _log_usage("visit_summary", settings.anthropic_model, int((time.monotonic() - t0) * 1000),
+                   thread_id=thread_id, resp=resp)
+        return result
+    except Exception as exc:  # noqa: BLE001 - intentional graceful degradation
+        logger.warning("Visit summary generation failed (%s); using template fallback", exc)
+        _log_usage("visit_summary", settings.anthropic_model, int((time.monotonic() - t0) * 1000),
+                   thread_id=thread_id, success=False, fallback=True)
+        return _mock_visit_summary(name, reason_label, suggestions)
+
+
+def _mock_visit_summary(name: str, reason_label: str, suggestions: list[dict]) -> VisitSummary:
+    """Deterministic customer-facing recap for offline mode."""
+    steps: list[str] = []
+    for s in suggestions:
+        diag = s.get("diagnosis") or {}
+        title = s.get("title") or "your question"
+        if diag.get("can_resolve") and diag.get("human_prompt"):
+            steps.append(f"Looked into {title.lower()} and started a fix on your account.")
+        elif diag.get("root_cause"):
+            steps.append(f"Reviewed {title.lower()} — {diag['root_cause']}")
+        else:
+            steps.append(f"Reviewed {title.lower()} with you and noted the next step.")
+    if suggestions:
+        summary = (
+            f"Thanks for coming in about {reason_label.lower()}. We went through "
+            f"{'the issue' if len(suggestions) == 1 else 'a few things'} together and "
+            f"took steps to get {'it' if len(suggestions) == 1 else 'them'} sorted out."
+        )
+        closing = "If anything still looks off, just reply here or stop back in — we're happy to help."
+    else:
+        summary = f"Thanks for coming in about {reason_label.lower()}. It was great helping you today."
+        closing = "If anything comes up, just reply here or stop back in anytime."
+    return VisitSummary(
+        greeting=f"Hi {name}, thanks for visiting us today!",
+        summary=summary,
+        steps_taken=steps,
+        closing=closing,
+    )
 
 
 # --------------------------------------------------------------------------- #

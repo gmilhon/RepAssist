@@ -23,6 +23,8 @@ class CheckInRequest(BaseModel):
     customer_name: Optional[str] = None
     customer_phone: Optional[str] = None
     reason: str  # VisitReason value
+    account_id: Optional[str] = None   # known customer account, if looked up at check-in
+    order_id: Optional[str] = None     # known customer order, if looked up at check-in
 
     @model_validator(mode="after")
     def _require_identifier(self) -> "CheckInRequest":
@@ -46,6 +48,8 @@ def check_in(req: CheckInRequest) -> dict:
         customer_name=(req.customer_name or "").strip() or None,
         customer_phone=(req.customer_phone or "").strip() or None,
         reason=reason,
+        account_id=(req.account_id or "").strip().upper() or None,
+        order_id=(req.order_id or "").strip().upper() or None,
     )
     return {"entry": entry, "queue_position": position}
 

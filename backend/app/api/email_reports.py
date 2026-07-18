@@ -36,6 +36,7 @@ class SubscriberIn(BaseModel):
     subscribed_performance: bool = True
     subscribed_cx: bool = True
     subscribed_alerts: bool = True
+    subscribed_visit_summary: bool = True
 
 
 class SubscriberPatch(BaseModel):
@@ -43,6 +44,7 @@ class SubscriberPatch(BaseModel):
     subscribed_performance: Optional[bool] = None
     subscribed_cx: Optional[bool] = None
     subscribed_alerts: Optional[bool] = None
+    subscribed_visit_summary: Optional[bool] = None
     active: Optional[bool] = None
 
 
@@ -67,6 +69,7 @@ def add_subscriber(body: SubscriberIn) -> dict:
             existing.subscribed_performance = body.subscribed_performance
             existing.subscribed_cx = body.subscribed_cx
             existing.subscribed_alerts = body.subscribed_alerts
+            existing.subscribed_visit_summary = body.subscribed_visit_summary
             s.add(existing)
             s.commit()
             s.refresh(existing)
@@ -516,6 +519,86 @@ def send_production_alert(issue: dict, examples: list[dict]) -> dict:
     if not recipients:
         return {"sent": 0, "previewed": False, "recipients": [], "preview_html": html,
                 "warning": "No active alert subscribers. Add subscribers in Settings."}
+    if not settings.smtp_enabled:
+        return {"sent": 0, "previewed": True, "recipients": recipients, "preview_html": html,
+                "warning": "SMTP not configured — showing preview."}
+    try:
+        _send_smtp(subject, html, recipients, settings)
+        return {"sent": len(recipients), "previewed": False, "recipients": recipients}
+    except Exception as exc:  # noqa: BLE001
+        return {"sent": 0, "previewed": True, "recipients": recipients,
+                "preview_html": html, "error": str(exc)}
+
+
+# --------------------------------------------------------------------------- #
+# Live Listen visit-summary emails
+# --------------------------------------------------------------------------- #
+def build_visit_summary_html(summary: dict, customer_name: Optional[str]) -> str:
+    """Customer-facing visit-summary email built from a generated VisitSummary."""
+    who = (customer_name or "").strip() or "Customer"
+    steps = summary.get("steps_taken") or []
+    if steps:
+        step_items = "".join(
+            f"""<tr>
+              <td style="padding:7px 0 7px 0; vertical-align:top; width:22px;">
+                <span style="color:{_BRAND}; font-weight:800;">✓</span></td>
+              <td style="padding:7px 0; font-size:14px; color:{_DARK}; line-height:1.5;">{step}</td>
+            </tr>"""
+            for step in steps
+        )
+        steps_section = f"""
+        <tr><td style="padding:6px 28px 0;">
+          <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;
+                      color:{_MUTED}; margin-bottom:4px;">What we did</div>
+          <table width="100%" cellpadding="0" cellspacing="0">{step_items}</table>
+        </td></tr>"""
+    else:
+        steps_section = ""
+
+    body = f"""
+    {_header("Visit Summary", datetime.now(timezone.utc).strftime("%-d %b %Y"))}
+    <tr>
+      <td style="padding:24px 28px 0;">
+        <div style="font-size:18px; font-weight:800; color:{_DARK};">{summary.get('greeting', f'Hi {who}, thanks for visiting!')}</div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:12px 28px 0;">
+        <div style="font-size:14px; color:{_DARK}; line-height:1.6;">{summary.get('summary', '')}</div>
+      </td>
+    </tr>
+    {steps_section}
+    <tr>
+      <td style="padding:18px 28px 24px;">
+        <div style="font-size:14px; color:{_DARK}; line-height:1.6; background:{_BG};
+                    border-radius:8px; padding:14px 16px;">{summary.get('closing', '')}</div>
+      </td>
+    </tr>
+    {_footer()}
+    """
+    return _wrap(body)
+
+
+def send_visit_summary(summary: dict, customer_name: Optional[str]) -> dict:
+    """Send a Live Listen visit summary to visit-summary subscribers (or return
+    a preview). Called by the listen router, not exposed here as an endpoint.
+    Mirrors send_production_alert's result shape."""
+    settings = get_settings()
+    html = build_visit_summary_html(summary, customer_name)
+    who = (customer_name or "your customer").strip() or "your customer"
+    subject = f"Your visit summary from Rep Assist — thanks, {who}!"
+
+    with Session(_engine) as s:
+        subs = list(s.exec(
+            select(EmailSubscriber)
+            .where(EmailSubscriber.active == True)                     # noqa: E712
+            .where(EmailSubscriber.subscribed_visit_summary == True)   # noqa: E712
+        ).all())
+    recipients = [s.email for s in subs]
+
+    if not recipients:
+        return {"sent": 0, "previewed": False, "recipients": [], "preview_html": html,
+                "warning": "No active Live Listen subscribers. Add subscribers in Settings."}
     if not settings.smtp_enabled:
         return {"sent": 0, "previewed": True, "recipients": recipients, "preview_html": html,
                 "warning": "SMTP not configured — showing preview."}

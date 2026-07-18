@@ -14,6 +14,7 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
   const [addName, setAddName] = useState("");
   const [addPerf, setAddPerf] = useState(true);
   const [addCX, setAddCX] = useState(true);
+  const [addVisit, setAddVisit] = useState(true);
   const [addError, setAddError] = useState("");
   const [adding, setAdding] = useState(false);
 
@@ -77,11 +78,12 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
     setAdding(true);
     setAddError("");
     try {
-      await api.addSubscriber(addEmail.trim(), addName.trim(), addPerf, addCX);
+      await api.addSubscriber(addEmail.trim(), addName.trim(), addPerf, addCX, addVisit);
       setAddEmail("");
       setAddName("");
       setAddPerf(true);
       setAddCX(true);
+      setAddVisit(true);
       await reload();
     } catch (err: any) {
       setAddError(err.message ?? "Failed to add subscriber");
@@ -90,7 +92,7 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
     }
   }
 
-  async function handleToggle(sub: EmailSubscriber, field: "subscribed_performance" | "subscribed_cx" | "subscribed_alerts" | "active") {
+  async function handleToggle(sub: EmailSubscriber, field: "subscribed_performance" | "subscribed_cx" | "subscribed_alerts" | "subscribed_visit_summary" | "active") {
     await api.updateSubscriber(sub.email, { [field]: !sub[field] });
     await reload();
   }
@@ -249,6 +251,7 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
                       <th title="Performance dashboard reports">Performance</th>
                       <th title="CX Monitor reports">CX Monitor</th>
                       <th title="Critical production-issue alerts">Alerts</th>
+                      <th title="Live Listen visit-summary emails">Live Listen</th>
                       <th>Active</th>
                       <th></th>
                     </tr>
@@ -283,6 +286,15 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
                             title={sub.subscribed_alerts ? "Unsubscribe from production alerts" : "Subscribe to production alerts"}
                           >
                             {sub.subscribed_alerts ? "On" : "Off"}
+                          </button>
+                        </td>
+                        <td>
+                          <button
+                            className={`settings-toggle ${sub.subscribed_visit_summary ? "on" : "off"}`}
+                            onClick={() => handleToggle(sub, "subscribed_visit_summary")}
+                            title={sub.subscribed_visit_summary ? "Unsubscribe from Live Listen visit summaries" : "Subscribe to Live Listen visit summaries"}
+                          >
+                            {sub.subscribed_visit_summary ? "On" : "Off"}
                           </button>
                         </td>
                         <td>
@@ -335,6 +347,10 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
                 <label className="settings-check">
                   <input type="checkbox" checked={addCX} onChange={e => setAddCX(e.target.checked)} />
                   CX Monitor
+                </label>
+                <label className="settings-check">
+                  <input type="checkbox" checked={addVisit} onChange={e => setAddVisit(e.target.checked)} />
+                  Live Listen
                 </label>
                 <button type="submit" className="btn" disabled={adding}>
                   {adding ? "Adding…" : "Add"}

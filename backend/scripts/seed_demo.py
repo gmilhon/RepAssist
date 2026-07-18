@@ -64,11 +64,12 @@ TIER2 = ["tier2.alice", "tier2.marcus", "tier2.deepa"]
 # handful of recent fixtures so "View queue" has something to show right
 # after a seed. (customer_name, customer_phone, reason, minutes_ago, status)
 QUEUE_SAMPLES = [
-    ("Devon Marsh",  None,               "new_service",  6,  "waiting"),
-    (None,           "(555) 019-2244",   "upgrade",      14, "waiting"),
-    ("Priya Nair",   "(555) 019-7781",   "appointment",  22, "waiting"),
-    ("Wes Okonkwo",  None,               "home",         9,  "in_progress"),
-    ("Grace Lin",    "(555) 019-3390",   "pickup",       31, "in_progress"),
+    # (name, phone, reason, minutes_ago, status, account_id, order_id)
+    ("Devon Marsh",  None,               "new_service",  6,  "waiting",     "AC-3002", "ACT-1002"),
+    (None,           "(555) 019-2244",   "upgrade",      14, "waiting",     "AC-3003", "ORD-2002"),
+    ("Priya Nair",   "(555) 019-7781",   "appointment",  22, "waiting",     "AC-5003", None),
+    ("Wes Okonkwo",  None,               "home",         9,  "in_progress", None,      None),
+    ("Grace Lin",    "(555) 019-3390",   "pickup",       31, "in_progress", None,      None),
 ]
 
 _intent_keys = list(INTENTS)
@@ -144,11 +145,12 @@ def seed() -> dict:
 
 
 def _seed_queue() -> int:
-    for name, phone, reason, minutes_ago, status in QUEUE_SAMPLES:
+    for name, phone, reason, minutes_ago, status, account_id, order_id in QUEUE_SAMPLES:
         created = NOW - timedelta(minutes=minutes_ago)
         started = NOW - timedelta(minutes=random.randint(1, minutes_ago)) if status == "in_progress" else None
         db.create_queue_entry(
             customer_name=name, customer_phone=phone, reason=reason, status=status,
+            account_id=account_id, order_id=order_id,
             assigned_rep_id=random.choice(REPS) if status == "in_progress" else None,
             created_at=created, updated_at=(started or created), started_at=started,
         )

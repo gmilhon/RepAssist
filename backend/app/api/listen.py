@@ -19,6 +19,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from . import email_reports
 from .. import llm
 from ..graph.nodes import INTENT_CAPABILITY, NEEDS_ID
 from ..integrations import agents_client
@@ -77,12 +78,18 @@ def _duration_label(start: datetime, end: datetime) -> str:
 
 
 def _session_entities(session: ListenSession) -> dict:
-    """The exact entity keys the existing queue-assist hand-off pre-fills."""
+    """The entity keys the queue-assist hand-off pre-fills. Includes the known
+    account/order so agents are called with them instead of re-prompting the
+    rep for ids the customer's record already carries."""
     entities = {"visit_reason": session.reason}
     if session.customer_name:
         entities["customer_name"] = session.customer_name
     if session.customer_phone:
         entities["customer_phone"] = session.customer_phone
+    if session.account_id:
+        entities["account_id"] = session.account_id
+    if session.order_id:
+        entities["order_id"] = session.order_id
     return entities
 
 
@@ -135,6 +142,8 @@ def start(req: StartListenRequest) -> dict:
         customer_name=entry.customer_name,
         customer_phone=entry.customer_phone,
         reason=entry.reason,
+        account_id=entry.account_id,
+        order_id=entry.order_id,
         mode=req.mode,
     )
     return {"session": session, "thread_id": thread_id, "entities": _session_entities(session)}
@@ -271,9 +280,45 @@ def stop(session_id: str) -> dict:
     session = db.end_listen_session(session_id)
     if not session:
         raise HTTPException(404, "Listen session not found")
+    # Generate the customer-facing visit summary once, at stop, and persist it
+    # so the rep-triggered send reuses it. Best-effort — a summary failure must
+    # never block ending the session.
+    summary = session.summary
+    if summary is None:
+        try:
+            summary = llm.generate_visit_summary(
+                session.customer_name, session.reason,
+                session.transcript or [], session.suggestions or [],
+                thread_id=session.thread_id, rep_id=session.rep_id,
+            ).model_dump()
+            db.save_listen_summary(session_id, summary)
+        except Exception as exc:  # noqa: BLE001 - summary is a nicety, not required
+            logger.warning("Visit summary generation failed (%s)", exc)
+            summary = None
     recap = {
         "utterances": len(session.transcript or []),
         "suggestions": len(session.suggestions or []),
         "duration_label": _duration_label(session.created_at, session.ended_at or session.created_at),
+        "summary": summary,
     }
     return {"session": session, "recap": recap}
+
+
+@router.post("/{session_id}/send-summary")
+def send_summary(session_id: str) -> dict:
+    """Email the visit summary to Live Listen subscribers (rep-triggered from
+    the recap). Reuses the summary generated at stop; regenerates on demand if
+    a session predates that."""
+    session = db.get_listen_session(session_id)
+    if not session:
+        raise HTTPException(404, "Listen session not found")
+    summary = session.summary
+    if summary is None:
+        summary = llm.generate_visit_summary(
+            session.customer_name, session.reason,
+            session.transcript or [], session.suggestions or [],
+            thread_id=session.thread_id, rep_id=session.rep_id,
+        ).model_dump()
+        db.save_listen_summary(session_id, summary)
+    result = email_reports.send_visit_summary(summary, session.customer_name)
+    return {"summary": summary, **result}

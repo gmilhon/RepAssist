@@ -1,4 +1,4 @@
-import type { A2UIResponse, AnalyzeResult, CallAgentResult, CandidateDefect, CapabilityGap, ChatResponse, CheckInResult, CXOverview, EmailSettings, EmailSubscriber, FileDefectResult, HuddleItem, JiraDefectItem, ListenUtterance, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, ProductionAnalyzeResult, ProductionIssue, ProductionOverview, QueueEntry, SendReportResult, StartListenResult, StopListenResult, SystemHealth, Ticket, TicketAnalyzeResult } from "./types";
+import type { A2UIResponse, AnalyzeResult, CallAgentResult, CandidateDefect, CapabilityGap, ChatResponse, CheckInResult, CXOverview, EmailSettings, EmailSubscriber, FileDefectResult, HuddleItem, JiraDefectItem, ListenUtterance, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, ProductionAnalyzeResult, ProductionIssue, ProductionOverview, QueueEntry, SendReportResult, SendSummaryResult, StartListenResult, StopListenResult, SystemHealth, Ticket, TicketAnalyzeResult } from "./types";
 
 async function http<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -70,7 +70,7 @@ export const api = {
 
   queue: () => http<A2UIResponse>("/api/mcp/queue"),
 
-  checkIn: (body: { customer_name?: string; customer_phone?: string; reason: string }) =>
+  checkIn: (body: { customer_name?: string; customer_phone?: string; reason: string; account_id?: string; order_id?: string }) =>
     http<CheckInResult>("/api/queue/checkin", { method: "POST", body: JSON.stringify(body) }),
 
   assistQueueEntry: (id: string, rep_id = "rep.demo", thread_id?: string | null) =>
@@ -94,6 +94,9 @@ export const api = {
 
   listenStop: (session_id: string) =>
     http<StopListenResult>(`/api/listen/${session_id}/stop`, { method: "POST" }),
+
+  listenSendSummary: (session_id: string) =>
+    http<SendSummaryResult>(`/api/listen/${session_id}/send-summary`, { method: "POST" }),
 
   // Morning Huddle management (Settings)
   listHuddleItems: () => http<HuddleItem[]>("/api/huddle/items"),
@@ -177,12 +180,12 @@ export const api = {
   // Email reports
   emailSettings: () => http<EmailSettings>("/api/email/settings"),
   listSubscribers: () => http<EmailSubscriber[]>("/api/email/subscribers"),
-  addSubscriber: (email: string, name: string, subscribed_performance: boolean, subscribed_cx: boolean) =>
+  addSubscriber: (email: string, name: string, subscribed_performance: boolean, subscribed_cx: boolean, subscribed_visit_summary = true) =>
     http<EmailSubscriber>("/api/email/subscribers", {
       method: "POST",
-      body: JSON.stringify({ email, name: name || null, subscribed_performance, subscribed_cx }),
+      body: JSON.stringify({ email, name: name || null, subscribed_performance, subscribed_cx, subscribed_visit_summary }),
     }),
-  updateSubscriber: (email: string, patch: Partial<Pick<EmailSubscriber, "name" | "subscribed_performance" | "subscribed_cx" | "subscribed_alerts" | "active">>) =>
+  updateSubscriber: (email: string, patch: Partial<Pick<EmailSubscriber, "name" | "subscribed_performance" | "subscribed_cx" | "subscribed_alerts" | "subscribed_visit_summary" | "active">>) =>
     http<EmailSubscriber>(`/api/email/subscribers/${encodeURIComponent(email)}`, {
       method: "PATCH",
       body: JSON.stringify(patch),

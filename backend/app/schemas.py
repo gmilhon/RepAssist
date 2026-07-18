@@ -24,7 +24,7 @@ class VisitReason(str, Enum):
     (nse/aal/up, a heuristic tag on resolved conversations). This is captured
     up front, at check-in, before any issue has been discussed."""
 
-    NEW_SERVICE = "new_service"        # New to Verizon / new line
+    NEW_SERVICE = "new_service"        # new customer / new line
     UPGRADE = "upgrade"                # device or plan upgrade
     HOME = "home"                      # home internet / 5G home
     APPOINTMENT = "appointment"        # scheduled appointment
@@ -34,7 +34,7 @@ class VisitReason(str, Enum):
 
 
 VISIT_REASON_LABELS = {
-    VisitReason.NEW_SERVICE: "New to Verizon",
+    VisitReason.NEW_SERVICE: "New Service",
     VisitReason.UPGRADE: "Upgrade",
     VisitReason.HOME: "Home Internet",
     VisitReason.APPOINTMENT: "Appointment",
@@ -107,6 +107,24 @@ class LiveCoachResult(BaseModel):
 
     suggestions: list[LiveSuggestion] = Field(
         description="New actionable issues only. Empty when nothing new and concrete came up."
+    )
+
+
+class VisitSummary(BaseModel):
+    """Customer-facing recap of a Live Listen visit, used for the summary email."""
+
+    greeting: str = Field(
+        description="Warm one-line thank-you addressed to the customer by name."
+    )
+    summary: str = Field(
+        description="2-3 plain-language sentences recapping what the visit was about."
+    )
+    steps_taken: list[str] = Field(
+        description="Concrete steps taken to address the customer's issue(s), in "
+        "friendly customer-facing language. Empty if nothing actionable came up."
+    )
+    closing: str = Field(
+        description="One warm closing line with any next steps or reassurance."
     )
 
 

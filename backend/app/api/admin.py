@@ -320,21 +320,23 @@ VALUES
 
 _QUEUE_SQL = """
 INSERT INTO queue_entries
-  (id, created_at, updated_at, customer_name, customer_phone, reason, status, assigned_rep_id, thread_id, started_at)
+  (id, created_at, updated_at, customer_name, customer_phone, reason, account_id, order_id, status, assigned_rep_id, thread_id, started_at)
 VALUES
-  (:id, :created_at, :updated_at, :customer_name, :customer_phone, :reason, :status, :assigned_rep_id, :thread_id, :started_at)
+  (:id, :created_at, :updated_at, :customer_name, :customer_phone, :reason, :account_id, :order_id, :status, :assigned_rep_id, :thread_id, :started_at)
 """
 
 # Store check-in queue is live "right now" state, not historical volume — a
 # handful of recent fixtures so the "View queue" card has something to show
 # right after a seed, rather than years of stale waiting customers.
-# (customer_name, customer_phone, reason, minutes_ago, status)
+# (customer_name, customer_phone, reason, minutes_ago, status, account_id, order_id)
+# account/order map to the mock scenario ids so an assisting rep (and Live
+# Listen) can call agents with the customer's known ids, no clarify prompt.
 _QUEUE_SAMPLES = [
-    ("Devon Marsh",  None,               "new_service",  6,  "waiting"),
-    (None,           "(555) 019-2244",   "upgrade",      14, "waiting"),
-    ("Priya Nair",   "(555) 019-7781",   "appointment",  22, "waiting"),
-    ("Wes Okonkwo",  None,               "home",         9,  "in_progress"),
-    ("Grace Lin",    "(555) 019-3390",   "pickup",       31, "in_progress"),
+    ("Devon Marsh",  None,               "new_service",  6,  "waiting",     "AC-3002", "ACT-1002"),
+    (None,           "(555) 019-2244",   "upgrade",      14, "waiting",     "AC-3003", "ORD-2002"),
+    ("Priya Nair",   "(555) 019-7781",   "appointment",  22, "waiting",     "AC-5003", None),
+    ("Wes Okonkwo",  None,               "home",         9,  "in_progress", None,      None),
+    ("Grace Lin",    "(555) 019-3390",   "pickup",       31, "in_progress", None,      None),
 ]
 
 # A handful of illustrative matches — real attempts should be rare, so the
@@ -525,13 +527,14 @@ def _run_seed() -> dict:
 
         now_dt = datetime.now(timezone.utc)
         queue_rows: list[dict] = []
-        for name, phone, reason, minutes_ago, status in _QUEUE_SAMPLES:
+        for name, phone, reason, minutes_ago, status, account_id, order_id in _QUEUE_SAMPLES:
             created = now_dt - timedelta(minutes=minutes_ago)
             started = now_dt - timedelta(minutes=rng.randint(1, minutes_ago)) if status == "in_progress" else None
             queue_rows.append(dict(
                 id="Q-" + uuid.uuid4().hex[:8].upper(),
                 created_at=created.isoformat(), updated_at=(started or created).isoformat(),
-                customer_name=name, customer_phone=phone, reason=reason, status=status,
+                customer_name=name, customer_phone=phone, reason=reason,
+                account_id=account_id, order_id=order_id, status=status,
                 assigned_rep_id=rng.choice(REPS) if status == "in_progress" else None,
                 thread_id=None, started_at=started.isoformat() if started else None,
             ))

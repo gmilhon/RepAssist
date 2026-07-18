@@ -1,14 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
-import type { A2UIElement, A2UIQueue, A2UIQueueEntry, ChatResponse, ConfirmationPayload, ListenSession, ListenUtterance, ResolutionCard } from "../types";
+import type { A2UIElement, A2UIQueue, A2UIQueueEntry, ChatResponse, ConfirmationPayload, ListenSession, ListenUtterance, ResolutionCard, SendSummaryResult, VisitSummary } from "../types";
 import { VISIT_REASONS } from "../types";
 import { A2UIRenderer } from "./A2UI";
+
+interface VisitRecap {
+  sessionId: string;
+  customerName: string | null;
+  summary: VisitSummary;
+}
 
 interface Msg {
   role: "user" | "assistant";
   content?: string;
   card?: ResolutionCard | null;
   a2ui?: A2UIElement[];
+  visit?: VisitRecap;
 }
 
 // First-step CTAs — tapping one sends a starter prompt; the assistant then asks
@@ -95,7 +102,11 @@ export default function ChatWidget() {
   const [ciReason, setCiReason] = useState(VISIT_REASONS[0].value);
   const [ciName, setCiName] = useState("");
   const [ciPhone, setCiPhone] = useState("");
+  const [ciAccount, setCiAccount] = useState("");
+  const [ciOrder, setCiOrder] = useState("");
   const [ciError, setCiError] = useState<string | null>(null);
+  // Visit-summary send state, keyed by listen session id.
+  const [summarySends, setSummarySends] = useState<Record<string, { sending: boolean; result: SendSummaryResult | null }>>({});
 
   // Live Listen state — its own SpeechRecognition instance (never shared with
   // the composer mic) plus batching machinery for the read-only watcher.
@@ -153,6 +164,8 @@ export default function ChatWidget() {
         customer_name: ciName.trim() || undefined,
         customer_phone: ciPhone.trim() || undefined,
         reason: ciReason,
+        account_id: ciAccount.trim() || undefined,
+        order_id: ciOrder.trim() || undefined,
       });
       const label = res.entry.customer_name ?? res.entry.customer_phone ?? "Customer";
       const reasonLabel = VISIT_REASONS.find((r) => r.value === ciReason)?.label ?? ciReason;
@@ -166,6 +179,8 @@ export default function ChatWidget() {
       setCheckInOpen(false);
       setCiName("");
       setCiPhone("");
+      setCiAccount("");
+      setCiOrder("");
       setCiReason(VISIT_REASONS[0].value);
       scrollDown();
     } catch (e) {
@@ -469,16 +484,37 @@ export default function ChatWidget() {
     if (!session) return;
     try {
       const res = await api.listenStop(session.id);
-      setMessages((m) => [
-        ...m,
-        {
-          role: "assistant",
-          content: `🎧 Live Listen ended — ${res.recap.utterances} utterances, ${res.recap.suggestions} suggestions, ${res.recap.duration_label}.`,
-        },
-      ]);
+      const recapMsg: Msg = {
+        role: "assistant",
+        content: `🎧 Live Listen ended — ${res.recap.utterances} utterances, ${res.recap.suggestions} suggestions, ${res.recap.duration_label}.`,
+      };
+      // Attach the generated visit summary so the recap card + "Send visit
+      // summary" button render inline in the thread.
+      if (res.recap.summary) {
+        recapMsg.visit = {
+          sessionId: session.id,
+          customerName: session.customer_name,
+          summary: res.recap.summary,
+        };
+      }
+      setMessages((m) => [...m, recapMsg]);
       scrollDown();
     } catch (e) {
       console.warn("Live Listen stop failed", e);
+    }
+  }
+
+  // Rep-triggered: email the visit summary to Live Listen subscribers.
+  async function sendVisitSummary(sessionId: string) {
+    setSummarySends((s) => ({ ...s, [sessionId]: { sending: true, result: null } }));
+    try {
+      const result = await api.listenSendSummary(sessionId);
+      setSummarySends((s) => ({ ...s, [sessionId]: { sending: false, result } }));
+    } catch (e) {
+      setSummarySends((s) => ({
+        ...s,
+        [sessionId]: { sending: false, result: { summary: {} as VisitSummary, sent: 0, recipients: [], error: String(e) } },
+      }));
     }
   }
 
@@ -660,6 +696,13 @@ export default function ChatWidget() {
               {m.a2ui && (
                 <A2UIRenderer elements={m.a2ui} onAction={a2uiAction} onOpenArticle={openArticle} onAssist={assistFromQueue} actionsDisabled={busy} />
               )}
+              {m.visit && (
+                <VisitSummaryCard
+                  visit={m.visit}
+                  send={summarySends[m.visit.sessionId]}
+                  onSend={() => sendVisitSummary(m.visit!.sessionId)}
+                />
+              )}
             </div>
           ))}
 
@@ -695,7 +738,27 @@ export default function ChatWidget() {
                     />
                   </div>
                 </div>
-                <p className="checkin-hint">Name or phone number — at least one is required.</p>
+                <div className="checkin-row">
+                  <div className="checkin-field">
+                    <label htmlFor="ci-account">Account # <span className="checkin-opt">(optional)</span></label>
+                    <input
+                      id="ci-account"
+                      value={ciAccount}
+                      placeholder="AC-3002"
+                      onChange={(e) => setCiAccount(e.target.value)}
+                    />
+                  </div>
+                  <div className="checkin-field">
+                    <label htmlFor="ci-order">Order # <span className="checkin-opt">(optional)</span></label>
+                    <input
+                      id="ci-order"
+                      value={ciOrder}
+                      placeholder="ACT-1002"
+                      onChange={(e) => setCiOrder(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <p className="checkin-hint">Name or phone number — at least one is required. Account/order let the assistant skip re-asking.</p>
                 {ciError && <p className="checkin-error">{ciError}</p>}
                 <div className="confirm-actions">
                   <button className="btn primary" disabled={busy} onClick={submitCheckIn}>
@@ -790,36 +853,39 @@ export default function ChatWidget() {
             </div>
           )}
 
-          {listenSession && (
-            <div className="listen-strip">
-              <div className="listen-strip-head">
-                <span className="listen-live-dot" />
-                <span className="listen-strip-label">LIVE</span>
-                <span className="listen-strip-cust">
-                  {listenSession.customer_name ?? listenSession.customer_phone ?? "Customer"}
-                </span>
-                <span className="listen-elapsed">{formatElapsed(listenElapsed)}</span>
-                <button type="button" className="btn ghost small" onClick={stopListen}>
-                  Stop
-                </button>
-              </div>
-              <div className="listen-transcript">
-                {liveUtterances.length === 0 && !listenInterim && (
-                  <div className="listen-utterance listen-interim">Listening…</div>
-                )}
-                {liveUtterances.slice(-4).map((u, i) => (
-                  <div key={i} className="listen-utterance">
-                    {u.speaker && <b>{u.speaker}: </b>}
-                    {u.text}
-                  </div>
-                ))}
-                {listenInterim && <div className="listen-utterance listen-interim">{listenInterim}</div>}
-              </div>
-            </div>
-          )}
-
           {busy && <div className="bubble assistant"><div className="typing"><span /><span /><span /></div></div>}
         </div>
+
+        {/* Live-transcript window + composer pinned together above the input. */}
+        <div className="composer-dock">
+        {/* Fixed live-transcript window, full width, pinned above the input. */}
+        {listenSession && (
+          <div className="listen-dock">
+            <div className="listen-strip-head">
+              <span className="listen-live-dot" />
+              <span className="listen-strip-label">LIVE</span>
+              <span className="listen-strip-cust">
+                {listenSession.customer_name ?? listenSession.customer_phone ?? "Customer"}
+              </span>
+              <span className="listen-elapsed">{formatElapsed(listenElapsed)}</span>
+              <button type="button" className="btn ghost small" onClick={stopListen}>
+                Stop
+              </button>
+            </div>
+            <div className="listen-transcript">
+              {liveUtterances.length === 0 && !listenInterim && (
+                <div className="listen-utterance listen-interim">Listening…</div>
+              )}
+              {liveUtterances.slice(-4).map((u, i) => (
+                <div key={i} className="listen-utterance">
+                  {u.speaker && <b>{u.speaker}: </b>}
+                  {u.text}
+                </div>
+              ))}
+              {listenInterim && <div className="listen-utterance listen-interim">{listenInterim}</div>}
+            </div>
+          </div>
+        )}
 
         <form
           className="composer"
@@ -866,6 +932,7 @@ export default function ChatWidget() {
             Send
           </button>
         </form>
+        </div>
       </div>
     </div>
   );
@@ -901,6 +968,51 @@ function Card({ card }: { card: ResolutionCard }) {
           </span>
         </div>
       )}
+    </div>
+  );
+}
+
+function VisitSummaryCard({
+  visit,
+  send,
+  onSend,
+}: {
+  visit: VisitRecap;
+  send?: { sending: boolean; result: SendSummaryResult | null };
+  onSend: () => void;
+}) {
+  const { summary, customerName } = visit;
+  const result = send?.result;
+  const sending = send?.sending ?? false;
+  const sent = !!result && !result.error && (result.sent > 0 || result.previewed);
+
+  let status = "";
+  if (result?.error) status = `Couldn't send: ${result.error}`;
+  else if (result?.sent) status = `Sent to ${result.sent} subscriber${result.sent === 1 ? "" : "s"}.`;
+  else if (result?.warning) status = result.warning;
+
+  return (
+    <div className="visit-card">
+      <div className="visit-head">
+        <span className="visit-eyebrow">✉️ Visit summary</span>
+        {customerName && <span className="visit-cust">{customerName}</span>}
+      </div>
+      <div className="visit-greeting">{summary.greeting}</div>
+      <p className="visit-summary">{summary.summary}</p>
+      {summary.steps_taken.length > 0 && (
+        <ul className="visit-steps">
+          {summary.steps_taken.map((s, i) => (
+            <li key={i}>{s}</li>
+          ))}
+        </ul>
+      )}
+      {summary.closing && <p className="visit-closing">{summary.closing}</p>}
+      <div className="visit-foot">
+        <button className="btn primary small" onClick={onSend} disabled={sending || sent}>
+          {sending ? "Sending…" : sent ? "Sent ✓" : "Send visit summary"}
+        </button>
+        {status && <span className="visit-status">{status}</span>}
+      </div>
     </div>
   );
 }

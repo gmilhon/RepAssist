@@ -72,6 +72,12 @@ def init_db() -> None:
             "ALTER TABLE ticket ADD COLUMN ai_capability VARCHAR",
             "ALTER TABLE ticket ADD COLUMN ai_analyzed_at DATETIME",
             "ALTER TABLE jira_defects ADD COLUMN ticket_ids JSON DEFAULT '[]'",
+            "ALTER TABLE email_subscribers ADD COLUMN subscribed_visit_summary BOOLEAN DEFAULT 1",
+            "ALTER TABLE queue_entries ADD COLUMN account_id VARCHAR",
+            "ALTER TABLE queue_entries ADD COLUMN order_id VARCHAR",
+            "ALTER TABLE listen_sessions ADD COLUMN account_id VARCHAR",
+            "ALTER TABLE listen_sessions ADD COLUMN order_id VARCHAR",
+            "ALTER TABLE listen_sessions ADD COLUMN summary JSON",
         ):
             try:
                 conn.execute(text(stmt))
@@ -531,6 +537,21 @@ def record_listen_suggestions(session_id: str, suggestions: list[dict]) -> Optio
         if not session:
             return None
         session.suggestions = list(session.suggestions or []) + list(suggestions)
+        session.updated_at = datetime.now(timezone.utc)
+        s.add(session)
+        s.commit()
+        s.refresh(session)
+        return session
+
+
+def save_listen_summary(session_id: str, summary: dict) -> Optional[ListenSession]:
+    """Persist the generated visit summary on the session so the send-summary
+    endpoint reuses it instead of re-calling the model."""
+    with Session(_engine) as s:
+        session = s.get(ListenSession, session_id)
+        if not session:
+            return None
+        session.summary = summary
         session.updated_at = datetime.now(timezone.utc)
         s.add(session)
         s.commit()

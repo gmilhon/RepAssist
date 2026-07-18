@@ -128,7 +128,7 @@ export type A2UIElement =
 // ── Store check-in ─────────────────────────────────────────────────────────
 
 export const VISIT_REASONS: { value: string; label: string }[] = [
-  { value: "new_service", label: "New to Verizon" },
+  { value: "new_service", label: "New Service" },
   { value: "upgrade", label: "Upgrade" },
   { value: "home", label: "Home Internet" },
   { value: "appointment", label: "Appointment" },
@@ -189,6 +189,8 @@ export interface ListenSession {
   customer_name: string | null;
   customer_phone: string | null;
   reason: string;
+  account_id: string | null;
+  order_id: string | null;
   mode: "mic" | "demo";
   status: "active" | "ended";
   created_at: string;
@@ -206,9 +208,31 @@ export interface AnalyzeResult {
   entities: Record<string, string>;
 }
 
+export interface VisitSummary {
+  greeting: string;
+  summary: string;
+  steps_taken: string[];
+  closing: string;
+}
+
 export interface StopListenResult {
   session: ListenSession;
-  recap: { utterances: number; suggestions: number; duration_label: string };
+  recap: {
+    utterances: number;
+    suggestions: number;
+    duration_label: string;
+    summary: VisitSummary | null;
+  };
+}
+
+export interface SendSummaryResult {
+  summary: VisitSummary;
+  sent: number;
+  recipients: string[];
+  previewed?: boolean;
+  preview_html?: string;
+  warning?: string;
+  error?: string;
 }
 
 // Morning Huddle items — managed on the Settings page
@@ -350,6 +374,7 @@ export interface EmailSubscriber {
   subscribed_performance: boolean;
   subscribed_cx: boolean;
   subscribed_alerts: boolean;
+  subscribed_visit_summary: boolean;
   active: boolean;
   created_at: string;
 }

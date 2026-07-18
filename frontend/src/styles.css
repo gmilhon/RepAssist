@@ -409,10 +409,14 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 .listen-mode-btn:disabled { opacity: 0.5; cursor: default; }
 
 /* live strip — compact rolling transcript pinned after the messages */
-.listen-strip {
-  width: 100%; max-width: 760px;
-  background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--vz-red);
-  border-radius: 10px; padding: 10px 14px; box-shadow: var(--shadow);
+/* Composer + live-transcript dock cluster, pinned to the bottom of the chat. */
+.composer-dock { display: flex; flex-direction: column; }
+/* Full-width live-transcript window fixed directly above the input. */
+.listen-dock {
+  background: var(--card);
+  border-top: 2px solid var(--vz-red);
+  box-shadow: 0 -3px 12px rgba(0, 0, 0, 0.05);
+  padding: 10px 24px 12px;
 }
 .listen-strip-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .listen-live-dot {
@@ -426,12 +430,30 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 }
 .listen-elapsed { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .listen-transcript {
-  max-height: 140px; overflow-y: auto;
+  max-height: 120px; overflow-y: auto;
   display: flex; flex-direction: column; gap: 3px;
 }
 .listen-utterance { font-size: 12.5px; color: var(--ink-2); line-height: 1.4; }
 .listen-utterance b { color: var(--ink); font-weight: 600; }
 .listen-interim { font-style: italic; color: var(--ink-2); opacity: 0.75; }
+
+/* Visit-summary recap card (rendered in the thread after a session ends). */
+.visit-card {
+  background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--ok);
+  border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 8px; max-width: 560px;
+}
+.visit-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.visit-eyebrow { font-size: 11px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: var(--ok); }
+.visit-cust { font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.visit-greeting { font-size: 15px; font-weight: 700; color: var(--ink); }
+.visit-summary { font-size: 13.5px; color: var(--ink-2); line-height: 1.55; margin: 0; }
+.visit-steps { margin: 2px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.visit-steps li { font-size: 13px; color: var(--ink); line-height: 1.45; }
+.visit-closing { font-size: 13px; color: var(--ink-2); line-height: 1.5; margin: 0; background: var(--bg); border-radius: 8px; padding: 8px 10px; }
+.visit-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
+.visit-status { font-size: 12px; color: var(--ink-2); }
+.checkin-opt { font-weight: 400; color: var(--ink-2); font-size: 11px; }
 
 /* live-suggestion card (reuses .a2ui-card + .a2ui-status tone pills) */
 .a2ui-suggest-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -961,16 +983,20 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
   .cta-tile:last-child:nth-child(odd) { grid-column: span 2; }
   .chat-main { flex: 1; min-height: 0; }
   .messages { padding: 16px 14px; gap: 12px; padding-bottom: 80px; }
-  .composer {
+  /* Pin the whole dock (live transcript + input) to the bottom together. */
+  .composer-dock {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    padding: 10px 14px;
-    padding-bottom: calc(10px + env(safe-area-inset-bottom));
     z-index: 50;
     box-shadow: 0 -1px 0 var(--line);
   }
+  .composer {
+    padding: 10px 14px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+  .listen-dock { padding: 8px 14px 10px; }
   .empty { margin-top: 5vh; }
   .bubble { max-width: 88%; }
 

@@ -150,6 +150,57 @@ def test_analyze_rejects_empty_and_oversized_input():
     ]}).status_code == 422
 
 
+# ---- account/order pre-fill: known ids ride on the session entities ----
+def test_start_includes_known_account_and_order_in_entities():
+    entry, _ = db.create_queue_entry(
+        customer_name="Devon Marsh", reason="new_service",
+        account_id="AC-3002", order_id="ACT-1002",
+    )
+    res = client.post("/api/listen/start", json={
+        "rep_id": "rep.demo", "queue_entry_id": entry.id, "mode": "demo",
+    })
+    assert res.status_code == 200
+    ents = res.json()["entities"]
+    assert ents["account_id"] == "AC-3002"
+    assert ents["order_id"] == "ACT-1002"
+
+    # Those ids feed diagnose enrichment even when nothing is spoken yet:
+    # an activation line with no order id still resolves against ACT-1002.
+    sid = res.json()["session"]["id"]
+    a = client.post(f"/api/listen/{sid}/analyze", json={"utterances": [
+        {"speaker": "Customer", "text": "My new phone still won't activate, no service."},
+    ]})
+    s = a.json()["suggestions"]
+    assert len(s) == 1 and s[0]["intent"] == "activation"
+    assert s[0]["entities"]["order_id"] == "ACT-1002"
+    assert s[0]["diagnosis"] is not None  # enrichment ran off the known order id
+
+
+# ---- visit summary: generated at stop, emailed on demand ----
+def test_stop_generates_summary_and_send_summary_previews():
+    start = _start_session(customer_name="Devon Marsh", reason="new_service")
+    sid = start["session"]["id"]
+    client.post(f"/api/listen/{sid}/analyze", json={"utterances": [
+        {"speaker": "Customer", "text": "My new phone from order ACT-1002 still won't activate."},
+    ]})
+
+    stopped = client.post(f"/api/listen/{sid}/stop")
+    assert stopped.status_code == 200
+    summary = stopped.json()["recap"]["summary"]
+    assert summary and summary["greeting"] and "Devon" in summary["greeting"]
+    assert isinstance(summary["steps_taken"], list)
+
+    # No subscribers seeded in the test DB → preview, not a real send, but the
+    # endpoint returns the summary and a well-formed result either way.
+    sent = client.post(f"/api/listen/{sid}/send-summary")
+    assert sent.status_code == 200
+    body = sent.json()
+    assert body["summary"]["greeting"]
+    assert "sent" in body and "recipients" in body
+
+    assert client.post("/api/listen/LS-NOPE/send-summary").status_code == 404
+
+
 # ---- mock unit: multi-intent windows, prior-intent dedupe, confidences ----
 def test_mock_analyze_multi_intent_respects_prior_intents():
     window = (

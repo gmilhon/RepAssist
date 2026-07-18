@@ -108,6 +108,7 @@ class EmailSubscriber(SQLModel, table=True):
     subscribed_performance: bool = True   # receives Performance dashboard reports
     subscribed_cx: bool = True            # receives CX Monitor reports
     subscribed_alerts: bool = True        # receives critical production-issue alerts
+    subscribed_visit_summary: bool = True  # receives Live Listen visit-summary emails
     active: bool = True
     created_at: datetime = Field(default_factory=_now)
 
@@ -255,6 +256,11 @@ class QueueEntry(SQLModel, table=True):
     customer_phone: Optional[str] = None
     reason: str = "other"  # VisitReason value
 
+    # Known customer account/order, captured at check-in so the assisting rep
+    # (and Live Listen) can call agents without re-prompting for these ids.
+    account_id: Optional[str] = None
+    order_id: Optional[str] = None
+
     status: str = QueueStatus.WAITING
     assigned_rep_id: Optional[str] = None
     thread_id: Optional[str] = None  # chat thread once a rep starts assisting
@@ -285,6 +291,8 @@ class ListenSession(SQLModel, table=True):
     customer_name: Optional[str] = None
     customer_phone: Optional[str] = None
     reason: str = "other"              # VisitReason value, copied from the queue entry
+    account_id: Optional[str] = None   # known customer account, copied from the queue entry
+    order_id: Optional[str] = None     # known customer order, copied from the queue entry
     mode: str = "mic"                  # "mic" | "demo"
 
     status: str = "active"             # "active" | "ended"
@@ -292,6 +300,7 @@ class ListenSession(SQLModel, table=True):
 
     transcript: list = Field(default_factory=list, sa_column=Column(JSON))   # [{speaker, text}]
     suggestions: list = Field(default_factory=list, sa_column=Column(JSON))  # surfaced suggestion dicts
+    summary: Optional[dict] = Field(default=None, sa_column=Column(JSON))     # generated VisitSummary
 
 
 class GuardrailEvent(SQLModel, table=True):
