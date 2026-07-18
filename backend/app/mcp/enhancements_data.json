@@ -1,7 +1,35 @@
 {
-  "generated_at": "2026-07-16T05:03:36.860839+00:00",
-  "last_commit_sha": "e4271ee0ca1025d3628a34428c75c78529ca2886",
+  "generated_at": "2026-07-18T02:37:45.366657+00:00",
+  "last_commit_sha": "c2c46c4e0fad56b501c1b98cc0c69cf55b603c39",
   "enhancements": [
+    {
+      "tag": "New",
+      "title": "Live Listen: real-time help during customer conversations",
+      "detail": "Tap the new Listen button while you're talking with a customer to have Rep Assist quietly follow along and suggest help — like a possible fix or next step — as cards right in your chat. You stay in control: nothing happens automatically, you just tap a suggestion to send it into the normal confirm-and-fix flow.",
+      "keywords": [
+        "listen",
+        "live listen",
+        "real-time",
+        "transcription",
+        "suggestions",
+        "copilot"
+      ],
+      "answer": "Live Listen lets you pick the checked-in customer you're speaking with, then Rep Assist transcribes the conversation as it happens (using your mic or a demo mode). In the background it watches for issues coming up in the conversation and drops suggestion cards into your chat — tap one and it hands the details straight into Rep Assist's normal chat flow, still asking you to confirm before it fixes or creates anything. It's read-only until you tap a suggestion, so it never takes action on its own."
+    },
+    {
+      "tag": "New",
+      "title": "Check in walk-in customers and manage the front-desk queue",
+      "detail": "A new Check In option lets you log a walk-in customer's name, phone, and reason for the visit. Everyone waiting shows up in a queue card, and tapping Assist on an entry pulls their info straight into chat so you can start helping them right away.",
+      "keywords": [
+        "check in",
+        "queue",
+        "walk-in",
+        "front desk",
+        "assist",
+        "waiting"
+      ],
+      "answer": "Use the new Check In button to log a walk-in customer with their visit reason and contact info, and they'll appear in the store's queue card in the order they arrived. When you're ready to help someone, tap Assist on their entry to claim it — Rep Assist drops you into the normal chat flow with their name and details already filled in, so you don't have to ask twice or retype anything."
+    },
     {
       "tag": "New",
       "title": "AI-assisted Resolution Desk for ticket triage",
@@ -49,19 +77,6 @@
       "answer": "The Opener is the same start-of-shift briefing that used to be called Morning Huddle, just renamed and refreshed. It now shows a To-Do checklist you can check off (like taking a training or setting up a demo unit) above the regular field-news items, and some items include a 'Read article' link that pulls up more detail right in chat. You can also tap the mic icon in the chat box to talk instead of type."
     },
     {
-      "tag": "New",
-      "title": "Friendlier chat greeting with quick-start chips",
-      "detail": "When you open chat, Rep Assist now greets you by time of day and offers two quick tap options: 'Check today's Opener' and 'What's new in Rep Assist' — so you can jump straight to what you need.",
-      "keywords": [
-        "greeting",
-        "chips",
-        "opener",
-        "what's new",
-        "start chat"
-      ],
-      "answer": "Instead of a plain prompt asking how it can help, Rep Assist now opens with a time-aware greeting (good morning/afternoon/evening) and two tappable chips so you can jump straight to today's Opener or see what's new in the app."
-    },
-    {
       "tag": "Improved",
       "title": "Tapping a ticket or order card is smarter now",
       "detail": "Tapping one of your open ticket cards now pulls up a recap of that ticket's status and suggested next steps right away, instead of asking you to type in an order number. Tapping a recent order also carries over the order and account info automatically.",
@@ -73,20 +88,6 @@
         "auto-fill"
       ],
       "answer": "Before, tapping a ticket card could make Rep Assist ask you for a missing order ID even though it already had the ticket. Now it looks up the ticket right away and gives you a recap of its status, priority, and suggested next steps. Tapping a recent order card also automatically fills in the order and account IDs so you don't have to re-enter them."
-    },
-    {
-      "tag": "Improved",
-      "title": "Better experience on phones and tablets",
-      "detail": "The app now reflows cleanly on phones, tablets, and foldables — no more cut-off menus or sideways scrolling. The message box always stays visible at the bottom of the screen, and the start screen tiles are arranged two per row so you can see more without scrolling.",
-      "keywords": [
-        "mobile",
-        "phone",
-        "tablet",
-        "layout",
-        "composer",
-        "scrolling"
-      ],
-      "answer": "If you're on a phone or tablet, the top bar, chat, and Resolution Desk screens now resize properly instead of overflowing or getting cut off. The chat message box stays pinned to the bottom of your screen no matter what, and the first-steps tiles on the start screen are now arranged two-per-row so you can see more of them at once."
     },
     {
       "tag": "New",
@@ -117,8 +118,8 @@
     }
   ],
   "suggestions": [
-    "How does the new Resolution Desk sort my tickets?",
-    "What happens when the system health badge turns yellow?",
-    "How do I use the one-tap starter tiles?"
+    "How does Live Listen work during a customer conversation?",
+    "How do I check in a walk-in customer and see the queue?",
+    "What can the Resolution Desk fix automatically for me?"
   ]
 }
