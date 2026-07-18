@@ -261,6 +261,39 @@ class QueueEntry(SQLModel, table=True):
     started_at: Optional[datetime] = None
 
 
+def _listen_id() -> str:
+    return "LS-" + uuid.uuid4().hex[:8].upper()
+
+
+class ListenSession(SQLModel, table=True):
+    """One Live Listen session: a rep starts listening while assisting a
+    checked-in customer, utterances stream into `transcript`, and the AI
+    watcher's surfaced cards accumulate in `suggestions`. The watcher is
+    strictly read-only — accepting a card goes through the normal chat flow;
+    nothing in the listen path executes actions or creates tickets."""
+
+    __tablename__ = "listen_sessions"
+
+    id: str = Field(default_factory=_listen_id, primary_key=True)
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
+
+    rep_id: str
+    thread_id: str                     # chat thread the session is attached to
+    queue_entry_id: Optional[str] = None
+
+    customer_name: Optional[str] = None
+    customer_phone: Optional[str] = None
+    reason: str = "other"              # VisitReason value, copied from the queue entry
+    mode: str = "mic"                  # "mic" | "demo"
+
+    status: str = "active"             # "active" | "ended"
+    ended_at: Optional[datetime] = None
+
+    transcript: list = Field(default_factory=list, sa_column=Column(JSON))   # [{speaker, text}]
+    suggestions: list = Field(default_factory=list, sa_column=Column(JSON))  # surfaced suggestion dicts
+
+
 class GuardrailEvent(SQLModel, table=True):
     """One row per prompt-injection pattern match (see
     docs/16-observability.md). Detection never blocks or alters the turn;

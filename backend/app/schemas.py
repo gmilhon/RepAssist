@@ -76,6 +76,40 @@ class TriageResult(BaseModel):
     summary: str = Field(description="One sentence restating the rep's problem.")
 
 
+class LiveSuggestion(BaseModel):
+    """One actionable issue spotted in a live-listen transcript window."""
+
+    intent: Literal[
+        "activation", "pending_order", "promo", "occ", "billing", "general", "system", "other"
+    ] = Field(description="Best-matching issue category for the spotted issue.")
+    confidence: float = Field(
+        description="0.0–1.0 confidence that this is a real, new, actionable issue.",
+        ge=0.0, le=1.0,
+    )
+    title: str = Field(description="Short rep-facing card title, e.g. 'Activation sounds stuck'.")
+    summary: str = Field(
+        description="1-2 sentences: what was heard in the conversation and why it matters."
+    )
+    order_id: Optional[str] = Field(
+        default=None, description="Order id if one was spoken, else null."
+    )
+    account_id: Optional[str] = Field(
+        default=None, description="Account id if one was spoken, else null."
+    )
+    tone: Literal["info", "warn", "danger"] = Field(
+        description="Card urgency: danger for order-blocking issues, warn for money/billing "
+        "issues, info otherwise."
+    )
+
+
+class LiveCoachResult(BaseModel):
+    """Structured output of one live-listen transcript analysis pass."""
+
+    suggestions: list[LiveSuggestion] = Field(
+        description="New actionable issues only. Empty when nothing new and concrete came up."
+    )
+
+
 class ProposedAction(BaseModel):
     """A mutating fix an agent wants to apply — gated behind rep confirmation."""
 

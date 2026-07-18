@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .api import (
-    admin, chat, cx, email_reports, huddle, insights, mcp, metrics,
+    admin, chat, cx, email_reports, huddle, insights, listen, mcp, metrics,
     production, queue, system_health, tickets,
 )
 from .config import get_settings
@@ -54,6 +54,7 @@ app.include_router(huddle.router)
 app.include_router(system_health.router)
 app.include_router(production.router)
 app.include_router(queue.router)
+app.include_router(listen.router)
 
 
 @app.on_event("startup")

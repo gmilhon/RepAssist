@@ -13,6 +13,7 @@ from .models import (
     Engagement,
     GapType,
     GuardrailEvent,
+    ListenSession,
     LLMCall,
     QueueEntry,
     QueueStatus,
@@ -107,6 +108,8 @@ def reset_demo() -> None:
             s.delete(g)
         for q in s.exec(select(QueueEntry)).all():
             s.delete(q)
+        for ls in s.exec(select(ListenSession)).all():
+            s.delete(ls)
         s.commit()
 
 
@@ -149,7 +152,16 @@ def check_fallback_spike(window_minutes: int = 10, threshold: float = 0.05) -> O
     MIN_SAMPLE = 8
     since = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
     with Session(_engine) as s:
-        rows = list(s.exec(select(LLMCall).where(LLMCall.created_at >= since)).all())
+        # Exclude listen_analyze: a Live Listen session in offline mode logs a
+        # fallback=True row every few seconds by design, which would read as a
+        # spike and trip auto-degrade even though nothing regressed. The
+        # conversational functions remain the health signal.
+        rows = list(s.exec(
+            select(LLMCall).where(
+                LLMCall.created_at >= since,
+                LLMCall.function != "listen_analyze",
+            )
+        ).all())
     if len(rows) < MIN_SAMPLE:
         return None
     fallback_count = sum(1 for r in rows if r.fallback)
@@ -473,6 +485,72 @@ def assist_queue_entry(entry_id: str, rep_id: str, thread_id: Optional[str] = No
         s.commit()
         s.refresh(entry)
         return entry
+
+
+# --------------------------------------------------------------------------- #
+# Live Listen sessions
+# --------------------------------------------------------------------------- #
+def create_listen_session(**kwargs) -> ListenSession:
+    with Session(_engine) as s:
+        session = ListenSession(**kwargs)
+        s.add(session)
+        s.commit()
+        s.refresh(session)
+        return session
+
+
+def get_listen_session(session_id: str) -> Optional[ListenSession]:
+    with Session(_engine) as s:
+        return s.get(ListenSession, session_id)
+
+
+def append_listen_utterances(session_id: str, utterances: list[dict]) -> Optional[ListenSession]:
+    """Append finalized utterances ({speaker, text} dicts) to the transcript.
+
+    Reassigns the JSON column (old list + new list) rather than mutating in
+    place — SQLAlchemy doesn't track in-place mutations of a plain JSON
+    column, so an `.append()` would silently never persist.
+    """
+    with Session(_engine) as s:
+        session = s.get(ListenSession, session_id)
+        if not session:
+            return None
+        session.transcript = list(session.transcript or []) + list(utterances)
+        session.updated_at = datetime.now(timezone.utc)
+        s.add(session)
+        s.commit()
+        s.refresh(session)
+        return session
+
+
+def record_listen_suggestions(session_id: str, suggestions: list[dict]) -> Optional[ListenSession]:
+    """Append newly-surfaced suggestion cards to the session. Same JSON-column
+    reassignment rule as `append_listen_utterances`."""
+    with Session(_engine) as s:
+        session = s.get(ListenSession, session_id)
+        if not session:
+            return None
+        session.suggestions = list(session.suggestions or []) + list(suggestions)
+        session.updated_at = datetime.now(timezone.utc)
+        s.add(session)
+        s.commit()
+        s.refresh(session)
+        return session
+
+
+def end_listen_session(session_id: str) -> Optional[ListenSession]:
+    with Session(_engine) as s:
+        session = s.get(ListenSession, session_id)
+        if not session:
+            return None
+        if session.status != "ended":  # idempotent: a re-stop keeps the first ended_at
+            session.status = "ended"
+            session.ended_at = datetime.now(timezone.utc)
+            session.updated_at = session.ended_at
+            s.add(session)
+            s.commit()
+            s.refresh(session)
+        return session
 
 
 def observability_overview(

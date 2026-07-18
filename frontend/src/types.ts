@@ -111,13 +111,19 @@ export interface A2UIQueue {
   entries: A2UIQueueEntry[];
 }
 
+// Live Listen suggestion surfaced mid-conversation (see ListenSuggestion below).
+export interface A2UILiveSuggestion extends ListenSuggestion {
+  type: "live_suggestion";
+}
+
 export type A2UIElement =
   | A2UIRecentOrders
   | A2UIOpenTickets
   | A2UISystemEnhancements
   | A2UIMorningHuddle
   | A2UIKnowledgeArticle
-  | A2UIQueue;
+  | A2UIQueue
+  | A2UILiveSuggestion;
 
 // ── Store check-in ─────────────────────────────────────────────────────────
 
@@ -147,6 +153,62 @@ export interface QueueEntry {
 export interface CheckInResult {
   entry: QueueEntry;
   queue_position: number;
+}
+
+// ── Live Listen ────────────────────────────────────────────────────────────
+
+export interface ListenUtterance {
+  speaker: string | null;
+  text: string;
+}
+
+export interface ListenDiagnosis {
+  can_resolve: boolean;
+  root_cause: string | null;
+  human_prompt: string | null;
+}
+
+export interface ListenSuggestion {
+  id: string;
+  intent: string;
+  capability: string;
+  title: string;
+  summary: string;
+  prompt: string;
+  entities: Record<string, string>;
+  confidence: number;
+  tone: "info" | "warn" | "danger";
+  diagnosis: ListenDiagnosis | null;
+}
+
+export interface ListenSession {
+  id: string;
+  rep_id: string;
+  thread_id: string;
+  queue_entry_id: string | null;
+  customer_name: string | null;
+  customer_phone: string | null;
+  reason: string;
+  mode: "mic" | "demo";
+  status: "active" | "ended";
+  created_at: string;
+  ended_at: string | null;
+}
+
+export interface StartListenResult {
+  session: ListenSession;
+  thread_id: string;
+  entities: Record<string, string>;
+}
+
+export interface AnalyzeResult {
+  suggestions: ListenSuggestion[];
+  entities: Record<string, string>;
+}
+
+export interface StopListenResult {
+  session: ListenSession;
+  recap: { utterances: number; suggestions: number; duration_label: string };
 }
 
 // Morning Huddle items — managed on the Settings page

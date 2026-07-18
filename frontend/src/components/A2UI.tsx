@@ -2,6 +2,7 @@ import { useState } from "react";
 import type {
   A2UIElement,
   A2UIKnowledgeArticle,
+  A2UILiveSuggestion,
   A2UIMorningHuddle,
   A2UIOpenTickets,
   A2UIOrder,
@@ -24,11 +25,13 @@ export function A2UIRenderer({
   onAction,
   onOpenArticle,
   onAssist,
+  actionsDisabled = false,
 }: {
   elements: A2UIElement[];
   onAction: (prompt: string, entities?: Record<string, string>) => void;
   onOpenArticle?: (articleId: string) => void;
   onAssist?: (entry: A2UIQueueEntry) => void;
+  actionsDisabled?: boolean;
 }) {
   return (
     <>
@@ -46,6 +49,8 @@ export function A2UIRenderer({
             return <KnowledgeArticleCard key={i} el={el} />;
           case "queue":
             return <QueueCard key={i} el={el} onAssist={onAssist} />;
+          case "live_suggestion":
+            return <LiveSuggestionCard key={i} el={el} onAction={onAction} disabled={actionsDisabled} />;
           default:
             return null; // unknown element types are ignored, not fatal
         }
@@ -337,6 +342,50 @@ function QueueRow({
         <span className="a2ui-order-cta">{inProgress ? "In progress" : "Assist →"}</span>
       </div>
     </button>
+  );
+}
+
+function LiveSuggestionCard({
+  el,
+  onAction,
+  disabled = false,
+}: {
+  el: A2UILiveSuggestion;
+  onAction: (prompt: string, entities?: Record<string, string>) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="a2ui-card a2ui-suggest">
+      <div className="a2ui-card-head">
+        <span className="a2ui-card-eyebrow">🎧 Live listen</span>
+        <div className="a2ui-suggest-top">
+          <h4 className="a2ui-card-title">{el.title}</h4>
+          <span className={`a2ui-status a2ui-status--${el.tone}`}>{el.intent.replace("_", " ")}</span>
+        </div>
+        <p className="a2ui-card-sub">{el.summary}</p>
+      </div>
+      {el.diagnosis && el.diagnosis.root_cause && (
+        <div className="a2ui-suggest-diag">
+          <div><b>Diagnosis</b>{el.diagnosis.root_cause}</div>
+          {el.diagnosis.can_resolve && el.diagnosis.human_prompt && (
+            <div><b>Proposed</b>{el.diagnosis.human_prompt}</div>
+          )}
+        </div>
+      )}
+      <div className="a2ui-suggest-foot">
+        <span className="a2ui-suggest-meta">
+          <span className="tag muted-tag">{el.capability}</span>
+          <span className="a2ui-suggest-conf">{Math.round(el.confidence * 100)}% match</span>
+        </span>
+        <button
+          className="btn primary small"
+          onClick={() => onAction(el.prompt, el.entities)}
+          disabled={disabled}
+        >
+          Ask Rep Assist
+        </button>
+      </div>
+    </div>
   );
 }
 

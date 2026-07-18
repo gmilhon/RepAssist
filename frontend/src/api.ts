@@ -1,4 +1,4 @@
-import type { A2UIResponse, CallAgentResult, CandidateDefect, CapabilityGap, ChatResponse, CheckInResult, CXOverview, EmailSettings, EmailSubscriber, FileDefectResult, HuddleItem, JiraDefectItem, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, ProductionAnalyzeResult, ProductionIssue, ProductionOverview, QueueEntry, SendReportResult, SystemHealth, Ticket, TicketAnalyzeResult } from "./types";
+import type { A2UIResponse, AnalyzeResult, CallAgentResult, CandidateDefect, CapabilityGap, ChatResponse, CheckInResult, CXOverview, EmailSettings, EmailSubscriber, FileDefectResult, HuddleItem, JiraDefectItem, ListenUtterance, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, ProductionAnalyzeResult, ProductionIssue, ProductionOverview, QueueEntry, SendReportResult, StartListenResult, StopListenResult, SystemHealth, Ticket, TicketAnalyzeResult } from "./types";
 
 async function http<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -78,6 +78,22 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ rep_id, thread_id: thread_id ?? null }),
     }),
+
+  // Live Listen
+  listenStart: (queue_entry_id: string, thread_id: string | null, mode: "mic" | "demo", rep_id = "rep.demo") =>
+    http<StartListenResult>("/api/listen/start", {
+      method: "POST",
+      body: JSON.stringify({ rep_id, queue_entry_id, thread_id, mode }),
+    }),
+
+  listenAnalyze: (session_id: string, utterances: ListenUtterance[]) =>
+    http<AnalyzeResult>(`/api/listen/${session_id}/analyze`, {
+      method: "POST",
+      body: JSON.stringify({ utterances }),
+    }),
+
+  listenStop: (session_id: string) =>
+    http<StopListenResult>(`/api/listen/${session_id}/stop`, { method: "POST" }),
 
   // Morning Huddle management (Settings)
   listHuddleItems: () => http<HuddleItem[]>("/api/huddle/items"),

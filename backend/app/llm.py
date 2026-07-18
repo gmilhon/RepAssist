@@ -16,6 +16,8 @@ from . import guardrail
 from .config import get_settings
 from .schemas import (
     ExecutiveSummary,
+    LiveCoachResult,
+    LiveSuggestion,
     ProductionAnalysis,
     Resolution,
     SystemEnhancementsDoc,
@@ -277,6 +279,157 @@ def _mock_classify(text: str) -> TriageResult:
         account_id=ents.get("account_id"),
         summary=text.strip()[:160] or "Rep submitted a request.",
     )
+
+
+# --------------------------------------------------------------------------- #
+# Live Listen — read-only transcript watcher
+# --------------------------------------------------------------------------- #
+LISTEN_SYSTEM = (
+    "You are silently monitoring a live transcript of a retail Assisted Sales & "
+    "Service conversation between a rep and a customer. Speaker labels may be "
+    "unreliable or absent. Identify NEW actionable issues the assistant could "
+    "help with, classifying each into exactly one intent:\n"
+    "- activation: a line/device is stuck activating or not provisioning\n"
+    "- pending_order: an existing order is blocking a new order\n"
+    "- promo: a promotion/discount/rebate/BOGO is missing or wrong\n"
+    "- occ: a fee waiver, bill credit, account credit, or goodwill credit request "
+    "(e.g. waived activation fee, credit for a service outage, courtesy credit)\n"
+    "- billing: a billing or charge question that is not a credit request\n"
+    "- general: a how-to, policy, or 'what is / details about' question answerable "
+    "from the One Source of Truth knowledge base\n"
+    "- system: a question about Rep Assist itself — its features, recent "
+    "enhancements/updates, or how to use the assistant\n"
+    "- other: anything that needs a human and does not fit above\n"
+    "Only activation, pending_order, promo, and occ have automated resolvers "
+    "behind them; the rest resolve through knowledge lookups or a human. "
+    "Do not repeat any intent listed as already surfaced in the user prompt. "
+    "Return an empty suggestions list unless something new and concrete came up "
+    "— most windows contain nothing actionable. Extract any order id "
+    "(ACT-#### or ORD-####) and account id (AC-####) when spoken. "
+    "Be calibrated: use low confidence when the issue is vague."
+)
+
+
+def analyze_live_transcript(
+    window: str,
+    context: dict,
+    prior_intents: list[str],
+    thread_id: str | None = None,
+    rep_id: str | None = None,
+) -> LiveCoachResult:
+    """Analyze a rolling live-listen transcript window for new actionable issues.
+
+    Strictly read-only — the caller surfaces suggestion cards; nothing here (or
+    downstream of here) mutates anything. Falls back to a deterministic keyword
+    analysis when no API key is set or a live call fails — same offline-safe
+    guarantee as the rest of the LLM layer.
+    """
+    _scan_and_log(window, node="listen", source="direct", thread_id=thread_id, rep_id=rep_id)
+    # The context (customer_name/phone from the public check-in form, plus
+    # extracted ids) is also interpolated into the prompt, so scan it as an
+    # indirect vector — mirrors compose_reply's order_context scan.
+    _scan_and_log(json.dumps(context, ensure_ascii=False), node="listen", source="indirect",
+                  thread_id=thread_id, rep_id=rep_id)
+    settings = get_settings()
+    if not settings.llm_enabled:
+        _log_usage("listen_analyze", settings.anthropic_model, 0, thread_id=thread_id, fallback=True)
+        return _mock_analyze_live_transcript(window, prior_intents)
+    t0 = time.monotonic()
+    try:
+        client = _client()
+        prompt = (
+            f"KNOWN CONTEXT:\n{json.dumps(context, ensure_ascii=False)}\n\n"
+            f"ALREADY-SURFACED INTENTS (do not repeat these): "
+            f"{', '.join(prior_intents) if prior_intents else '(none)'}\n\n"
+            f"TRANSCRIPT WINDOW (most recent utterances):\n{window}"
+        )
+        resp = client.messages.parse(
+            model=settings.anthropic_model,
+            max_tokens=1024,
+            system=LISTEN_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+            output_format=LiveCoachResult,
+        )
+        result = resp.parsed_output
+        if result is None:
+            raise ValueError("empty parsed_output")
+        _log_usage("listen_analyze", settings.anthropic_model, int((time.monotonic() - t0) * 1000),
+                   thread_id=thread_id, resp=resp)
+        return result
+    except Exception as exc:  # noqa: BLE001 - intentional graceful degradation
+        logger.warning("Live listen analysis failed (%s); using rule-based fallback", exc)
+        _log_usage("listen_analyze", settings.anthropic_model, int((time.monotonic() - t0) * 1000),
+                   thread_id=thread_id, success=False, fallback=True)
+        return _mock_analyze_live_transcript(window, prior_intents)
+
+
+# Keyword families mirror _mock_classify's ladder (same words, same per-family
+# confidences) so offline listen suggestions agree with what offline chat
+# triage will later classify the accepted prompt as. Unlike _mock_classify
+# (first match wins), the listen mock collects EVERY matching family — a live
+# conversation can contain several distinct issues.
+_LISTEN_FAMILIES: list[tuple[str, float, tuple[str, ...]]] = [
+    ("system", 0.85, ("rep assist", "what's new", "whats new", "new feature", "enhancement",
+                      "how does this system", "what can you do", "how do i use", "the assistant")),
+    ("general", 0.8, ("how do", "how to", "how can", "how does", "what is", "what are",
+                      "what's the", "whats the", "explain", "details about", "details of",
+                      "tell me about", "walk me through", "steps to", "where do", "policy",
+                      "eligib")),
+    ("activation", 0.82, ("activat", "provision", "sim card", "won't turn on", "not active",
+                          "no service")),
+    ("pending_order", 0.82, ("pending", "blocking", "blocked", "stuck order", "can't order")),
+    ("occ", 0.82, ("waiv", "activation fee", "fee waiver", "bill credit", "courtesy credit",
+                   "service credit", "account credit", "occ", "other charge")),
+    ("promo", 0.8, ("promo", "promotion", "discount", "bogo", "rebate", "deal")),
+    ("billing", 0.7, ("bill", "charge", "invoice", "overcharge", "refund")),
+]
+
+# intent -> (title, summary) for the templated offline suggestion cards.
+_LISTEN_COPY: dict[str, tuple[str, str]] = {
+    "system": ("Rep Assist question",
+               "Someone asked about Rep Assist itself — its features or how to use it."),
+    "general": ("How-to / policy question",
+                "A how-to or policy question came up that One Source of Truth can likely answer."),
+    "activation": ("Activation sounds stuck",
+                   "The customer's line or device sounds stuck activating or not provisioning."),
+    "pending_order": ("Order sounds blocked",
+                      "An existing order sounds like it is blocking the customer's new order."),
+    "occ": ("Credit / fee waiver request",
+            "The customer is asking about a fee waiver or an account credit."),
+    "promo": ("Promo credit issue",
+              "A promotion or discount sounds missing or applied incorrectly."),
+    "billing": ("Billing question",
+                "The customer raised a billing or charge question worth a knowledge lookup."),
+}
+
+# Card urgency: danger for order-blocking intents, warn for money issues,
+# info for everything else.
+_LISTEN_TONE = {
+    "activation": "danger", "pending_order": "danger",
+    "promo": "warn", "occ": "warn", "billing": "warn",
+}
+
+
+def _mock_analyze_live_transcript(window: str, prior_intents: list[str]) -> LiveCoachResult:
+    """Deterministic transcript analysis for offline mode."""
+    t = window.lower()
+    ents = extract_entities(window)
+    prior = set(prior_intents)
+    suggestions: list[LiveSuggestion] = []
+    for intent, conf, words in _LISTEN_FAMILIES:
+        if intent in prior or not any(w in t for w in words):
+            continue
+        title, summary = _LISTEN_COPY[intent]
+        suggestions.append(LiveSuggestion(
+            intent=intent,
+            confidence=conf,
+            title=title,
+            summary=summary,
+            order_id=ents.get("order_id"),
+            account_id=ents.get("account_id"),
+            tone=_LISTEN_TONE.get(intent, "info"),
+        ))
+    return LiveCoachResult(suggestions=suggestions)
 
 
 # --------------------------------------------------------------------------- #
