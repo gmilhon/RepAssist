@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .api import (
     admin, chat, coaching, cx, email_reports, huddle, insights, listen, mcp,
-    metrics, playbook, production, queue, system_health, tickets,
+    metrics, playbook, production, queue, system_health, tickets, training,
 )
 from .config import get_settings
 from .store import db
@@ -57,6 +57,7 @@ app.include_router(queue.router)
 app.include_router(listen.router)
 app.include_router(playbook.router)
 app.include_router(coaching.router)
+app.include_router(training.router)
 
 
 @app.on_event("startup")

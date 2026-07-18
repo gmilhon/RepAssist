@@ -1,14 +1,24 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import type { EmailSettings, EmailSubscriber, HuddleItem, OSTArticleRef, PlaybookGuideline, SystemHealth } from "../types";
+import type { EmailSettings, EmailSubscriber, HuddleItem, OSTArticleRef, PlaybookGuideline, SystemHealth, TrainingEnhancement, VideoStoryboard } from "../types";
 
 const HUDDLE_CATEGORIES = ["To-Do", "Promo", "Device", "Policy", "Network", "News"];
 const PLAYBOOK_CATEGORIES = ["Customer Needs", "Sales Positioning"];
+
+type SettingsSection = "health" | "email" | "playbook" | "training" | "opener";
+const SETTINGS_SECTIONS: { key: SettingsSection; label: string; icon: string }[] = [
+  { key: "health", label: "System Health", icon: "🩺" },
+  { key: "email", label: "Email Reports", icon: "✉️" },
+  { key: "playbook", label: "Playbook", icon: "📋" },
+  { key: "training", label: "Training & Enablement", icon: "🎬" },
+  { key: "opener", label: "The Opener", icon: "🚀" },
+];
 
 export default function SettingsPage({ onHealthChange }: { onHealthChange?: () => void }) {
   const [subscribers, setSubscribers] = useState<EmailSubscriber[]>([]);
   const [smtp, setSmtp] = useState<EmailSettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [section, setSection] = useState<SettingsSection>("health");
 
   // Add form state
   const [addEmail, setAddEmail] = useState("");
@@ -45,14 +55,21 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
   const [pgError, setPgError] = useState("");
   const [pgAdding, setPgAdding] = useState(false);
 
+  // Training / Go-To-Channel state
+  const [enhancements, setEnhancements] = useState<TrainingEnhancement[]>([]);
+  const [storyboards, setStoryboards] = useState<Record<string, { generating: boolean; result: VideoStoryboard | null }>>({});
+  const [copiedTitle, setCopiedTitle] = useState<string | null>(null);
+  const [videoUploads, setVideoUploads] = useState<Record<string, { uploading: boolean; error: string }>>({});
+
   async function reload() {
-    const [subs, settings, hItems, arts, sh, gls] = await Promise.all([
+    const [subs, settings, hItems, arts, sh, gls, enh] = await Promise.all([
       api.listSubscribers(),
       api.emailSettings(),
       api.listHuddleItems(),
       api.listHuddleArticles(),
       api.getSystemHealth(),
       api.listPlaybookGuidelines(),
+      api.trainingEnhancements(),
     ]);
     setSubscribers(subs);
     setSmtp(settings);
@@ -63,7 +80,66 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
     setShWorkaround(sh.workaround);
     setShHardStop(sh.hard_stop);
     setGuidelines(gls);
+    setEnhancements(enh);
     setLoading(false);
+  }
+
+  async function makeStoryboard(e: TrainingEnhancement) {
+    setStoryboards((s) => ({ ...s, [e.title]: { generating: true, result: s[e.title]?.result ?? null } }));
+    try {
+      const result = await api.generateStoryboard({
+        title: e.title, detail: e.detail, answer: e.answer, walkthrough: e.walkthrough,
+      });
+      setStoryboards((s) => ({ ...s, [e.title]: { generating: false, result } }));
+    } catch {
+      setStoryboards((s) => ({ ...s, [e.title]: { generating: false, result: null } }));
+    }
+  }
+
+  function storyboardText(sb: VideoStoryboard): string {
+    const lines = [
+      `TRAINING VIDEO STORYBOARD`,
+      `Title: ${sb.title}`,
+      `Audience: ${sb.audience}`,
+      `Est. runtime: ${sb.total_duration_label}`,
+      ``,
+      ...sb.scenes.flatMap((sc) => [
+        `Scene ${sc.scene} (${sc.duration_seconds}s)`,
+        `  Visual: ${sc.visual}`,
+        `  On-screen: ${sc.on_screen_text}`,
+        `  Narration: ${sc.narration}`,
+        ``,
+      ]),
+      `Call to action: ${sb.call_to_action}`,
+    ];
+    return lines.join("\n");
+  }
+
+  async function copyStoryboard(e: TrainingEnhancement, sb: VideoStoryboard) {
+    try {
+      await navigator.clipboard.writeText(storyboardText(sb));
+      setCopiedTitle(e.title);
+      setTimeout(() => setCopiedTitle((t) => (t === e.title ? null : t)), 2000);
+    } catch { /* clipboard unavailable */ }
+  }
+
+  async function uploadVideo(e: TrainingEnhancement, file: File) {
+    setVideoUploads((v) => ({ ...v, [e.title]: { uploading: true, error: "" } }));
+    try {
+      await api.uploadEnhancementVideo(e.title, file);
+      await reload();
+      setVideoUploads((v) => ({ ...v, [e.title]: { uploading: false, error: "" } }));
+    } catch (err: any) {
+      setVideoUploads((v) => ({ ...v, [e.title]: { uploading: false, error: err.message ?? "Upload failed" } }));
+    }
+  }
+
+  async function removeVideo(e: TrainingEnhancement) {
+    if (!e.video_url) return;
+    const id = Number(e.video_url.split("/").pop());
+    if (!Number.isFinite(id)) return;
+    await api.deleteEnhancementVideo(id);
+    await reload();
   }
 
   async function handleAddGuideline(e: React.FormEvent) {
@@ -181,7 +257,24 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
         <h2 className="settings-title">Settings</h2>
       </div>
 
+      <div className="settings-layout">
+        <nav className="settings-subnav">
+          {SETTINGS_SECTIONS.map((s) => (
+            <button
+              key={s.key}
+              className={`settings-subnav-item ${section === s.key ? "active" : ""}`}
+              onClick={() => setSection(s.key)}
+            >
+              <span className="settings-subnav-icon">{s.icon}</span>
+              <span>{s.label}</span>
+            </button>
+          ))}
+        </nav>
+
+        <div className="settings-panel">
+
       {/* ── System Health ────────────────────────────────────────────── */}
+      {section === "health" && (
       <div className="settings-section">
         <div className="settings-section-head">
           <h3 className="settings-section-title">System Health</h3>
@@ -241,7 +334,10 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
         </form>
       </div>
 
+      )}
+
       {/* ── Email Reports ────────────────────────────────────────────── */}
+      {section === "email" && (
       <div className="settings-section">
         <div className="settings-section-head">
           <h3 className="settings-section-title">Email Reports</h3>
@@ -398,7 +494,10 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
         )}
       </div>
 
+      )}
+
       {/* ── Playbook ─────────────────────────────────────────────────── */}
+      {section === "playbook" && (
       <div className="settings-section">
         <div className="settings-section-head">
           <h3 className="settings-section-title">Playbook</h3>
@@ -466,7 +565,112 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
         )}
       </div>
 
+      )}
+
+      {/* ── Training & Enablement ────────────────────────────────────── */}
+      {section === "training" && (
+      <div className="settings-section">
+        <div className="settings-section-head">
+          <h3 className="settings-section-title">Training &amp; Enablement</h3>
+          <p className="settings-section-sub">
+            Each shipped enhancement gets a rep-facing walkthrough (auto-generated at deploy and shown
+            in the chat under <strong>Briefings → System enhancements</strong>). Here the Go-To-Channel
+            team can generate a narration script + storyboard for any feature to feed into an AI video tool.
+          </p>
+        </div>
+        {loading ? (
+          <div className="settings-empty">Loading…</div>
+        ) : enhancements.length === 0 ? (
+          <div className="settings-empty">No enhancements published yet.</div>
+        ) : (
+          <div className="train-list">
+            {enhancements.map((e) => {
+              const sb = storyboards[e.title];
+              return (
+                <div key={e.title} className="train-item">
+                  <div className="train-item-head">
+                    <div>
+                      <span className={`a2ui-enh-tag a2ui-enh-tag--${e.tag.toLowerCase()}`}>{e.tag}</span>
+                      <span className="train-item-title">{e.title}</span>
+                    </div>
+                    <button className="btn small" disabled={sb?.generating} onClick={() => makeStoryboard(e)}>
+                      {sb?.generating ? "Generating…" : sb?.result ? "Regenerate storyboard" : "🎬 Generate storyboard"}
+                    </button>
+                  </div>
+                  <div className="train-item-detail">{e.detail}</div>
+                  <div className="train-item-steps">
+                    {e.walkthrough.steps.length} walkthrough step{e.walkthrough.steps.length === 1 ? "" : "s"}
+                  </div>
+
+                  {/* Training video: upload or view/remove */}
+                  <div className="train-video">
+                    {e.video_url ? (
+                      <>
+                        <video className="train-video-player" src={e.video_url} controls preload="metadata" />
+                        <div className="train-video-actions">
+                          <span className="train-video-badge">▶ Video uploaded — reps can watch it from the “What's new” card</span>
+                          <button className="settings-remove" onClick={() => removeVideo(e)} title="Remove video">✕ Remove</button>
+                        </div>
+                      </>
+                    ) : (
+                      <label className="train-upload">
+                        <input
+                          type="file"
+                          accept="video/*"
+                          disabled={videoUploads[e.title]?.uploading}
+                          onChange={(ev) => {
+                            const f = ev.target.files?.[0];
+                            if (f) uploadVideo(e, f);
+                            ev.target.value = "";
+                          }}
+                        />
+                        <span className="train-upload-btn">
+                          {videoUploads[e.title]?.uploading ? "Uploading…" : "⬆ Upload training video"}
+                        </span>
+                      </label>
+                    )}
+                    {videoUploads[e.title]?.error && (
+                      <div className="settings-add-error">{videoUploads[e.title].error}</div>
+                    )}
+                  </div>
+                  {sb?.result && (
+                    <div className="storyboard">
+                      <div className="storyboard-head">
+                        <div>
+                          <div className="storyboard-title">{sb.result.title}</div>
+                          <div className="storyboard-meta">{sb.result.audience} · {sb.result.total_duration_label} · {sb.result.scenes.length} scenes</div>
+                        </div>
+                        <button className="btn ghost small" onClick={() => copyStoryboard(e, sb.result!)}>
+                          {copiedTitle === e.title ? "Copied ✓" : "Copy script"}
+                        </button>
+                      </div>
+                      <ol className="storyboard-scenes">
+                        {sb.result.scenes.map((sc) => (
+                          <li key={sc.scene} className="storyboard-scene">
+                            <div className="storyboard-scene-head">
+                              <span className="storyboard-scene-n">Scene {sc.scene}</span>
+                              <span className="storyboard-scene-dur">{sc.duration_seconds}s</span>
+                            </div>
+                            <div className="storyboard-row"><span className="storyboard-k">Visual</span><span>{sc.visual}</span></div>
+                            <div className="storyboard-row"><span className="storyboard-k">On-screen</span><span>{sc.on_screen_text}</span></div>
+                            <div className="storyboard-row"><span className="storyboard-k">Narration</span><span className="storyboard-narr">{sc.narration}</span></div>
+                          </li>
+                        ))}
+                      </ol>
+                      <div className="storyboard-cta">🎬 {sb.result.call_to_action}</div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      )}
+
       {/* ── The Opener ───────────────────────────────────────────────── */}
+      {section === "opener" && (
       <div className="settings-section">
         <div className="settings-section-head">
           <h3 className="settings-section-title">The Opener</h3>
@@ -564,6 +768,10 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
             </form>
           </>
         )}
+      </div>
+      )}
+
+        </div>
       </div>
     </div>
   );

@@ -25,9 +25,11 @@ from .schemas import (
     PlaybookGuidelineScore,
     ProductionAnalysis,
     Resolution,
+    StoryboardScene,
     SystemEnhancementsDoc,
     TicketClassificationBatch,
     TriageResult,
+    VideoStoryboard,
     VisitSummary,
 )
 from .store import db
@@ -1267,7 +1269,12 @@ ENHANCEMENTS_SYSTEM = (
     "- Merge/carry-forward: keep still-relevant items from the previous list, "
     "update ones that were expanded on by newer commits, and drop items that are "
     "no longer accurate. Newest and most rep-impactful first.\n"
-    "- Cap at 8 items total."
+    "- Cap at 8 items total.\n"
+    "- For EVERY enhancement (including ones carried forward from the previous "
+    "list), include a hands-on `walkthrough`: a short intro plus 3-6 ordered "
+    "steps a rep literally follows in the app to use the feature — what to tap, "
+    "what they'll see, and a tip where useful. Keep it concrete and rep-friendly; "
+    "infer the in-app steps from the change described in the commits."
 )
 
 
@@ -1299,7 +1306,7 @@ def generate_system_enhancements(commit_log: str, previous: list[dict] | None = 
     t0 = time.monotonic()
     resp = client.messages.parse(
         model=settings.anthropic_model,
-        max_tokens=8192,
+        max_tokens=16000,  # room for a step-by-step walkthrough per enhancement
         system=ENHANCEMENTS_SYSTEM,
         messages=[{"role": "user", "content": prompt}],
         output_format=SystemEnhancementsDoc,
@@ -1311,3 +1318,93 @@ def generate_system_enhancements(commit_log: str, previous: list[dict] | None = 
         raise ValueError("empty parsed_output")
     _log_usage("enhancements", settings.anthropic_model, int((time.monotonic() - t0) * 1000), resp=resp)
     return result.model_dump()
+
+
+# --------------------------------------------------------------------------- #
+# Training-video storyboards (Go-To-Channel enablement)
+# --------------------------------------------------------------------------- #
+STORYBOARD_SYSTEM = (
+    "You are a Go-To-Channel enablement producer creating a short training-video "
+    "storyboard and narration script for a single Rep Assist feature, to be fed "
+    "into an AI video-generation tool. Given the feature's name, description, and "
+    "a step-by-step walkthrough, produce a tight, scene-by-scene storyboard: for "
+    "each scene, describe the on-screen visual (the screen or action to show), a "
+    "short on-screen caption, and a warm, clear voiceover narration line. Keep "
+    "the whole video around 60-120 seconds. Open with a hook, walk through using "
+    "the feature in order, and close with a call to action. Plain retail-rep "
+    "language, no code or internal system names. Aim for 4-7 scenes."
+)
+
+
+def generate_video_storyboard(
+    title: str, detail: str, answer: str, walkthrough: dict | None = None,
+) -> VideoStoryboard:
+    """Produce a narration script + storyboard for a training video about one
+    enhancement. Offline-safe: falls back to a deterministic storyboard built
+    from the walkthrough when no API key is set or a live call fails."""
+    settings = get_settings()
+    if not settings.llm_enabled:
+        _log_usage("storyboard", settings.anthropic_model, 0, fallback=True)
+        return _mock_storyboard(title, detail, walkthrough)
+    t0 = time.monotonic()
+    try:
+        client = _client()
+        prompt = (
+            f"FEATURE: {title}\n"
+            f"WHAT IT DOES: {detail}\n"
+            f"MORE DETAIL: {answer}\n\n"
+            f"STEP-BY-STEP WALKTHROUGH:\n{json.dumps(walkthrough or {}, ensure_ascii=False, indent=2)}\n\n"
+            f"Write the training-video storyboard and narration script."
+        )
+        resp = client.messages.parse(
+            model=settings.anthropic_model,
+            max_tokens=3072,
+            system=STORYBOARD_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+            output_format=VideoStoryboard,
+        )
+        result = resp.parsed_output
+        if result is None:
+            raise ValueError("empty parsed_output")
+        _log_usage("storyboard", settings.anthropic_model, int((time.monotonic() - t0) * 1000), resp=resp)
+        return result
+    except Exception as exc:  # noqa: BLE001 - intentional graceful degradation
+        logger.warning("Storyboard generation failed (%s); using template fallback", exc)
+        _log_usage("storyboard", settings.anthropic_model, int((time.monotonic() - t0) * 1000),
+                   success=False, fallback=True)
+        return _mock_storyboard(title, detail, walkthrough)
+
+
+def _mock_storyboard(title: str, detail: str, walkthrough: dict | None) -> VideoStoryboard:
+    """Deterministic storyboard built from the walkthrough for offline mode."""
+    steps = (walkthrough or {}).get("steps") or []
+    scenes: list[StoryboardScene] = [StoryboardScene(
+        scene=1,
+        visual=f"Rep Assist app opening on the main chat screen; title card '{title}'.",
+        on_screen_text=title,
+        narration=f"Here's a quick look at {title.lower()} — {detail}",
+        duration_seconds=8,
+    )]
+    for i, st in enumerate(steps[:6], start=2):
+        scenes.append(StoryboardScene(
+            scene=i,
+            visual=f"Screen recording: {st.get('detail', st.get('title', ''))}",
+            on_screen_text=st.get("title", f"Step {i - 1}"),
+            narration=st.get("detail", st.get("title", "")),
+            duration_seconds=10,
+        ))
+    scenes.append(StoryboardScene(
+        scene=len(scenes) + 1,
+        visual="Closing title card with the Rep Assist logo.",
+        on_screen_text="Try it on your next customer",
+        narration="Give it a try on your next customer — Rep Assist has your back.",
+        duration_seconds=6,
+    ))
+    total = sum(s.duration_seconds for s in scenes)
+    return VideoStoryboard(
+        title=f"{title} — how it works",
+        audience="Retail sales reps",
+        total_duration_label=f"{total // 60}m {total % 60}s" if total >= 60 else f"{total}s",
+        scenes=scenes,
+        call_to_action="Open Rep Assist and try it on your next customer.",
+    )

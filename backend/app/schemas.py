@@ -242,6 +242,21 @@ class TicketClassificationBatch(BaseModel):
     )
 
 
+class WalkthroughStep(BaseModel):
+    """One step in a hands-on walkthrough of using a feature."""
+
+    title: str = Field(description="Short imperative step title, e.g. 'Start a Live Listen session'.")
+    detail: str = Field(description="1-2 plain sentences on exactly what the rep does and sees in the app.")
+    tip: Optional[str] = Field(default=None, description="Optional one-line tip or thing to watch for; null if none.")
+
+
+class Walkthrough(BaseModel):
+    """A hands-on, step-by-step training walkthrough for one enhancement."""
+
+    intro: str = Field(description="One or two sentences framing what the rep will learn to do.")
+    steps: list[WalkthroughStep] = Field(description="3-6 ordered steps a rep follows in the app to use the feature.")
+
+
 class EnhancementItem(BaseModel):
     """One rep-facing entry in the 'What's new in Rep Assist' card."""
 
@@ -252,6 +267,27 @@ class EnhancementItem(BaseModel):
     detail: str = Field(description="1-2 sentences, plain language, written for an entry-level retail rep — no jargon, no code/internal terms.")
     keywords: list[str] = Field(description="3-6 lowercase words/phrases a rep might type when asking about this, for follow-up-question routing.")
     answer: str = Field(description="2-3 sentence detailed answer to give when a rep asks a follow-up question about this specifically.")
+    walkthrough: Walkthrough = Field(description="A hands-on, step-by-step walkthrough teaching a rep how to use this feature in the app.")
+
+
+class StoryboardScene(BaseModel):
+    """One scene of a training-video storyboard, ready to feed an AI video tool."""
+
+    scene: int = Field(description="1-based scene number.")
+    visual: str = Field(description="What is on screen — the shot / screen / action being demonstrated.")
+    on_screen_text: str = Field(description="Short caption or callout to overlay on screen for this scene.")
+    narration: str = Field(description="The voiceover script for this scene, in a warm, clear training tone.")
+    duration_seconds: int = Field(description="Approximate on-screen duration in seconds.", ge=1, le=60)
+
+
+class VideoStoryboard(BaseModel):
+    """A narration script + storyboard for a training video about one enhancement."""
+
+    title: str = Field(description="Video title.")
+    audience: str = Field(description="Who this video is for, e.g. 'Retail sales reps'.")
+    total_duration_label: str = Field(description="Estimated total runtime, e.g. '1m 20s'.")
+    scenes: list[StoryboardScene] = Field(description="Ordered scenes with visuals and narration.")
+    call_to_action: str = Field(description="Closing on-screen call to action / next step for the viewer.")
 
 
 class SystemEnhancementsDoc(BaseModel):

@@ -10,6 +10,7 @@ from sqlmodel import Session, SQLModel, create_engine, select
 from ..config import get_settings
 from .models import (
     ActionAudit,
+    EnhancementVideo,
     Engagement,
     GapType,
     GuardrailEvent,
@@ -1050,3 +1051,50 @@ def list_playbook_guidelines(active_only: bool = False) -> list[PlaybookGuidelin
         rows = list(s.exec(stmt).all())
     rows.sort(key=lambda r: (r.sort_order, r.id or 0))
     return rows
+
+
+# --------------------------------------------------------------------------- #
+# Enhancement training videos (Settings → Training; shown on the What's-new card)
+# --------------------------------------------------------------------------- #
+def add_enhancement_video(**kwargs) -> EnhancementVideo:
+    with Session(_engine) as s:
+        video = EnhancementVideo(**kwargs)
+        s.add(video)
+        s.commit()
+        s.refresh(video)
+        return video
+
+
+def list_enhancement_videos() -> list[EnhancementVideo]:
+    with Session(_engine) as s:
+        rows = list(s.exec(select(EnhancementVideo)).all())
+    rows.sort(key=lambda v: _aware(v.uploaded_at), reverse=True)
+    return rows
+
+
+def get_enhancement_video(video_id: int) -> Optional[EnhancementVideo]:
+    with Session(_engine) as s:
+        return s.get(EnhancementVideo, video_id)
+
+
+def latest_video_for_title(title: str) -> Optional[EnhancementVideo]:
+    """Most recent video uploaded for an enhancement title, if any."""
+    with Session(_engine) as s:
+        rows = list(s.exec(
+            select(EnhancementVideo).where(EnhancementVideo.enhancement_title == title)
+        ).all())
+    if not rows:
+        return None
+    rows.sort(key=lambda v: _aware(v.uploaded_at), reverse=True)
+    return rows[0]
+
+
+def delete_enhancement_video(video_id: int) -> Optional[EnhancementVideo]:
+    """Delete the row and return it (so the caller can remove the file)."""
+    with Session(_engine) as s:
+        video = s.get(EnhancementVideo, video_id)
+        if not video:
+            return None
+        s.delete(video)
+        s.commit()
+        return video

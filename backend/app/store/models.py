@@ -128,6 +128,22 @@ class PlaybookGuideline(SQLModel, table=True):
     created_at: datetime = Field(default_factory=_now)
 
 
+class EnhancementVideo(SQLModel, table=True):
+    """A training video uploaded for one enhancement (Settings → Training), shown
+    on the 'What's new' card. The file lives on disk; this row is the metadata.
+    Linked to an enhancement by title (the closest stable key we have)."""
+
+    __tablename__ = "enhancement_videos"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    enhancement_title: str = Field(index=True)
+    stored_name: str                       # generated filename on disk
+    original_name: str = ""
+    content_type: str = "video/mp4"
+    size_bytes: int = 0
+    uploaded_at: datetime = Field(default_factory=_now)
+
+
 class HuddleItem(SQLModel, table=True):
     """A Morning Huddle field-news item, managed from the Settings page and
     served by the 'news' MCP stub."""

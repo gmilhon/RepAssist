@@ -1,4 +1,4 @@
-import type { A2UIResponse, AnalyzeResult, CallAgentResult, CandidateDefect, CapabilityGap, ChatResponse, CheckInResult, CoachingResult, CXOverview, EmailSettings, EmailSubscriber, FileDefectResult, HuddleItem, JiraDefectItem, ListenUtterance, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, PlaybookGuideline, ProductionAnalyzeResult, ProductionIssue, ProductionOverview, QueueEntry, SendReportResult, SendSummaryResult, StartListenResult, StopListenResult, SystemHealth, Ticket, TicketAnalyzeResult } from "./types";
+import type { A2UIResponse, AnalyzeResult, CallAgentResult, CandidateDefect, CapabilityGap, ChatResponse, CheckInResult, CoachingResult, CXOverview, EmailSettings, EmailSubscriber, EnhancementVideo, FileDefectResult, HuddleItem, JiraDefectItem, ListenUtterance, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, PlaybookGuideline, ProductionAnalyzeResult, ProductionIssue, ProductionOverview, QueueEntry, SendReportResult, SendSummaryResult, StartListenResult, StopListenResult, SystemHealth, Ticket, TicketAnalyzeResult, TrainingEnhancement, VideoStoryboard, Walkthrough } from "./types";
 
 async function http<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -102,6 +102,22 @@ export const api = {
   coachingRecent: () => http<A2UIResponse>("/api/coaching/recent"),
   coachingRecommend: (session_id: string) =>
     http<CoachingResult>(`/api/coaching/${session_id}`, { method: "POST" }),
+
+  // Training & enablement (Settings + walkthroughs)
+  trainingEnhancements: () => http<TrainingEnhancement[]>("/api/training/enhancements"),
+  generateStoryboard: (body: { title: string; detail: string; answer: string; walkthrough?: Walkthrough | null }) =>
+    http<VideoStoryboard>("/api/training/storyboard", { method: "POST", body: JSON.stringify(body) }),
+  // Multipart upload — must NOT set Content-Type (the browser sets the boundary).
+  uploadEnhancementVideo: async (enhancementTitle: string, file: File): Promise<EnhancementVideo> => {
+    const form = new FormData();
+    form.append("enhancement_title", enhancementTitle);
+    form.append("file", file);
+    const res = await fetch("/api/training/video", { method: "POST", body: form });
+    if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+    return res.json();
+  },
+  deleteEnhancementVideo: (id: number) =>
+    fetch(`/api/training/video/${id}`, { method: "DELETE" }).then(() => undefined),
 
   // Playbook management (Settings)
   listPlaybookGuidelines: () => http<PlaybookGuideline[]>("/api/playbook/guidelines"),

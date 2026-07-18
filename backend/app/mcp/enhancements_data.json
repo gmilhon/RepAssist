@@ -14,7 +14,42 @@
         "visit score",
         "strengths and gaps"
       ],
-      "answer": "When you stop a Live Listen session, Rep Assist compares the conversation to the current playbook guidelines and shows a Playbook Score card with a star rating, a quick headline, and a breakdown of strengths and gaps. Tap the new Coaching tile in the sidebar to revisit any recent graded visit and get a personalized tip plus a suggested script — this is especially helpful if you missed positioning something the customer was eligible for."
+      "answer": "When you stop a Live Listen session, Rep Assist compares the conversation to the current playbook guidelines and shows a Playbook Score card with a star rating, a quick headline, and a breakdown of strengths and gaps. Tap the new Coaching tile in the sidebar to revisit any recent graded visit and get a personalized tip plus a suggested script — this is especially helpful if you missed positioning something the customer was eligible for.",
+      "walkthrough": {
+        "intro": "Here's how to see your Playbook Score after a visit and pull up coaching to improve next time.",
+        "steps": [
+          {
+            "title": "Start a Live Listen session",
+            "detail": "Tap Listen in the chat composer and pick the checked-in customer you're helping.",
+            "tip": null
+          },
+          {
+            "title": "Have your normal conversation",
+            "detail": "Talk with the customer as usual — Live Listen quietly follows along in the background.",
+            "tip": null
+          },
+          {
+            "title": "End the session",
+            "detail": "Tap Stop when you're done talking with the customer.",
+            "tip": null
+          },
+          {
+            "title": "Check your Playbook Score card",
+            "detail": "A card appears right in the thread showing your star rating, a quick headline, and what you did well versus what to work on.",
+            "tip": "Read the gaps section closely — it often points out an opportunity you didn't mention."
+          },
+          {
+            "title": "Open the Coaching tile",
+            "detail": "Tap the 🎯 Coaching tile in the sidebar to see a list of your recent graded visits.",
+            "tip": null
+          },
+          {
+            "title": "Pick a visit for a suggested script",
+            "detail": "Select any past visit to get a specific tip and a suggested script for how to handle it better next time.",
+            "tip": null
+          }
+        ]
+      }
     },
     {
       "tag": "New",
@@ -28,7 +63,37 @@
         "fixed wireless",
         "queue"
       ],
-      "answer": "Look for the 💡 badge on a customer's entry in the front-desk queue card — it means Rep Assist has spotted something they may qualify for, like an upgrade promo or a home internet offer. When you start Live Listen with that customer, it will remind you out loud what to look for, and if you don't end up mentioning it, your visit score and coaching feedback will call that out afterward."
+      "answer": "Look for the 💡 badge on a customer's entry in the front-desk queue card — it means Rep Assist has spotted something they may qualify for, like an upgrade promo or a home internet offer. When you start Live Listen with that customer, it will remind you out loud what to look for, and if you don't end up mentioning it, your visit score and coaching feedback will call that out afterward.",
+      "walkthrough": {
+        "intro": "Learn to spot the opportunity badge and make sure you position it during the visit.",
+        "steps": [
+          {
+            "title": "Open the queue card",
+            "detail": "Pull up the front-desk queue to see who's checked in and waiting.",
+            "tip": null
+          },
+          {
+            "title": "Look for the 💡 badge",
+            "detail": "A lightbulb badge next to a customer's name means Rep Assist thinks they may be eligible for an upgrade promo, Fiber Home Internet, or Fixed Wireless Internet.",
+            "tip": null
+          },
+          {
+            "title": "Claim the customer",
+            "detail": "Tap Assist on their entry, or start a Live Listen session with them.",
+            "tip": null
+          },
+          {
+            "title": "Listen for the callout",
+            "detail": "When Live Listen starts, it will remind you which opportunity to bring up during the conversation.",
+            "tip": "Make a point of mentioning it early — it's easy to forget once the conversation moves on."
+          },
+          {
+            "title": "Check your coaching feedback afterward",
+            "detail": "If you didn't position the opportunity, your Playbook Score and coaching tip will flag it as a gap to work on next time.",
+            "tip": null
+          }
+        ]
+      }
     },
     {
       "tag": "Improved",
@@ -42,7 +107,42 @@
         "email summary",
         "account lookup"
       ],
-      "answer": "When you check in a customer with an account or order number, Live Listen now carries that straight into the conversation so it can look things up without stopping to ask you for it again. The transcript window is now docked above the chat box so it doesn't scroll out of view on your phone. When you stop a session, Rep Assist writes up a quick, customer-friendly recap of the visit and shows it as a card — tap 'Send visit summary' and it emails that recap to the customer (this uses a new email preference in Settings)."
+      "answer": "When you check in a customer with an account or order number, Live Listen now carries that straight into the conversation so it can look things up without stopping to ask you for it again. The transcript window is now docked above the chat box so it doesn't scroll out of view on your phone. When you stop a session, Rep Assist writes up a quick, customer-friendly recap of the visit and shows it as a card — tap 'Send visit summary' and it emails that recap to the customer (this uses a new email preference in Settings).",
+      "walkthrough": {
+        "intro": "See how the improved Live Listen experience keeps the transcript visible and can email the customer a recap.",
+        "steps": [
+          {
+            "title": "Check in the customer with their info",
+            "detail": "When checking them in, add their account or order number if you have it.",
+            "tip": null
+          },
+          {
+            "title": "Start Live Listen",
+            "detail": "Tap Listen and select the customer — Rep Assist automatically carries their account/order info into the session so it won't ask again.",
+            "tip": null
+          },
+          {
+            "title": "Watch the docked transcript",
+            "detail": "Notice the transcript now stays pinned right above your message box the whole time instead of scrolling away.",
+            "tip": null
+          },
+          {
+            "title": "Stop the session",
+            "detail": "Tap Stop once the conversation wraps up.",
+            "tip": null
+          },
+          {
+            "title": "Review the visit summary card",
+            "detail": "Rep Assist shows a short, customer-friendly recap of what happened during the visit.",
+            "tip": null
+          },
+          {
+            "title": "Send it to the customer",
+            "detail": "Tap 'Send visit summary' to email the recap directly to the customer in one tap.",
+            "tip": "Make sure the customer's email subscription preference is turned on in Settings."
+          }
+        ]
+      }
     },
     {
       "tag": "New",
@@ -56,7 +156,37 @@
         "assist",
         "waiting"
       ],
-      "answer": "Use the new Check In button to log a walk-in customer with their visit reason, contact info, and account or order number if known, and they'll appear in the store's queue card in the order they arrived. When you're ready to help someone, tap Assist on their entry to claim it — Rep Assist drops you into the normal chat flow with their name and details already filled in, so you don't have to ask twice or retype anything."
+      "answer": "Use the new Check In button to log a walk-in customer with their visit reason, contact info, and account or order number if known, and they'll appear in the store's queue card in the order they arrived. When you're ready to help someone, tap Assist on their entry to claim it — Rep Assist drops you into the normal chat flow with their name and details already filled in, so you don't have to ask twice or retype anything.",
+      "walkthrough": {
+        "intro": "Learn how to check in a walk-in customer and pick them up from the queue.",
+        "steps": [
+          {
+            "title": "Tap Check In",
+            "detail": "Find the Check In button in the Front Desk group and tap it to open the intake form.",
+            "tip": null
+          },
+          {
+            "title": "Fill in the customer's details",
+            "detail": "Enter their name, phone number, and reason for the visit, plus their account or order number if you have it.",
+            "tip": null
+          },
+          {
+            "title": "Submit the check-in",
+            "detail": "The customer now appears in the store's queue card in the order they arrived.",
+            "tip": null
+          },
+          {
+            "title": "Find them in the queue",
+            "detail": "Open the queue card to see everyone currently waiting and their position in line.",
+            "tip": null
+          },
+          {
+            "title": "Tap Assist to claim them",
+            "detail": "Tap Assist on their entry — Rep Assist drops you straight into chat with their name and details already filled in.",
+            "tip": "No need to re-ask for info they already gave at check-in."
+          }
+        ]
+      }
     },
     {
       "tag": "New",
@@ -70,7 +200,37 @@
         "bucket",
         "auto resolve"
       ],
-      "answer": "Tap Analyze on the Resolution Desk and Rep Assist looks at your open and in-review tickets, then groups them into three buckets: ones that just need a help article shared with the customer, ones Rep Assist can fix automatically (like a stuck activation or a blocked order), and ones that look like a real system problem that needs an engineering ticket filed. Each bucket has a one-click action button, so you can work through a lot of tickets quickly instead of handling every one from scratch."
+      "answer": "Tap Analyze on the Resolution Desk and Rep Assist looks at your open and in-review tickets, then groups them into three buckets: ones that just need a help article shared with the customer, ones Rep Assist can fix automatically (like a stuck activation or a blocked order), and ones that look like a real system problem that needs an engineering ticket filed. Each bucket has a one-click action button, so you can work through a lot of tickets quickly instead of handling every one from scratch.",
+      "walkthrough": {
+        "intro": "Practice using the Resolution Desk to quickly triage and clear your ticket backlog.",
+        "steps": [
+          {
+            "title": "Open the Resolution Desk",
+            "detail": "Navigate to the Resolution Desk section from the main menu.",
+            "tip": null
+          },
+          {
+            "title": "Tap Analyze",
+            "detail": "Rep Assist scans your open and in-review tickets and sorts them into three buckets.",
+            "tip": null
+          },
+          {
+            "title": "Review the Education bucket",
+            "detail": "These tickets just need a help article shared with the customer — tap the one-click action to send it.",
+            "tip": null
+          },
+          {
+            "title": "Review the Agent Action bucket",
+            "detail": "These are tickets Rep Assist can fix automatically, like a stuck activation — tap the action to let it run the fix.",
+            "tip": "You'll still see what it did so you can explain it to the customer."
+          },
+          {
+            "title": "Review the System Defect bucket",
+            "detail": "These look like a real system problem — tap the action to flag or file an engineering ticket for it.",
+            "tip": null
+          }
+        ]
+      }
     },
     {
       "tag": "Improved",
@@ -86,7 +246,32 @@
         "green yellow red",
         "auto alert"
       ],
-      "answer": "The health badge at the top of the screen turns yellow or red when there's a known issue, and tapping it opens a panel with details, any workaround, and live round-trip times to the East, Central, and West server regions. On top of admins posting status changes, the system now watches itself in the background — if automated troubleshooting starts failing more often than normal, it automatically marks the system degraded and pushes a toast notification to your screen without waiting for a human to spot it. An admin still has to clear that warning manually once the issue is resolved."
+      "answer": "The health badge at the top of the screen turns yellow or red when there's a known issue, and tapping it opens a panel with details, any workaround, and live round-trip times to the East, Central, and West server regions. On top of admins posting status changes, the system now watches itself in the background — if automated troubleshooting starts failing more often than normal, it automatically marks the system degraded and pushes a toast notification to your screen without waiting for a human to spot it. An admin still has to clear that warning manually once the issue is resolved.",
+      "walkthrough": {
+        "intro": "Learn to read the system health badge and understand what an automatic alert means.",
+        "steps": [
+          {
+            "title": "Glance at the top bar badge",
+            "detail": "Green means everything's normal, yellow means a known issue, red means a serious outage.",
+            "tip": null
+          },
+          {
+            "title": "Tap the badge for details",
+            "detail": "A panel opens showing what's affected, any workaround, and live connection speed to the East, Central, and West server regions.",
+            "tip": null
+          },
+          {
+            "title": "Watch for an automatic toast alert",
+            "detail": "If Rep Assist's own automated fixes start failing more than usual, it can flip itself yellow and pop up a toast notification without an admin posting anything.",
+            "tip": "This means the system caught the problem itself — no need to report it, just keep working carefully until it clears."
+          },
+          {
+            "title": "Wait for it to clear",
+            "detail": "An admin will manually clear the warning once the underlying issue is resolved.",
+            "tip": null
+          }
+        ]
+      }
     },
     {
       "tag": "Improved",
@@ -102,7 +287,37 @@
         "mic",
         "talk to text"
       ],
-      "answer": "The Opener is the same start-of-shift briefing that used to be called Morning Huddle, just renamed and refreshed. It now shows a To-Do checklist you can check off (like taking a training or setting up a demo unit) above the regular field-news items, and some items include a 'Read article' link that pulls up more detail right in chat. You can also tap the mic icon in the chat box to talk instead of type."
+      "answer": "The Opener is the same start-of-shift briefing that used to be called Morning Huddle, just renamed and refreshed. It now shows a To-Do checklist you can check off (like taking a training or setting up a demo unit) above the regular field-news items, and some items include a 'Read article' link that pulls up more detail right in chat. You can also tap the mic icon in the chat box to talk instead of type.",
+      "walkthrough": {
+        "intro": "Get familiar with the refreshed start-of-shift Opener feed.",
+        "steps": [
+          {
+            "title": "Open the app at the start of your shift",
+            "detail": "The Opener feed loads automatically — this is the renamed Morning Huddle.",
+            "tip": null
+          },
+          {
+            "title": "Check off your To-Do items",
+            "detail": "Review the checklist at the top, like completing a training or reviewing a promo talk track, and tap to check off completed items.",
+            "tip": null
+          },
+          {
+            "title": "Scroll through field news",
+            "detail": "Below the checklist, review any field news items relevant to your store.",
+            "tip": null
+          },
+          {
+            "title": "Tap Read Article on eligible items",
+            "detail": "Some items include a link that pulls up more detail right in chat without leaving The Opener.",
+            "tip": null
+          },
+          {
+            "title": "Try the mic icon",
+            "detail": "Tap the mic icon in the chat box if you'd rather talk than type a question.",
+            "tip": "Handy when your hands are full at the counter."
+          }
+        ]
+      }
     },
     {
       "tag": "Improved",
@@ -115,12 +330,37 @@
         "open tickets",
         "auto-fill"
       ],
-      "answer": "Before, tapping a ticket card could make Rep Assist ask you for a missing order ID even though it already had the ticket. Now it looks up the ticket right away and gives you a recap of its status, priority, and suggested next steps. Tapping a recent order card also automatically fills in the order and account IDs so you don't have to re-enter them."
+      "answer": "Before, tapping a ticket card could make Rep Assist ask you for a missing order ID even though it already had the ticket. Now it looks up the ticket right away and gives you a recap of its status, priority, and suggested next steps. Tapping a recent order card also automatically fills in the order and account IDs so you don't have to re-enter them.",
+      "walkthrough": {
+        "intro": "See how tapping tickets and orders now saves you a step.",
+        "steps": [
+          {
+            "title": "Open your open tickets list",
+            "detail": "Navigate to your tickets view to see what's currently open or in review.",
+            "tip": null
+          },
+          {
+            "title": "Tap a ticket card",
+            "detail": "Rep Assist instantly shows a recap card with the ticket's status, priority, and suggested next steps — no typing required.",
+            "tip": null
+          },
+          {
+            "title": "Go to recent orders",
+            "detail": "Open the recent orders list for the customer you're helping.",
+            "tip": null
+          },
+          {
+            "title": "Tap an order card",
+            "detail": "Rep Assist automatically fills in the order and account IDs and drops you into the relevant flow.",
+            "tip": "You'll no longer need to copy-paste or retype IDs you already had on screen."
+          }
+        ]
+      }
     }
   ],
   "suggestions": [
-    "How does the Playbook score my Live Listen visits?",
-    "What do the opportunity badges in the queue mean?",
-    "How do I check in a walk-in customer?"
+    "How does the Playbook Score work after a Live Listen call?",
+    "What does the 💡 badge on a queue entry mean?",
+    "How do I check in a walk-in customer and see the queue?"
   ]
 }

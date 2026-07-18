@@ -40,10 +40,23 @@ export interface A2UIOpenTickets {
   tickets: A2UITicket[];
 }
 
+export interface WalkthroughStep {
+  title: string;
+  detail: string;
+  tip: string | null;
+}
+
+export interface Walkthrough {
+  intro: string;
+  steps: WalkthroughStep[];
+}
+
 export interface A2UIEnhancement {
   tag: string;
   title: string;
   detail: string;
+  walkthrough?: Walkthrough | null;
+  video_url?: string | null;
 }
 
 export interface A2UISystemEnhancements {
@@ -295,6 +308,42 @@ export interface PlaybookGuideline {
   active: boolean;
   sort_order: number;
   created_at: string;
+}
+
+export interface TrainingEnhancement {
+  tag: string;
+  title: string;
+  detail: string;
+  answer: string;
+  keywords?: string[];
+  walkthrough: Walkthrough;
+  video_url?: string | null;
+}
+
+export interface EnhancementVideo {
+  id: number;
+  enhancement_title: string;
+  original_name: string;
+  content_type: string;
+  size_bytes: number;
+  uploaded_at: string;
+  url: string;
+}
+
+export interface StoryboardScene {
+  scene: number;
+  visual: string;
+  on_screen_text: string;
+  narration: string;
+  duration_seconds: number;
+}
+
+export interface VideoStoryboard {
+  title: string;
+  audience: string;
+  total_duration_label: string;
+  scenes: StoryboardScene[];
+  call_to_action: string;
 }
 
 export interface SendSummaryResult {

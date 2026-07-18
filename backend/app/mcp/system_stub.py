@@ -86,11 +86,44 @@ def _load() -> dict:
 _data: dict = _load()
 
 
+def _ensure_walkthrough(e: dict) -> dict:
+    """Return the stored walkthrough, or synthesize a minimal one for data that
+    predates deploy-time walkthrough generation."""
+    wt = e.get("walkthrough")
+    if wt and wt.get("steps"):
+        return wt
+    return {
+        "intro": e.get("detail", ""),
+        "steps": [
+            {"title": "Open Rep Assist",
+             "detail": "Head to the Rep Assist chat to get started.", "tip": None},
+            {"title": f"Use {e.get('title', 'the feature')}",
+             "detail": e.get("answer") or e.get("detail", ""), "tip": None},
+        ],
+    }
+
+
+def _video_url_for(title: str) -> str | None:
+    """URL of the latest uploaded training video for an enhancement, if any."""
+    from ..store import db  # local import to avoid an import cycle at module load
+    v = db.latest_video_for_title(title)
+    return f"/api/training/video/{v.id}" if v else None
+
+
+def all_enhancements() -> list[dict]:
+    """Full enhancement records (incl. walkthrough/answer/video) for the Training UI."""
+    return [
+        {**e, "walkthrough": _ensure_walkthrough(e), "video_url": _video_url_for(e.get("title", ""))}
+        for e in (_data.get("enhancements") or [])
+    ]
+
+
 def get_system_enhancements(arguments: dict) -> dict:
     """MCP tool: recent system enhancements as an A2UI element."""
     data = _data
     enhancements = [
-        {"tag": e["tag"], "title": e["title"], "detail": e["detail"]}
+        {"tag": e["tag"], "title": e["title"], "detail": e["detail"],
+         "walkthrough": _ensure_walkthrough(e), "video_url": _video_url_for(e["title"])}
         for e in data["enhancements"]
     ]
     return {
