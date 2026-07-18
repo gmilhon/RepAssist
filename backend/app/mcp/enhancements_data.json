@@ -1,7 +1,81 @@
 {
-  "generated_at": "2026-07-18T05:09:56.844371+00:00",
-  "last_commit_sha": "b75f477887aa557f7ccb9c26c6f5dbc60bf3f8e2",
+  "generated_at": "2026-07-18T06:37:33.195298+00:00",
+  "last_commit_sha": "e10f811bfdbd524c05abb513f48343bd8ace94fc",
   "enhancements": [
+    {
+      "tag": "New",
+      "title": "Get a walkthrough or watch a video for any new feature",
+      "detail": "Every entry on the What's new card now has a 'Show me how' button that walks you through the exact steps right in chat. Some entries also have a 'Watch video' button with a short training clip you can play without leaving the app.",
+      "keywords": [
+        "show me how",
+        "walkthrough",
+        "watch video",
+        "training video",
+        "what's new",
+        "step by step"
+      ],
+      "answer": "Open the What's new card and tap 'Show me how' on any entry to get a step-by-step guide shown right in your chat thread, with tips along the way. If a video has been added for that feature, you'll also see a 'Watch video' button that plays a short training clip inline without needing to leave the app.",
+      "walkthrough": {
+        "intro": "Learn how to pull up hands-on guidance for anything new in Rep Assist.",
+        "steps": [
+          {
+            "title": "Open the What's new card",
+            "detail": "Tap the What's new tile to see the current list of enhancements.",
+            "tip": null
+          },
+          {
+            "title": "Pick an entry that interests you",
+            "detail": "Browse the list and find a feature you want to learn more about.",
+            "tip": null
+          },
+          {
+            "title": "Tap 'Show me how'",
+            "detail": "A step-by-step walkthrough appears right in the chat thread, showing you exactly what to tap and where.",
+            "tip": "Follow along at your own pace — the steps stay in the thread so you can scroll back to them."
+          },
+          {
+            "title": "Look for a 'Watch video' button",
+            "detail": "If one's available, tap it to play a short training video inline without leaving the app.",
+            "tip": null
+          }
+        ]
+      }
+    },
+    {
+      "tag": "Improved",
+      "title": "Settings is now organized into simple sections",
+      "detail": "Instead of one long page you had to scroll through, Settings now has a left-side menu with System Health, Email Reports, Playbook, Training & Enablement, and The Opener, so you can jump straight to the part you need.",
+      "keywords": [
+        "settings",
+        "sub-nav",
+        "training and enablement",
+        "system health",
+        "email reports",
+        "playbook",
+        "opener settings"
+      ],
+      "answer": "Open Settings and you'll now see a menu on the left with five sections: System Health, Email Reports, Playbook, Training & Enablement, and The Opener. Tap any section to view just that panel instead of scrolling through everything at once.",
+      "walkthrough": {
+        "intro": "Get comfortable finding things quickly in the redesigned Settings page.",
+        "steps": [
+          {
+            "title": "Open Settings",
+            "detail": "Tap Settings from the main menu.",
+            "tip": null
+          },
+          {
+            "title": "Look at the left-side menu",
+            "detail": "You'll see five sections listed: System Health, Email Reports, Playbook, Training & Enablement, and The Opener.",
+            "tip": null
+          },
+          {
+            "title": "Tap a section",
+            "detail": "Select the section you need, like Email Reports, and only that panel loads on the right.",
+            "tip": "No more scrolling past unrelated settings to find what you want."
+          }
+        ]
+      }
+    },
     {
       "tag": "New",
       "title": "Live Listen now scores your visits and coaches you afterward",
@@ -272,95 +346,11 @@
           }
         ]
       }
-    },
-    {
-      "tag": "Improved",
-      "title": "The Opener (formerly Morning Huddle) gets a to-do list and article links",
-      "detail": "Your start-of-shift feed is now called The Opener. It includes a checklist of quick tasks (like a training or reviewing a promo talk track) plus field news you can check off, and some items link straight to a help article so you can read more without leaving chat.",
-      "keywords": [
-        "opener",
-        "morning huddle",
-        "to-do",
-        "checklist",
-        "field news",
-        "voice input",
-        "mic",
-        "talk to text"
-      ],
-      "answer": "The Opener is the same start-of-shift briefing that used to be called Morning Huddle, just renamed and refreshed. It now shows a To-Do checklist you can check off (like taking a training or setting up a demo unit) above the regular field-news items, and some items include a 'Read article' link that pulls up more detail right in chat. You can also tap the mic icon in the chat box to talk instead of type.",
-      "walkthrough": {
-        "intro": "Get familiar with the refreshed start-of-shift Opener feed.",
-        "steps": [
-          {
-            "title": "Open the app at the start of your shift",
-            "detail": "The Opener feed loads automatically — this is the renamed Morning Huddle.",
-            "tip": null
-          },
-          {
-            "title": "Check off your To-Do items",
-            "detail": "Review the checklist at the top, like completing a training or reviewing a promo talk track, and tap to check off completed items.",
-            "tip": null
-          },
-          {
-            "title": "Scroll through field news",
-            "detail": "Below the checklist, review any field news items relevant to your store.",
-            "tip": null
-          },
-          {
-            "title": "Tap Read Article on eligible items",
-            "detail": "Some items include a link that pulls up more detail right in chat without leaving The Opener.",
-            "tip": null
-          },
-          {
-            "title": "Try the mic icon",
-            "detail": "Tap the mic icon in the chat box if you'd rather talk than type a question.",
-            "tip": "Handy when your hands are full at the counter."
-          }
-        ]
-      }
-    },
-    {
-      "tag": "Improved",
-      "title": "Tapping a ticket or order card is smarter now",
-      "detail": "Tapping one of your open ticket cards now pulls up a recap of that ticket's status and suggested next steps right away, instead of asking you to type in an order number. Tapping a recent order also carries over the order and account info automatically.",
-      "keywords": [
-        "ticket recap",
-        "order lookup",
-        "recent orders",
-        "open tickets",
-        "auto-fill"
-      ],
-      "answer": "Before, tapping a ticket card could make Rep Assist ask you for a missing order ID even though it already had the ticket. Now it looks up the ticket right away and gives you a recap of its status, priority, and suggested next steps. Tapping a recent order card also automatically fills in the order and account IDs so you don't have to re-enter them.",
-      "walkthrough": {
-        "intro": "See how tapping tickets and orders now saves you a step.",
-        "steps": [
-          {
-            "title": "Open your open tickets list",
-            "detail": "Navigate to your tickets view to see what's currently open or in review.",
-            "tip": null
-          },
-          {
-            "title": "Tap a ticket card",
-            "detail": "Rep Assist instantly shows a recap card with the ticket's status, priority, and suggested next steps — no typing required.",
-            "tip": null
-          },
-          {
-            "title": "Go to recent orders",
-            "detail": "Open the recent orders list for the customer you're helping.",
-            "tip": null
-          },
-          {
-            "title": "Tap an order card",
-            "detail": "Rep Assist automatically fills in the order and account IDs and drops you into the relevant flow.",
-            "tip": "You'll no longer need to copy-paste or retype IDs you already had on screen."
-          }
-        ]
-      }
     }
   ],
   "suggestions": [
-    "How does the Playbook Score work after a Live Listen call?",
-    "What does the 💡 badge on a queue entry mean?",
-    "How do I check in a walk-in customer and see the queue?"
+    "How do I watch a training video for a new feature?",
+    "What's new in the Settings page?",
+    "How does the Playbook Score and Coaching tile work?"
   ]
 }
