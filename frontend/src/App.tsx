@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import ChatWidget from "./components/ChatWidget";
 import HealthPanel from "./components/HealthPanel";
+import LiveQueuePanel from "./components/LiveQueuePanel";
 import ReviewConsole from "./components/ReviewConsole";
 import OperationsDashboard from "./components/OperationsDashboard";
 import CXDashboard from "./components/CXDashboard";
 import ProductionDashboard from "./components/ProductionDashboard";
 import SettingsPage from "./components/SettingsPage";
-import type { SystemHealth } from "./types";
+import type { LiveQueueSnapshot, SystemHealth } from "./types";
 
 type Tab = "chat" | "desk" | "ops" | "cx" | "prod" | "settings";
 
@@ -36,13 +37,19 @@ export default function App() {
   });
   const [showHealthPanel, setShowHealthPanel] = useState(false);
   const [healthToasts, setHealthToasts] = useState<HealthToast[]>([]);
+  const [liveQueue, setLiveQueue] = useState<LiveQueueSnapshot | null>(null);
+  const [showLiveQueue, setShowLiveQueue] = useState(false);
+  const [lqRefreshing, setLqRefreshing] = useState(false);
   const healthPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const queuePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const toastIdRef = useRef(0);
 
   useEffect(() => {
     api.health().then(setHealth).catch(() => setHealth({ status: "down" }));
     loadSysHealth();
+    loadLiveQueue();
     healthPollRef.current = setInterval(loadSysHealth, 60_000);
+    queuePollRef.current = setInterval(loadLiveQueue, 20_000);
 
     const es = new EventSource(api.healthEventsUrl());
     es.addEventListener("health_update", (e: MessageEvent) => {
@@ -57,6 +64,7 @@ export default function App() {
 
     return () => {
       if (healthPollRef.current) clearInterval(healthPollRef.current);
+      if (queuePollRef.current) clearInterval(queuePollRef.current);
       es.close();
     };
   }, []);
@@ -65,13 +73,21 @@ export default function App() {
     api.getSystemHealth().then(setSysHealth).catch(() => {});
   }
 
+  function loadLiveQueue() {
+    api.liveQueue().then(setLiveQueue).catch(() => {});
+  }
+
+  function refreshLiveQueue() {
+    setLqRefreshing(true);
+    api.liveQueue().then(setLiveQueue).catch(() => {}).finally(() => setLqRefreshing(false));
+  }
+
   function dismissToast(id: number) {
     setHealthToasts(prev => prev.filter(t => t.id !== id));
   }
 
-  const llmMode = health?.llm_mode ?? "…";
-  const lsEnabled = health?.langsmith?.enabled ?? false;
   const shStatus = sysHealth?.status ?? "operational";
+  const qc = liveQueue?.counts;
 
   return (
     <div className="app">
@@ -101,23 +117,33 @@ export default function App() {
             Settings
           </button>
         </nav>
-        <div className="topbar-pills">
-          <div className={`llm-pill ${llmMode === "anthropic" ? "live" : "mock"}`}>
-            {llmMode === "anthropic" ? `LLM: ${health?.model}` : `LLM: mock (offline)`}
-          </div>
-          <div className={`llm-pill ${lsEnabled ? "live" : "mock"}`}>
-            {lsEnabled ? `LS: ${health?.langsmith?.project}` : "LS: not configured"}
-          </div>
+
+        <div className="topbar-right">
+          <button
+            className={`queue-badge${showLiveQueue ? " queue-badge--active" : ""}`}
+            onClick={() => setShowLiveQueue(v => !v)}
+            title="Live queue"
+            aria-label="Live queue"
+          >
+            <span className="queue-badge-icon">🧑‍🤝‍🧑</span>
+            <span className="queue-badge-name">Live Queue</span>
+            <span className="queue-badge-segs">
+              <span className="queue-badge-seg"><b>{qc?.waiting ?? "–"}</b> wait</span>
+              <span className="queue-badge-seg"><b>{qc?.assisting ?? "–"}</b> active</span>
+              <span className="queue-badge-seg"><b>{qc?.ispu ?? "–"}</b> ISPU</span>
+            </span>
+          </button>
+
+          <button
+            className={`health-badge health-badge--${shStatus}`}
+            onClick={() => setShowHealthPanel(v => !v)}
+            title="System health"
+            aria-label="System health"
+          >
+            <span className={`health-badge-dot health-badge-dot--${shStatus}`} />
+            <span className="health-badge-label">{STATUS_COLOR[shStatus] === "green" ? "Operational" : shStatus === "degraded" ? "Degraded" : "Outage"}</span>
+          </button>
         </div>
-        <button
-          className={`health-badge health-badge--${shStatus}`}
-          onClick={() => setShowHealthPanel(v => !v)}
-          title="System health"
-          aria-label="System health"
-        >
-          <span className={`health-badge-dot health-badge-dot--${shStatus}`} />
-          <span className="health-badge-label">{STATUS_COLOR[shStatus] === "green" ? "Operational" : shStatus === "degraded" ? "Degraded" : "Outage"}</span>
-        </button>
       </header>
 
       <main className="content">
@@ -130,7 +156,16 @@ export default function App() {
       </main>
 
       {showHealthPanel && (
-        <HealthPanel health={sysHealth} onClose={() => setShowHealthPanel(false)} />
+        <HealthPanel health={sysHealth} runtime={health} onClose={() => setShowHealthPanel(false)} />
+      )}
+
+      {showLiveQueue && (
+        <LiveQueuePanel
+          snapshot={liveQueue}
+          onClose={() => setShowLiveQueue(false)}
+          onRefresh={refreshLiveQueue}
+          refreshing={lqRefreshing}
+        />
       )}
 
       {healthToasts.length > 0 && (

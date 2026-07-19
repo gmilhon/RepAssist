@@ -14,6 +14,7 @@ from .models import (
     Engagement,
     GapType,
     GuardrailEvent,
+    HiddenEnhancement,
     ListenSession,
     LLMCall,
     PlaybookGuideline,
@@ -77,6 +78,7 @@ def init_db() -> None:
             "ALTER TABLE email_subscribers ADD COLUMN subscribed_visit_summary BOOLEAN DEFAULT 1",
             "ALTER TABLE queue_entries ADD COLUMN account_id VARCHAR",
             "ALTER TABLE queue_entries ADD COLUMN order_id VARCHAR",
+            "ALTER TABLE queue_entries ADD COLUMN scheduled_at DATETIME",
             "ALTER TABLE listen_sessions ADD COLUMN account_id VARCHAR",
             "ALTER TABLE listen_sessions ADD COLUMN order_id VARCHAR",
             "ALTER TABLE listen_sessions ADD COLUMN summary JSON",
@@ -497,6 +499,66 @@ def assist_queue_entry(entry_id: str, rep_id: str, thread_id: Optional[str] = No
         s.commit()
         s.refresh(entry)
         return entry
+
+
+def live_queue_snapshot() -> dict[str, list[QueueEntry]]:
+    """Everything happening on the floor right now, bucketed for the Live Queue
+    indicator: walk-ins waiting, customers being assisted, in-store-pickup orders
+    (still to pick vs. staged & waiting on the customer), and today's still-to-come
+    appointments. Sorted in Python for the same mixed-timestamp reason as
+    `list_queue`/`create_queue_entry`."""
+    now = datetime.now(timezone.utc)
+    with Session(_engine) as s:
+        rows = list(s.exec(select(QueueEntry)).all())
+
+    def by(status: QueueStatus) -> list[QueueEntry]:
+        return [e for e in rows if e.status == status]
+
+    waiting = sorted(by(QueueStatus.WAITING), key=lambda e: _aware(e.created_at))
+    assisting = sorted(
+        by(QueueStatus.IN_PROGRESS),
+        key=lambda e: _aware(e.started_at or e.created_at),
+        reverse=True,
+    )
+    ispu_to_pick = sorted(by(QueueStatus.ISPU_TO_PICK), key=lambda e: _aware(e.created_at))
+    ispu_ready = sorted(by(QueueStatus.ISPU_READY), key=lambda e: _aware(e.created_at))
+    # Future appointments still ahead of us today (past ones have effectively
+    # become no-shows or already-served walk-ins), earliest first.
+    appointments = sorted(
+        (
+            e for e in by(QueueStatus.SCHEDULED)
+            if e.scheduled_at and _aware(e.scheduled_at) >= now
+        ),
+        key=lambda e: _aware(e.scheduled_at),
+    )
+    return {
+        "waiting": waiting,
+        "assisting": assisting,
+        "ispu_to_pick": ispu_to_pick,
+        "ispu_ready": ispu_ready,
+        "appointments": appointments,
+    }
+
+
+# --------------------------------------------------------------------------- #
+# Hidden system enhancements (Settings → Training visibility toggle)
+# --------------------------------------------------------------------------- #
+def hidden_enhancement_titles() -> set[str]:
+    """Titles of enhancements a manager has hidden from the rep-facing card."""
+    with Session(_engine) as s:
+        return {h.enhancement_title for h in s.exec(select(HiddenEnhancement)).all()}
+
+
+def set_enhancement_hidden(title: str, hidden: bool) -> None:
+    """Hide or un-hide one enhancement (idempotent), keyed by title."""
+    with Session(_engine) as s:
+        existing = s.get(HiddenEnhancement, title)
+        if hidden and not existing:
+            s.add(HiddenEnhancement(enhancement_title=title))
+            s.commit()
+        elif not hidden and existing:
+            s.delete(existing)
+            s.commit()
 
 
 # --------------------------------------------------------------------------- #

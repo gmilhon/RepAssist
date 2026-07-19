@@ -1,4 +1,4 @@
-import type { A2UIResponse, AnalyzeResult, CallAgentResult, CandidateDefect, CapabilityGap, ChatResponse, CheckInResult, CoachingResult, CXOverview, EmailSettings, EmailSubscriber, EnhancementVideo, FileDefectResult, HuddleItem, JiraDefectItem, ListenUtterance, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, PlaybookGuideline, ProductionAnalyzeResult, ProductionIssue, ProductionOverview, QueueEntry, SendReportResult, SendSummaryResult, StartListenResult, StopListenResult, SystemHealth, Ticket, TicketAnalyzeResult, TrainingEnhancement, VideoStoryboard, Walkthrough } from "./types";
+import type { A2UIResponse, AnalyzeResult, CallAgentResult, CandidateDefect, CapabilityGap, ChatResponse, CheckInResult, CoachingResult, CXOverview, EmailSettings, EmailSubscriber, EnhancementVideo, FileDefectResult, HuddleItem, JiraDefectItem, ListenUtterance, LiveQueueSnapshot, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, PlaybookGuideline, ProductionAnalyzeResult, ProductionIssue, ProductionOverview, QueueEntry, SendReportResult, SendSummaryResult, StartListenResult, StopListenResult, SystemHealth, Ticket, TicketAnalyzeResult, TrainingEnhancement, VideoStoryboard, Walkthrough } from "./types";
 
 async function http<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -70,6 +70,8 @@ export const api = {
 
   queue: () => http<A2UIResponse>("/api/mcp/queue"),
 
+  liveQueue: () => http<LiveQueueSnapshot>("/api/queue/live"),
+
   checkIn: (body: { customer_name?: string; customer_phone?: string; reason: string; account_id?: string; order_id?: string }) =>
     http<CheckInResult>("/api/queue/checkin", { method: "POST", body: JSON.stringify(body) }),
 
@@ -105,6 +107,11 @@ export const api = {
 
   // Training & enablement (Settings + walkthroughs)
   trainingEnhancements: () => http<TrainingEnhancement[]>("/api/training/enhancements"),
+  setEnhancementHidden: (title: string, hidden: boolean) =>
+    http<{ title: string; hidden: boolean }>("/api/training/enhancements/hide", {
+      method: "POST",
+      body: JSON.stringify({ title, hidden }),
+    }),
   generateStoryboard: (body: { title: string; detail: string; answer: string; walkthrough?: Walkthrough | null }) =>
     http<VideoStoryboard>("/api/training/storyboard", { method: "POST", body: JSON.stringify(body) }),
   // Multipart upload — must NOT set Content-Type (the browser sets the boundary).

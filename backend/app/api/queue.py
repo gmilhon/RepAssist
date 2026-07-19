@@ -8,15 +8,39 @@ issue diagnosis actually happens.
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, model_validator
 
-from ..schemas import VisitReason
+from ..schemas import VISIT_REASON_LABELS, VisitReason
 from ..store import db
+from ..store.models import QueueEntry
 
 router = APIRouter(prefix="/api/queue", tags=["queue"])
+
+
+def _aware(dt: datetime) -> datetime:
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def _reason_label(reason: str) -> str:
+    try:
+        return VISIT_REASON_LABELS[VisitReason(reason)]
+    except ValueError:
+        return reason.replace("_", " ").title()
+
+
+def _elapsed_label(minutes: int) -> str:
+    """'4m', '1h 20m' — a compact 'how long ago / from now' label."""
+    minutes = max(0, minutes)
+    if minutes < 1:
+        return "just now"
+    if minutes < 60:
+        return f"{minutes}m"
+    hours, mins = divmod(minutes, 60)
+    return f"{hours}h {mins}m" if mins else f"{hours}h"
 
 
 class CheckInRequest(BaseModel):
@@ -60,3 +84,45 @@ def assist(entry_id: str, req: AssistRequest) -> dict:
     if not entry:
         raise HTTPException(404, "Queue entry not found")
     return {"entry": entry}
+
+
+def _serialize(e: QueueEntry, now: datetime) -> dict:
+    """One live-queue row: identity + the time labels each bucket cares about."""
+    created = _aware(e.created_at)
+    started = _aware(e.started_at) if e.started_at else None
+    scheduled = _aware(e.scheduled_at) if e.scheduled_at else None
+    row = {
+        "id": e.id,
+        "customer_name": e.customer_name,
+        "customer_phone": e.customer_phone,
+        "reason": e.reason,
+        "reason_label": _reason_label(e.reason),
+        "status": e.status,
+        "order_id": e.order_id,
+        "assigned_rep_id": e.assigned_rep_id,
+        # For walk-ins / ISPU: how long they've been in this state.
+        "wait_label": _elapsed_label(int((now - (started or created)).total_seconds() // 60)),
+    }
+    if scheduled:
+        row["scheduled_at"] = scheduled.isoformat()
+        row["scheduled_label"] = scheduled.astimezone().strftime("%-I:%M %p")
+        row["eta_label"] = "in " + _elapsed_label(int((scheduled - now).total_seconds() // 60))
+    return row
+
+
+@router.get("/live")
+def live_queue() -> dict:
+    """Full floor snapshot for the Live Queue indicator: waiting, being assisted,
+    in-store pickups (to-pick + ready), and today's upcoming appointments."""
+    now = datetime.now(timezone.utc)
+    snap = db.live_queue_snapshot()
+    out = {k: [_serialize(e, now) for e in v] for k, v in snap.items()}
+    out["counts"] = {
+        "waiting": len(out["waiting"]),
+        "assisting": len(out["assisting"]),
+        "ispu_to_pick": len(out["ispu_to_pick"]),
+        "ispu_ready": len(out["ispu_ready"]),
+        "ispu": len(out["ispu_to_pick"]) + len(out["ispu_ready"]),
+        "appointments": len(out["appointments"]),
+    }
+    return out

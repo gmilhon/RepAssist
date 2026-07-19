@@ -58,6 +58,7 @@ dev team should build next, so the assistant keeps getting better.
 19. [Store Check-In & Queue](docs/19-store-checkin-queue.md) — front-of-store customer intake (visit reason + name/phone), a live queue card, and one-tap "Assist" hand-off into the normal chat flow.
 20. [Live Listen](docs/20-live-listen.md) — a read-only AI copilot over a live rep–customer conversation: suggestion cards that hand off into the normal chat, a Playbook score at the end of the visit, GenAI per-rep coaching, and a one-tap customer visit-summary email.
 21. [Training & Enablement](docs/21-training-and-enablement.md) — one "Show me how" per feature combining auto-generated steps, an animated demo GIF, and an uploaded training video, plus an AI storyboard/narration generator.
+22. [Live Queue](docs/22-live-queue.md) — real-time floor snapshot: waiting, being assisted, in-store pickups, and today's appointments, in a topbar indicator + popup.
 
 ## 60-second quickstart
 
@@ -109,7 +110,7 @@ in the [runbook](docs/05-local-setup-runbook.md).
 | **Performance** | Engagement/deflection KPIs + AI exec summary ([doc 08](docs/08-operations-dashboard.md)) |
 | **CX Monitor** | LangSmith latency/token/cost telemetry ([doc 09](docs/09-cx-monitor.md)) |
 | **Production** | Real-time escalation inflow + AI issue detection, alerts, and defect filing ([doc 14](docs/14-production-monitoring.md)) |
-| **Settings** | Email-report subscribers + SMTP status ([doc 11](docs/11-email-reports.md)), the **Playbook** Live Listen grades against ([doc 20](docs/20-live-listen.md)), **Training & Enablement** ([doc 21](docs/21-training-and-enablement.md)), and *The Opener* morning-huddle items |
+| **Settings** | Email-report subscribers + SMTP status ([doc 11](docs/11-email-reports.md)), the **Playbook** Live Listen grades against ([doc 20](docs/20-live-listen.md)), **Training & Enablement** — incl. a per-enhancement **Shown/Hidden** toggle that hides items from the rep-facing *What's new* card ([doc 21](docs/21-training-and-enablement.md)), and *The Opener* morning-huddle items |
 
 The Performance and CX Monitor tabs can **email HTML reports** to subscribers
 (with an in-browser preview when SMTP isn't configured). The UI is **responsive**
@@ -117,8 +118,13 @@ The Performance and CX Monitor tabs can **email HTML reports** to subscribers
 
 A **System Health badge** in the topbar (visible on every tab) shows live
 service status; an operator can set it from Settings and optionally push a
-real-time toast notification to every rep with the app open. See
-[System Health & Live Notifications](docs/13-system-health.md).
+real-time toast notification to every rep with the app open. Its panel now also
+carries a **Model & Tracing** section — the LLM and LangSmith status that used to
+live in the topbar. See
+[System Health & Live Notifications](docs/13-system-health.md). Beside it sits a
+**Live Queue badge** with compact live counts (`N wait · N active · N ISPU`); it
+opens a drawer with the full floor snapshot — waiting, being assisted, in-store
+pickups, and today's appointments. See [Live Queue](docs/22-live-queue.md).
 
 ## The flow at a glance
 

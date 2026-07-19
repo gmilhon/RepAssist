@@ -113,8 +113,9 @@ export interface A2UIQueueEntry {
   customer_phone: string | null;
   reason: string;
   reason_label: string;
-  status: "waiting" | "in_progress";
+  status: "waiting" | "in_progress" | "scheduled";
   wait_label: string;
+  when_label?: string;   // appointment time of day, for scheduled rows
   assigned_rep_id: string | null;
   opportunities?: string[];
   prompt: string;
@@ -186,6 +187,41 @@ export interface QueueEntry {
 export interface CheckInResult {
   entry: QueueEntry;
   queue_position: number;
+}
+
+// ── Live Queue (topbar indicator + popup) ───────────────────────────────────
+
+export interface LiveQueueEntry {
+  id: string;
+  customer_name: string | null;
+  customer_phone: string | null;
+  reason: string;
+  reason_label: string;
+  status: "waiting" | "in_progress" | "ispu_to_pick" | "ispu_ready" | "scheduled";
+  order_id: string | null;
+  assigned_rep_id: string | null;
+  wait_label: string;
+  scheduled_at?: string;
+  scheduled_label?: string;  // "2:30 PM"
+  eta_label?: string;        // "in 45m"
+}
+
+export interface LiveQueueCounts {
+  waiting: number;
+  assisting: number;
+  ispu_to_pick: number;
+  ispu_ready: number;
+  ispu: number;
+  appointments: number;
+}
+
+export interface LiveQueueSnapshot {
+  waiting: LiveQueueEntry[];
+  assisting: LiveQueueEntry[];
+  ispu_to_pick: LiveQueueEntry[];
+  ispu_ready: LiveQueueEntry[];
+  appointments: LiveQueueEntry[];
+  counts: LiveQueueCounts;
 }
 
 // ── Live Listen ────────────────────────────────────────────────────────────
@@ -320,6 +356,7 @@ export interface TrainingEnhancement {
   keywords?: string[];
   walkthrough: Walkthrough;
   video_url?: string | null;
+  hidden?: boolean;   // hidden from the rep-facing "What's new" card
 }
 
 export interface EnhancementVideo {

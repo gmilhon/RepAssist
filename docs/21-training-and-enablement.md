@@ -9,9 +9,10 @@ material on top of it. It has two audiences:
   card and get, in one card: a hands-on **step-by-step walkthrough** (auto-generated
   at deploy time), an **animated GIF demo** of the flow when one is available, and
   the uploaded **training video** if the team has attached one.
-- **The Go-To-Channel team** (Settings → Training & Enablement) can generate a
-  narration script + **storyboard** for any feature to feed an AI video tool, and
-  **upload** the finished training video per enhancement.
+- **The Go-To-Channel team** (Settings → Training & Enablement) can **hide** any
+  enhancement from the rep-facing "What's new" card, generate a narration script +
+  **storyboard** for any feature to feed an AI video tool, and **upload** the
+  finished training video per enhancement.
 
 It builds on the git-log-driven "What's new" pipeline
 ([doc 15](15-system-enhancements-generation.md)): a walkthrough is just another
@@ -106,6 +107,27 @@ card then plays it **inside the "Show me how" card** (§1, layer 3). Uploading i
 validated on the way in (`video/*` content type, **32 MB** cap streamed and
 checked chunk-by-chunk) and a video can be removed again from Settings.
 
+## 5. Hiding an enhancement from reps
+
+Not every shipped change belongs in the rep-facing feed. Each row in Settings →
+Training & Enablement carries a **Shown / Hidden** toggle so the Go-To-Channel team
+can pull an enhancement out of the chat's "What's new" card without deleting it.
+
+- Clicking the toggle calls `POST /api/training/enhancements/hide` with
+  `{title, hidden}` (`SettingsPage.toggleHidden` → `api.setEnhancementHidden`); the
+  row flips optimistically and rolls back if the call fails.
+- A hidden row is **dimmed** (`train-item--hidden`) and gets a **"Hidden from reps"**
+  badge, but the team still sees it in full — hiding controls rep visibility, it is
+  not a delete.
+- Server-side the two reads share one set: `get_system_enhancements` (the rep-facing
+  `system_enhancements` card) drops any enhancement whose title is in
+  `db.hidden_enhancement_titles()`, while `all_enhancements()` (the Settings list)
+  keeps every row and tags each with a `hidden: bool`. Because both subtract the same
+  set, the Settings toggle and the rep card can't drift.
+- Visibility is keyed by **enhancement title** — the same stable key uploaded videos
+  use — and persisted via `db.set_enhancement_hidden(title, hidden)`, which is
+  idempotent: hiding inserts a `hidden_enhancements` row, showing deletes it.
+
 ---
 
 ## Architecture
@@ -125,7 +147,9 @@ REP (chat)  Briefings → System enhancements ──► `system_enhancements` A2
         3. ▶ training video          (system_stub._video_url_for → latest upload)
 
 GO-TO-CHANNEL (Settings → Training & Enablement)
-  GET  /api/training/enhancements ──► list (tag, title, detail, answer, walkthrough, video_url, gif_url)
+  GET  /api/training/enhancements ──► list (tag, title, detail, answer, walkthrough, video_url, gif_url, hidden)
+  Shown / Hidden toggle ────► POST /api/training/enhancements/hide {title, hidden}
+                                 └─ hidden_enhancements table ──► title subtracted from rep card
   🎬 Generate storyboard ──► POST /api/training/storyboard ──► llm.generate_video_storyboard() → VideoStoryboard
   ⬆ Upload training video ──► POST /api/training/video (multipart) ──► uploaded_media/<uuid> + enhancement_videos row
   ✕ Remove ──────────────► DELETE /api/training/video/{id}
@@ -157,6 +181,13 @@ GO-TO-CHANNEL (Settings → Training & Enablement)
   regenerated from git each deploy and has no durable per-enhancement id, so
   `enhancement_title` is the closest stable key. It's a deliberate tradeoff —
   renaming an enhancement's title would orphan its video.
+- **Why hidden enhancements live in their own table, keyed by title.** The
+  enhancement list is regenerated from git each deploy and carries no durable id, so
+  — exactly like uploaded videos — the only stable handle is the title. Rather than
+  trying to flag records inside the redeployed JSON, we persist just the hidden
+  titles in `hidden_enhancements` and subtract that set at serve time; the rep card
+  (`get_system_enhancements`) and the Settings list (`all_enhancements`) read the
+  same set, so they can't drift.
 - **Why ephemeral storage is acceptable for uploads.** `uploaded_media/` lives on
   Cloud Run's container disk, which is wiped on every redeploy exactly like the
   demo database ([doc 17](17-reseeding-deployed-data.md)). Uploads are for
@@ -174,7 +205,8 @@ GO-TO-CHANNEL (Settings → Training & Enablement)
 
 | Method & path | Purpose |
 |---|---|
-| `GET /api/training/enhancements` | Full enhancement records (`tag`, `title`, `detail`, `answer`, `walkthrough`, `video_url`, `gif_url`, `gif_caption`) for the Settings Training list |
+| `GET /api/training/enhancements` | Full enhancement records (`tag`, `title`, `detail`, `answer`, `walkthrough`, `video_url`, `gif_url`, `gif_caption`, `hidden`) for the Settings Training list |
+| `POST /api/training/enhancements/hide` | Hide or un-hide one enhancement in the rep-facing card — `{title, hidden}` → `{title, hidden}` |
 | `POST /api/training/storyboard` | Generate a narration script + storyboard — `{title, detail, answer, walkthrough?}` → `VideoStoryboard` |
 | `GET /api/training/walkthrough-media/{name}` | Serve a committed demo GIF (path-traversal safe) |
 | `GET /api/training/videos` | List uploaded training-video metadata |
@@ -184,7 +216,8 @@ GO-TO-CHANNEL (Settings → Training & Enablement)
 
 Code: [`backend/app/api/training.py`](../backend/app/api/training.py),
 [`backend/app/mcp/system_stub.py`](../backend/app/mcp/system_stub.py)
-(`all_enhancements`, `_ensure_walkthrough`, `_video_url_for`, `_gif_for`),
+(`all_enhancements`, `get_system_enhancements`, `_ensure_walkthrough`, `_video_url_for`, `_gif_for`),
+[`backend/app/store/db.py`](../backend/app/store/db.py) (`hidden_enhancement_titles`, `set_enhancement_hidden`),
 [`backend/app/llm.py`](../backend/app/llm.py) (`generate_video_storyboard`),
 [`backend/scripts/generate_enhancements.py`](../backend/scripts/generate_enhancements.py).
 
@@ -195,6 +228,7 @@ Code: [`backend/app/api/training.py`](../backend/app/api/training.py),
 | Table | Purpose |
 |---|---|
 | `enhancement_videos` | One row per uploaded training video: `enhancement_title` (link key), `stored_name` (on-disk uuid filename), `original_name`, `content_type`, `size_bytes`, `uploaded_at`. The file lives on disk; this row is the metadata |
+| `hidden_enhancements` | One row per enhancement a manager has hidden from reps: `enhancement_title` (primary key, the same stable title key `enhancement_videos` uses), `hidden_at`. A row's *presence* means "hidden" — hiding inserts it, un-hiding deletes it (`HiddenEnhancement` in [`models.py`](../backend/app/store/models.py)) |
 
 Walkthroughs and demo GIFs are **not** tables — walkthroughs are a field on each
 generated enhancement in `enhancements_data.json` (see the `Walkthrough` /
@@ -207,10 +241,10 @@ are committed files under `walkthrough_media/` matched by `walkthrough_media.jso
 
 | File | Role |
 |---|---|
-| `frontend/src/components/SettingsPage.tsx` | The **Training & Enablement** Settings section: per-enhancement storyboard generate/copy, and the video upload / preview / remove controls |
+| `frontend/src/components/SettingsPage.tsx` | The **Training & Enablement** Settings section: the per-enhancement **Shown / Hidden** toggle (`toggleHidden`, dims the row + "Hidden from reps" badge), per-enhancement storyboard generate/copy, and the video upload / preview / remove controls |
 | `frontend/src/components/ChatWidget.tsx` | `WalkthroughCard` — renders the unified "Show me how": steps, then demo GIF + caption, then training video |
 | `frontend/src/components/A2UI.tsx` | `SystemEnhancementsCard` — the `system_enhancements` element; a single **Show me how** button carrying `walkthrough`, `gif_url`, and `video_url` |
-| `frontend/src/api.ts` / `types.ts` | `trainingEnhancements`, `generateStoryboard`, `uploadEnhancementVideo`, `deleteEnhancementVideo`; `VideoStoryboard`, `Walkthrough`, `TrainingEnhancement` |
+| `frontend/src/api.ts` / `types.ts` | `trainingEnhancements`, `setEnhancementHidden`, `generateStoryboard`, `uploadEnhancementVideo`, `deleteEnhancementVideo`; `VideoStoryboard`, `Walkthrough`, `TrainingEnhancement` (with optional `hidden`) |
 
 ---
 
@@ -235,9 +269,10 @@ are committed files under `walkthrough_media/` matched by `walkthrough_media.jso
 - **Ephemeral video storage.** Uploaded videos do not survive a redeploy on Cloud
   Run. Move to object storage (GCS/S3) + signed URLs for durability. (Committed
   demo GIFs are durable.)
-- **Title-linked media.** Renaming an enhancement orphans its uploaded video (GIFs
-  re-match on the new title via the manifest); a durable per-enhancement id would
-  remove the coupling.
+- **Title-linked media & visibility.** Renaming an enhancement orphans its uploaded
+  video and its hidden flag (GIFs re-match on the new title via the manifest); a
+  durable per-enhancement id would remove the coupling. Hidden state lives in the
+  demo SQLite DB, so — like the seed data — it resets on a Cloud Run redeploy.
 - **No transcode / thumbnailing.** Videos are served back as-is; there's no format
   normalization, poster-frame extraction, or captions pipeline.
 - **Storyboard is text only.** It produces a script + shot list for a human/AI

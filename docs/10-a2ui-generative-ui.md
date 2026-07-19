@@ -16,6 +16,8 @@ produced by the read-only [Live Listen](20-live-listen.md) copilot:
 - **Your open tickets** — the rep's currently-open tickets (*tickets* server).
 - **System enhancements** — what's new in Rep Assist, in plain language (*system*
   server). Includes suggested questions **orchestrated back to the MCP** to answer.
+  Enhancements a manager hides in Settings → Training are omitted from this
+  rep-facing card (see [doc 21](21-training-and-enablement.md)).
 - **The Opener** — the start-of-shift brief (*news* server; element type stays
   `morning_huddle` internally): a **To-Do checklist** plus emoji-rich **field news**
   (promos, launches, policy, network). Items are **managed on the Settings page**
@@ -28,7 +30,11 @@ produced by the read-only [Live Listen](20-live-listen.md) copilot:
   the one MCP tool here that reads the app's own data instead of fronting a mock
   external system, see [doc 19](19-store-checkin-queue.md)). Tapping a waiting
   row's **Assist** claims it and starts a chat turn pre-filled with the
-  customer's name/phone/visit reason.
+  customer's name/phone/visit reason. The card also appends today's still-to-come
+  appointments as `status: "scheduled"` rows (each carrying a `when_label` time of
+  day); these render with a purple **Upcoming** pill and a non-clickable
+  **Scheduled** CTA, and the subtitle reflects them (e.g. "2 waiting · 3 upcoming
+  appts").
 - **Live suggestion** (`live_suggestion`) — a card the Live Listen copilot
   surfaces mid-conversation for an issue it can triage; **Accept** hands its
   prepared prompt into the normal chat. Produced by the `listen` router, not an
@@ -378,7 +384,7 @@ and delete `orders_stub.py`. Nothing in `api/mcp.py` or the frontend changes.
 | `backend/app/mcp/news_stub.py` | "news" server: DB-backed The Opener feed (To-Do + news) |
 | `backend/app/mcp/ost_stub.py` | "ost" server: knowledge articles (`search_articles` / `get_article`) |
 | `backend/app/mcp/__init__.py` | Exports `MCPClient`, `get_mcp_client` |
-| `backend/app/api/mcp.py` | The six element endpoints |
+| `backend/app/api/mcp.py` | The seven element endpoints |
 | `backend/app/api/huddle.py` | The Opener CRUD + OST article picker (Settings) |
 | `backend/app/store/models.py` | `HuddleItem` model |
 | `backend/app/graph/nodes.py` | `clarify`, `system_help`, OST `knowledge`, slot-fill in `triage` |

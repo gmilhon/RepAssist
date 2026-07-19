@@ -45,13 +45,28 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 }
 .tab:hover { background: #1c1d22; color: #fff; }
 .tab.active { background: var(--vz-red); color: #fff; }
-.topbar-pills { margin-left: auto; display: flex; gap: 6px; }
-.llm-pill {
-  font-size: 12px; font-weight: 600;
-  padding: 5px 10px; border-radius: 999px;
+
+/* Right side of the topbar: Live Queue indicator + System Health badge */
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+.queue-badge {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 12px;
+  border: none; border-radius: 20px; cursor: pointer; font: inherit;
+  background: rgba(255,255,255,0.08); color: #d0d3da;
+  transition: opacity 0.12s, transform 0.1s, background 0.12s;
+  flex-shrink: 0;
 }
-.llm-pill.live { background: rgba(10, 125, 51, 0.18); color: #6ee7a0; }
-.llm-pill.mock { background: #2a2b30; color: #c9ccd3; }
+.queue-badge:hover { opacity: 0.9; transform: scale(0.98); }
+.queue-badge--active { background: rgba(255,255,255,0.18); color: #fff; }
+.queue-badge-icon { font-size: 13px; line-height: 1; }
+.queue-badge-name { font-size: 12px; font-weight: 700; letter-spacing: 0.2px; white-space: nowrap; }
+.queue-badge-segs {
+  display: flex; align-items: center; gap: 8px;
+  padding-left: 9px; border-left: 1px solid rgba(255,255,255,0.16);
+}
+.queue-badge-seg { font-size: 11px; font-weight: 500; color: #b9bcc4; white-space: nowrap; }
+.queue-badge-seg b { color: #fff; font-weight: 700; font-size: 12px; }
 
 .content { flex: 1; overflow: hidden; }
 
@@ -334,8 +349,9 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
   font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; text-transform: uppercase;
   letter-spacing: 0.3px; white-space: nowrap;
 }
-.a2ui-queue-pill--waiting  { background: #e7f0fb; color: var(--info); }
-.a2ui-queue-pill--progress { background: #fbf0e2; color: var(--warn); }
+.a2ui-queue-pill--waiting   { background: #e7f0fb; color: var(--info); }
+.a2ui-queue-pill--progress  { background: #fbf0e2; color: var(--warn); }
+.a2ui-queue-pill--scheduled { background: #eae7fb; color: #6d28d9; }
 .a2ui-empty { font-size: 13px; color: var(--ink-2); margin: 0; }
 
 .typing { display: flex; gap: 4px; padding: 12px 14px; }
@@ -595,8 +611,15 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 /* Training & Enablement (Settings) */
 .train-list { display: flex; flex-direction: column; gap: 12px; }
 .train-item { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; background: var(--card); }
+.train-item--hidden { opacity: 0.62; background: var(--bg); }
 .train-item-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.train-item-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .train-item-title { font-size: 14px; font-weight: 700; color: var(--ink); margin-left: 8px; }
+.train-item-hidden-badge {
+  margin-left: 8px; font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.3px; color: var(--ink-2);
+  background: var(--line); border-radius: 999px; padding: 2px 8px;
+}
 .train-item-detail { font-size: 13px; color: var(--ink-2); line-height: 1.45; margin-top: 6px; }
 .train-item-steps { font-size: 11.5px; color: var(--ink-2); margin-top: 4px; }
 .storyboard { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 12px; }
@@ -1088,7 +1111,7 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
   }
   .brand { margin-right: auto; }
   .brand-sub { display: none; }               /* non-essential; biggest space hog */
-  .topbar-pills { margin-left: 0; }
+  .topbar-right { margin-left: 0; }
   .tabs {
     order: 3;                                  /* drop to a second row */
     width: 100%;
@@ -1102,9 +1125,10 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
   .tab { flex: 0 0 auto; white-space: nowrap; }
 }
 
-/* ---- Phones: drop the dev status pills ---- */
+/* ---- Phones: compact the Live Queue badge to just its counts ---- */
 @media (max-width: 640px) {
-  .topbar-pills { display: none; }
+  .queue-badge-name { display: none; }
+  .queue-badge-segs { padding-left: 0; border-left: none; }
 }
 
 /* ---- Ticket detail: single column before the pane gets too narrow ---- */
@@ -1391,6 +1415,65 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 .hpanel-region-bar-fill--ok     { background: #22c55e; }
 .hpanel-region-bar-fill--warn   { background: #f59e0b; }
 .hpanel-region-bar-fill--danger { background: #ef4444; }
+
+/* ======================================================================== */
+/* Live Queue panel (reuses .hpanel drawer shell)                             */
+/* ======================================================================== */
+.lq-title-icon { font-size: 15px; }
+
+.lq-summary {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  padding: 14px 18px; border-bottom: 1px solid var(--line);
+}
+.lq-stat {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+  padding: 9px 4px;
+}
+.lq-stat-num { font-size: 19px; font-weight: 800; color: var(--ink); line-height: 1; }
+.lq-stat-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.4px; color: var(--ink-2);
+}
+
+.lq-refresh-row { display: flex; justify-content: flex-end; padding: 10px 18px 0; }
+
+.lq-count-chip {
+  background: var(--line); color: var(--ink-2);
+  font-size: 11px; font-weight: 700; border-radius: 10px;
+  min-width: 20px; text-align: center; padding: 1px 7px;
+}
+.lq-empty { font-size: 12.5px; color: var(--ink-2); padding: 2px 0; }
+.lq-rows { display: flex; flex-direction: column; gap: 5px; }
+.lq-subgroup-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.4px; color: var(--ink-2); margin: 9px 0 3px;
+}
+.lq-subgroup-label:first-child { margin-top: 0; }
+
+.lq-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 9px; border-radius: 8px; background: var(--bg);
+}
+.lq-row-tick { width: 4px; align-self: stretch; min-height: 30px; border-radius: 3px; background: var(--line); flex-shrink: 0; }
+.lq-row-tick--waiting      { background: var(--info); }
+.lq-row-tick--assisting    { background: #22c55e; }
+.lq-row-tick--ispu_to_pick { background: #f59e0b; }
+.lq-row-tick--ispu_ready   { background: #8b5cf6; }
+.lq-row-tick--appointment  { background: #0ea5e9; }
+.lq-row-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.lq-row-name {
+  font-size: 13px; font-weight: 700; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lq-row-reason {
+  font-size: 11.5px; color: var(--ink-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lq-row-reason-sub { opacity: 0.8; }
+.lq-row-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; flex-shrink: 0; }
+.lq-row-time { font-size: 12.5px; font-weight: 700; color: var(--ink); }
+.lq-row-hint { font-size: 10.5px; color: var(--ink-2); }
 
 /* ======================================================================== */
 /* Settings — System Health section                                           */

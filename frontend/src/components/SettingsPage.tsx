@@ -142,6 +142,17 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
     await reload();
   }
 
+  async function toggleHidden(e: TrainingEnhancement) {
+    const next = !e.hidden;
+    // Optimistic: flip locally, then persist (revert on failure).
+    setEnhancements((list) => list.map((x) => (x.title === e.title ? { ...x, hidden: next } : x)));
+    try {
+      await api.setEnhancementHidden(e.title, next);
+    } catch {
+      setEnhancements((list) => list.map((x) => (x.title === e.title ? { ...x, hidden: !next } : x)));
+    }
+  }
+
   async function handleAddGuideline(e: React.FormEvent) {
     e.preventDefault();
     if (!pgText.trim()) return;
@@ -574,8 +585,9 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
           <h3 className="settings-section-title">Training &amp; Enablement</h3>
           <p className="settings-section-sub">
             Each shipped enhancement gets a rep-facing walkthrough (auto-generated at deploy and shown
-            in the chat under <strong>Briefings → System enhancements</strong>). Here the Go-To-Channel
-            team can generate a narration script + storyboard for any feature to feed into an AI video tool.
+            in the chat under <strong>Briefings → System enhancements</strong>). Toggle any enhancement
+            to <strong>Hidden</strong> to keep it out of that rep-facing card, or generate a narration
+            script + storyboard for the Go-To-Channel team to feed into an AI video tool.
           </p>
         </div>
         {loading ? (
@@ -587,15 +599,25 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
             {enhancements.map((e) => {
               const sb = storyboards[e.title];
               return (
-                <div key={e.title} className="train-item">
+                <div key={e.title} className={`train-item${e.hidden ? " train-item--hidden" : ""}`}>
                   <div className="train-item-head">
                     <div>
                       <span className={`a2ui-enh-tag a2ui-enh-tag--${e.tag.toLowerCase()}`}>{e.tag}</span>
                       <span className="train-item-title">{e.title}</span>
+                      {e.hidden && <span className="train-item-hidden-badge">Hidden from reps</span>}
                     </div>
-                    <button className="btn small" disabled={sb?.generating} onClick={() => makeStoryboard(e)}>
-                      {sb?.generating ? "Generating…" : sb?.result ? "Regenerate storyboard" : "🎬 Generate storyboard"}
-                    </button>
+                    <div className="train-item-actions">
+                      <button
+                        className={`settings-toggle ${e.hidden ? "off" : "on"}`}
+                        onClick={() => toggleHidden(e)}
+                        title={e.hidden ? "Hidden — reps don't see this in “What's new”" : "Shown to reps in “What's new”"}
+                      >
+                        {e.hidden ? "Hidden" : "Shown"}
+                      </button>
+                      <button className="btn small" disabled={sb?.generating} onClick={() => makeStoryboard(e)}>
+                        {sb?.generating ? "Generating…" : sb?.result ? "Regenerate storyboard" : "🎬 Generate storyboard"}
+                      </button>
+                    </div>
                   </div>
                   <div className="train-item-detail">{e.detail}</div>
                   <div className="train-item-steps">

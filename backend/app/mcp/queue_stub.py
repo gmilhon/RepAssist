@@ -65,13 +65,41 @@ def get_queue(arguments: dict) -> dict:
         for e in db.list_queue(limit=limit)
     ]
 
+    # Also surface today's still-to-come appointments, appended after the live
+    # walk-in queue so reps can see who's booked in later without leaving the view.
+    snapshot = db.live_queue_snapshot()
+    for e in snapshot["appointments"]:
+        sched = _aware(e.scheduled_at) if e.scheduled_at else now
+        entries.append({
+            "id": e.id,
+            "customer_name": e.customer_name,
+            "customer_phone": e.customer_phone,
+            "reason": e.reason,
+            "reason_label": _reason_label(e.reason),
+            "status": "scheduled",
+            "wait_label": _ago_label(max(0, int((sched - now).total_seconds() // 60))),
+            "when_label": sched.astimezone().strftime("%-I:%M %p"),
+            "assigned_rep_id": None,
+            "opportunities": eligibility_badges(resolve_eligibility(e.account_id)),
+            "prompt": (
+                f"My next appointment is {e.customer_name or e.customer_phone or 'a customer'} "
+                f"at {sched.astimezone().strftime('%-I:%M %p')} for: {_reason_label(e.reason)}."
+            ),
+        })
+
     waiting = sum(1 for e in entries if e["status"] == "waiting")
+    upcoming = len(snapshot["appointments"])
+    bits = []
+    if waiting:
+        bits.append(f"{waiting} waiting")
+    if upcoming:
+        bits.append(f"{upcoming} upcoming appt{'s' if upcoming != 1 else ''}")
     return {
         "elements": [
             {
                 "type": "queue",
                 "title": "Store queue",
-                "subtitle": f"{waiting} waiting" if waiting else "No one waiting right now",
+                "subtitle": " · ".join(bits) if bits else "No one waiting right now",
                 "entries": entries,
             }
         ]

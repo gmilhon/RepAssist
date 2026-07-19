@@ -238,10 +238,11 @@ documented in full by its feature doc:
 | `guardrail_events` | Prompt-injection pattern matches (log-only, direct/indirect) | [16](16-observability.md) |
 | `email_subscribers` | Report + alert + **visit-summary** recipients | [11](11-email-reports.md) |
 | `production_issues`, `jira_defects` | AI-clustered systemic issues + stubbed JIRA board | [14](14-production-monitoring.md) |
-| `queue_entries` | Store front-desk check-in / queue | [19](19-store-checkin-queue.md) |
+| `queue_entries` | Store front-desk check-in / queue; adds ISPU (`ispu_to_pick`, `ispu_ready`) + `scheduled` `QueueStatus` values and a nullable `scheduled_at` column, bucketed into the Live Queue floor snapshot | [19](19-store-checkin-queue.md), [22](22-live-queue.md) |
 | `listen_sessions` | Live Listen transcript, suggestions, summary, Playbook grade, coaching | [20](20-live-listen.md) |
 | `playbook_guidelines` | The standard a Live Listen visit is graded against | [20](20-live-listen.md) |
 | `enhancement_videos` | Uploaded training-video metadata (file on disk) | [21](21-training-and-enablement.md) |
+| `hidden_enhancements` | Per-enhancement "hidden from reps" flags (PK `enhancement_title`, `hidden_at`); filters the rep-facing "What's new" card | [21](21-training-and-enablement.md) |
 | `huddle_items` | *The Opener* morning-huddle field-news items (served by the `news` MCP stub) | [10](10-a2ui-generative-ui.md) |
 | `action_audit` | One row per executed mutating action — proof of the confirm-gate invariant | [16](16-observability.md) |
 

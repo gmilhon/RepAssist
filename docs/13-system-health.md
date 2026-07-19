@@ -11,11 +11,14 @@ no refresh required.
 ## User flow
 
 1. **Badge (all tabs)** — a colored dot + label (`Operational` / `Degraded` /
-   `Outage`) in the topbar. Click it to open the **health panel**.
-2. **Health panel** — status banner, hard-stop warning (if set), the event
+   `Outage`) in the topbar. Click it to open the **health panel**. It sits in the
+   `.topbar-right` cluster, immediately to the right of the
+   [**Live Queue** badge](22-live-queue.md).
+2. **Health panel** — status banner, a **Model & Tracing** section (LLM model +
+   LangSmith project — see below), hard-stop warning (if set), the event
    description/workaround (if set), live **server region pings** (US East/Central/
-   West), **live diagnostics** (API round-trip, client IP, browser, connection
-   type), and browser cache stats with a **Clear all** action.
+   West), **live diagnostics** (API round-trip, API status, client IP, browser,
+   connection type), and browser cache stats with a **Clear all** action.
 3. **Settings tab → System Health** — the operator form: pick a status, write a
    description + workaround, toggle **Hard stop** (warns reps not to process new
    orders), toggle **Notify active users when saved**, then **Save**.
@@ -27,6 +30,27 @@ no refresh required.
 The **Notify** checkbox always resets to unchecked after a successful save, so
 notifying is an explicit, per-save decision — routine status edits don't spam
 reps by default.
+
+---
+
+## Model & Tracing (moved from the topbar)
+
+The old topbar **LLM** and **LangSmith** pills (the `.topbar-pills` /
+`.llm-pill` markup and CSS) were removed. Their information now renders inside
+the health panel as a **Model & Tracing** section, just under the status banner:
+
+- **LLM** — the model id when `llm_mode` is `anthropic`, otherwise
+  `mock (offline)`.
+- **LangSmith** — the tracing project when tracing is enabled, otherwise
+  `not configured`.
+
+The section is driven by a new `runtime` prop on `HealthPanel`: the raw
+[`/health`](../backend/app/main.py) payload (`llm_mode`, `model`,
+`langsmith.enabled`, `langsmith.project`), which `App.tsx` fetches once on load
+and passes through as `runtime={health}`. The rows only render once `runtime` is
+populated — it is `null` until the first `/health` fetch resolves (section
+hidden). If that fetch fails, `App.tsx` sets it to `{status: "down"}`, so the
+section still renders but falls back to `mock (offline)` / `not configured`.
 
 ---
 
@@ -98,8 +122,8 @@ Code: [`backend/app/api/system_health.py`](../backend/app/api/system_health.py).
 
 | File | Role |
 |---|---|
-| `frontend/src/App.tsx` | Topbar badge, 60s poll, `EventSource` subscription, toast stack |
-| `frontend/src/components/HealthPanel.tsx` | Status banner, hard-stop notice, server-region pings, live diagnostics, cache clear |
+| `frontend/src/App.tsx` | Topbar badge, 60s poll, `EventSource` subscription, toast stack; passes `runtime={health}` (the `/health` payload) into `HealthPanel` |
+| `frontend/src/components/HealthPanel.tsx` | Status banner, **Model & Tracing** (LLM + LangSmith rows from the `runtime` prop), hard-stop notice, server-region pings, live diagnostics, cache clear |
 | `frontend/src/components/SettingsPage.tsx` | Operator form — status radio, description/workaround, hard-stop + notify checkboxes |
 | `frontend/src/api.ts` | `getSystemHealth`, `setSystemHealth`, `healthEventsUrl`, `ping`, `pingRegion` |
 | `frontend/src/types.ts` | `SystemHealth`, `PingResult` |

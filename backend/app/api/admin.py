@@ -320,23 +320,35 @@ VALUES
 
 _QUEUE_SQL = """
 INSERT INTO queue_entries
-  (id, created_at, updated_at, customer_name, customer_phone, reason, account_id, order_id, status, assigned_rep_id, thread_id, started_at)
+  (id, created_at, updated_at, customer_name, customer_phone, reason, account_id, order_id, status, assigned_rep_id, thread_id, started_at, scheduled_at)
 VALUES
-  (:id, :created_at, :updated_at, :customer_name, :customer_phone, :reason, :account_id, :order_id, :status, :assigned_rep_id, :thread_id, :started_at)
+  (:id, :created_at, :updated_at, :customer_name, :customer_phone, :reason, :account_id, :order_id, :status, :assigned_rep_id, :thread_id, :started_at, :scheduled_at)
 """
 
 # Store check-in queue is live "right now" state, not historical volume — a
-# handful of recent fixtures so the "View queue" card has something to show
-# right after a seed, rather than years of stale waiting customers.
-# (customer_name, customer_phone, reason, minutes_ago, status, account_id, order_id)
+# handful of recent fixtures so the queue + Live Queue indicator have something
+# to show right after a seed, rather than years of stale waiting customers.
+# (customer_name, customer_phone, reason, minutes_ago, status, account_id, order_id, sched_in_min)
 # account/order map to the mock scenario ids so an assisting rep (and Live
 # Listen) can call agents with the customer's known ids, no clarify prompt.
+# sched_in_min = minutes from now the appointment is booked for (scheduled rows only).
 _QUEUE_SAMPLES = [
-    ("Devon Marsh",  None,               "new_service",  6,  "waiting",     "AC-3002", "ACT-1002"),
-    (None,           "(555) 019-2244",   "upgrade",      14, "waiting",     "AC-3003", "ORD-2002"),
-    ("Priya Nair",   "(555) 019-7781",   "appointment",  22, "waiting",     "AC-5003", None),
-    ("Wes Okonkwo",  None,               "home",         9,  "in_progress", None,      None),
-    ("Grace Lin",    "(555) 019-3390",   "pickup",       31, "in_progress", None,      None),
+    # Walk-ins waiting to be helped
+    ("Devon Marsh",   None,             "new_service",  6,   "waiting",      "AC-3002", "ACT-1002", None),
+    (None,            "(555) 019-2244", "upgrade",      14,  "waiting",      "AC-3003", "ORD-2002", None),
+    # Customers currently being assisted
+    ("Wes Okonkwo",   None,             "home",         9,   "in_progress",  None,      None,       None),
+    ("Grace Lin",     "(555) 019-3390", "support",      22,  "in_progress",  None,      None,       None),
+    # In-store pickups still to pick off the shelf
+    ("Marcus Reed",   "(555) 019-4410", "pickup",       12,  "ispu_to_pick", "AC-4101", "ORD-5501", None),
+    ("Yuki Tanaka",   None,             "pickup",       4,   "ispu_to_pick", "AC-4102", "ORD-5502", None),
+    # In-store pickups picked & staged, awaiting the customer to collect
+    ("Elena Duarte",  "(555) 019-6620", "pickup",       35,  "ispu_ready",   "AC-4103", "ORD-5477", None),
+    ("Sam Whitfield", None,             "pickup",       58,  "ispu_ready",   "AC-4104", "ORD-5461", None),
+    # Appointments booked for later today
+    ("Priya Nair",    "(555) 019-7781", "appointment",  90,  "scheduled",    "AC-5003", None,       45),
+    ("Omar Haddad",   None,             "appointment",  120, "scheduled",    "AC-5004", None,       120),
+    ("Nina Alvarez",  "(555) 019-8123", "appointment",  200, "scheduled",    "AC-5005", None,       210),
 ]
 
 # A handful of illustrative matches — real attempts should be rare, so the
@@ -527,9 +539,10 @@ def _run_seed() -> dict:
 
         now_dt = datetime.now(timezone.utc)
         queue_rows: list[dict] = []
-        for name, phone, reason, minutes_ago, status, account_id, order_id in _QUEUE_SAMPLES:
+        for name, phone, reason, minutes_ago, status, account_id, order_id, sched_in_min in _QUEUE_SAMPLES:
             created = now_dt - timedelta(minutes=minutes_ago)
             started = now_dt - timedelta(minutes=rng.randint(1, minutes_ago)) if status == "in_progress" else None
+            scheduled = now_dt + timedelta(minutes=sched_in_min) if sched_in_min is not None else None
             queue_rows.append(dict(
                 id="Q-" + uuid.uuid4().hex[:8].upper(),
                 created_at=created.isoformat(), updated_at=(started or created).isoformat(),
@@ -537,6 +550,7 @@ def _run_seed() -> dict:
                 account_id=account_id, order_id=order_id, status=status,
                 assigned_rep_id=rng.choice(REPS) if status == "in_progress" else None,
                 thread_id=None, started_at=started.isoformat() if started else None,
+                scheduled_at=scheduled.isoformat() if scheduled else None,
             ))
         conn.executemany(_QUEUE_SQL, queue_rows)
         conn.commit()

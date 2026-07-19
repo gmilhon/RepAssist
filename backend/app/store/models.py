@@ -144,6 +144,18 @@ class EnhancementVideo(SQLModel, table=True):
     uploaded_at: datetime = Field(default_factory=_now)
 
 
+class HiddenEnhancement(SQLModel, table=True):
+    """A system enhancement a manager has hidden from reps (Settings → Training).
+    Enhancements themselves live in the (redeployed-each-build) JSON, so we can't
+    flag them there; we persist just the hidden ones here, keyed by title — the
+    same stable key EnhancementVideo uses."""
+
+    __tablename__ = "hidden_enhancements"
+
+    enhancement_title: str = Field(primary_key=True)
+    hidden_at: datetime = Field(default_factory=_now)
+
+
 class HuddleItem(SQLModel, table=True):
     """A Morning Huddle field-news item, managed from the Settings page and
     served by the 'news' MCP stub."""
@@ -268,6 +280,11 @@ def _queue_id() -> str:
 class QueueStatus(str, Enum):
     WAITING = "waiting"          # checked in, not yet being helped
     IN_PROGRESS = "in_progress"  # a rep tapped "Assist" and is working with them
+    # In-store pickup (ISPU) fulfilment states — order-driven, not walk-in.
+    ISPU_TO_PICK = "ispu_to_pick"  # order placed, still needs picking off the shelf
+    ISPU_READY = "ispu_ready"      # picked & staged, awaiting customer collection
+    # A future appointment booked for later today; customer hasn't arrived yet.
+    SCHEDULED = "scheduled"
 
 
 class QueueEntry(SQLModel, table=True):
@@ -296,6 +313,10 @@ class QueueEntry(SQLModel, table=True):
     assigned_rep_id: Optional[str] = None
     thread_id: Optional[str] = None  # chat thread once a rep starts assisting
     started_at: Optional[datetime] = None
+
+    # When a SCHEDULED appointment is booked for (today, in the future). Null for
+    # walk-in / ISPU rows. Drives the "Future appointments" list in Live Queue.
+    scheduled_at: Optional[datetime] = None
 
 
 def _listen_id() -> str:

@@ -4,7 +4,9 @@ Every `./deploy.sh` run rolls a fresh Cloud Run revision with an **empty**
 SQLite database — see [Persistence caveat](12-deployment-cloud-run.md#persistence-caveat).
 The deployed app is fully functional immediately after a deploy, but every
 dashboard (Performance, CX Monitor, Resolution Desk, Production Monitor)
-shows zero/empty data until the demo history is repopulated. This doc is the
+shows zero/empty data — and the store check-in queue (with its topbar
+**Live Queue** indicator, see [doc 22](22-live-queue.md)) is empty — until
+the demo history is repopulated. This doc is the
 exact, copy-pasteable procedure for doing that against the **live Cloud Run
 service** — not local dev, which is a different process (see
 [Local vs. deployed](#local-vs-deployed) below).
@@ -67,7 +69,8 @@ curl -s -X POST "$URL/api/admin/seed" -H "X-Admin-Token: $ADMIN_TOKEN"
 
 Then **poll until it's done** — the job takes roughly **1–3 minutes**
 (cold container start + inserting several hundred thousand rows across
-`engagement`, `ticket`, `llm_calls`, `action_audit`, and `guardrail_events`).
+`engagement`, `ticket`, `llm_calls`, `action_audit`, and `guardrail_events`,
+plus a handful of "live right now" `queue_entries` store check-in fixtures).
 Don't declare success from the `POST` response alone; that only confirms the
 job *started*.
 
@@ -99,6 +102,7 @@ A successful finish looks like:
     "llm_calls": 315238,
     "actions_audited": 82283,
     "guardrail_events": 30,
+    "queue_entries": 11,
     "weekly_avg_conversations": 5600
   },
   "error": null
@@ -111,6 +115,14 @@ start date (`date(2026, 1, 1)` in `admin.py`, hardcoded — not derived from
 re-run later on. That's expected, not a bug. If this repo is still active
 past 2026, that start date will need bumping — [`_run_seed()`](../backend/app/api/admin.py)
 is the place to change it.
+
+`queue_entries` is the one count that **doesn't** scale with the date range:
+it's a fixed set of **11** store check-in fixtures timestamped relative to
+*now* (2 waiting walk-ins, 2 in-progress, 2 ISPU to-pick, 2 ISPU staged/ready,
+and 3 future appointments booked for later today), so the topbar **Live Queue**
+indicator and its drawer ([doc 22](22-live-queue.md)) — and the chat "View
+queue" card — have something to show right after a reseed instead of an empty
+floor.
 
 If `"error"` is non-null, or the loop exhausts all 25 iterations still
 `running=true`, see [Troubleshooting](#troubleshooting).
@@ -146,8 +158,8 @@ local dev seeding:
 | | Local dev | Deployed |
 |---|---|---|
 | Target | `http://127.0.0.1:8000` (or wherever `uvicorn` is running) | The Cloud Run URL |
-| Auth | None — the local admin router has no token set unless `ADMIN_TOKEN` is in `backend/.env` | Required — `X-Admin-Token` from Secret Manager |
-| Alternative | `python backend/scripts/seed_ytd.py` run directly, or hit the local `/api/admin/seed` endpoint | Only via the HTTP endpoint — there's no way to run the script inside the container directly |
+| Auth | The local `/api/admin/seed` endpoint is **disabled (403 on every call)** unless `ADMIN_TOKEN` is set in `backend/.env` — `_require_token` fails closed; once set it needs a matching `X-Admin-Token` header, exactly like deployed | Required — `X-Admin-Token` from Secret Manager |
+| Alternative | Run a seed **script** directly (no token — bypasses the HTTP layer): `python backend/scripts/seed_demo.py` reproduces the full demo set **including the 11 store-queue fixtures** (walk-ins, ISPU, and today's appointments). `seed_ytd.py` seeds only engagement/ticket history — it does **not** populate `queue_entries` | Only via the HTTP endpoint — there's no way to run the script inside the container directly |
 
 Don't mix these up: pointing the deployed procedure's `curl` calls at
 `127.0.0.1` (or vice versa) will silently fail or reseed the wrong database.
@@ -170,9 +182,11 @@ Don't mix these up: pointing the deployed procedure's `curl` calls at
 
 Code: [`backend/app/api/admin.py`](../backend/app/api/admin.py) — `_run_seed()`
 deletes all rows from `engagement`, `ticket`, `llm_calls`, `action_audit`,
-and `guardrail_events`, then regenerates deterministic synthetic history
-(fixed random seed) week-by-week via raw SQL `executemany` for speed,
-covering a fixed start date through today. See
+`guardrail_events`, and `queue_entries`, then regenerates deterministic synthetic
+history (fixed random seed) week-by-week via raw SQL `executemany` for speed,
+covering a fixed start date through today. The `queue_entries` rows are the
+exception to the week-by-week history: `_QUEUE_SAMPLES` is a small fixed set of
+live check-in fixtures inserted once, timestamped relative to *now*. See
 [Observability](16-observability.md) for what the `llm_calls`/`action_audit`/
 `guardrail_events` tables represent, and
 [Operations Dashboard](08-operations-dashboard.md) for what the resulting

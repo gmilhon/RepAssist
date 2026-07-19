@@ -33,6 +33,13 @@ no change to the API or A2UI card shape reps already see.
   A rep-invisible feature (e.g. an ops-only monitoring tab) correctly produces
   **no card**, even though it's a real, shipped feature — that's by design, not
   a bug: this card answers "what changed for *me*," not "what changed in the repo."
+- **Managers can hide individual cards.** On top of generation-time filtering,
+  `get_system_enhancements` omits any enhancement a manager has hidden from
+  **Settings → Training & Enablement** — it drops every entry whose title is in
+  `db.hidden_enhancement_titles()` (the `hidden_enhancements` table) before
+  building the rep-facing card. Generation still produces the entry; the toggle
+  just controls whether reps see it. See
+  [Training & Enablement](21-training-and-enablement.md).
 - **Merge, don't replace.** Each run passes the previously published list back
   to Claude alongside the new commits, so it can carry forward still-relevant
   items, fold a follow-up commit into an existing entry (e.g. a later "add

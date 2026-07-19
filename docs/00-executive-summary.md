@@ -97,10 +97,12 @@ runs locally *and* deploys to the cloud as one service. It includes:
 - the **Tier 1/2 Resolution Desk** (ServiceNow replacement) + feedback loop;
 - a **Performance** dashboard (KPIs + AI-written executive summary) and a **CX
   Monitor** (latency/token/cost via LangSmith);
-- a store **front-desk queue** and a read-only **Live Listen** copilot that
+- a store **front-desk queue** — plus a real-time **Live Queue** indicator
+  giving a one-glance floor snapshot (waiting / being assisted / in-store
+  pickups / today's appointments) — and a read-only **Live Listen** copilot that
   suggests issues over the live conversation, scores each visit against a
   **Playbook**, coaches the rep, and drafts a customer summary email
-  ([doc 19](19-store-checkin-queue.md), [doc 20](20-live-listen.md));
+  ([doc 19](19-store-checkin-queue.md), [doc 22](22-live-queue.md), [doc 20](20-live-listen.md));
 - **Training & Enablement** — auto-generated rep walkthroughs with animated demo
   GIFs and uploaded videos in one "Show me how", plus an AI storyboard generator
   ([doc 21](21-training-and-enablement.md));

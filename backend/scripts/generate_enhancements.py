@@ -9,7 +9,7 @@ ships inside the Docker image and is available with zero setup in local dev.
 Run manually:
     python scripts/generate_enhancements.py
 
-Runs automatically on every `./deploy.sh` (see deploy.sh step 3.5), so the
+Runs automatically on every `./deploy.sh` (see deploy.sh step 2c), so the
 card stays in sync with what actually shipped instead of a hand-maintained
 mock list. Skips (leaves the existing file untouched) when no
 ANTHROPIC_API_KEY is configured, or when there are no new commits — it never

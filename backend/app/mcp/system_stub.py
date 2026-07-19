@@ -152,15 +152,26 @@ def _enrich(e: dict) -> dict:
 
 
 def all_enhancements() -> list[dict]:
-    """Full enhancement records (incl. walkthrough/answer/video/gif) for the Training UI."""
-    return [_enrich(e) for e in (_data.get("enhancements") or [])]
+    """Full enhancement records (incl. walkthrough/answer/video/gif + hidden flag)
+    for the Training UI, which manages visibility."""
+    from ..store import db  # local import to avoid an import cycle at module load
+    hidden = db.hidden_enhancement_titles()
+    return [
+        {**_enrich(e), "hidden": e.get("title", "") in hidden}
+        for e in (_data.get("enhancements") or [])
+    ]
 
 
 def get_system_enhancements(arguments: dict) -> dict:
-    """MCP tool: recent system enhancements as an A2UI element."""
+    """MCP tool: recent system enhancements as an A2UI element. Enhancements a
+    manager has hidden (Settings → Training) are omitted from this rep-facing card."""
+    from ..store import db  # local import to avoid an import cycle at module load
     data = _data
+    hidden = db.hidden_enhancement_titles()
     enhancements = []
     for e in data["enhancements"]:
+        if e["title"] in hidden:
+            continue
         gif_url, gif_caption = _gif_for(e)
         enhancements.append({
             "tag": e["tag"], "title": e["title"], "detail": e["detail"],

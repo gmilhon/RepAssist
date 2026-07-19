@@ -44,8 +44,23 @@ class StoryboardRequest(BaseModel):
 
 @router.get("/enhancements")
 def list_enhancements() -> list[dict]:
-    """Full enhancement records (tag, title, detail, answer, walkthrough, video)."""
+    """Full enhancement records (tag, title, detail, answer, walkthrough, video, hidden)."""
     return system_stub.all_enhancements()
+
+
+class HideEnhancementRequest(BaseModel):
+    title: str
+    hidden: bool
+
+
+@router.post("/enhancements/hide")
+def hide_enhancement(req: HideEnhancementRequest) -> dict:
+    """Hide (or un-hide) one enhancement so it does/doesn't show reps in the
+    chat's 'What's new' card. Keyed by title; persists across the session."""
+    if not req.title.strip():
+        raise HTTPException(400, "title is required.")
+    db.set_enhancement_hidden(req.title.strip(), req.hidden)
+    return {"title": req.title.strip(), "hidden": req.hidden}
 
 
 @router.post("/storyboard")

@@ -61,15 +61,27 @@ REPS = [f"rep.{n}" for n in ("alvarez", "chen", "patel", "okafor", "santos", "ki
 TIER2 = ["tier2.alice", "tier2.marcus", "tier2.deepa"]
 
 # Store check-in queue is live "right now" state, not historical volume — a
-# handful of recent fixtures so "View queue" has something to show right
-# after a seed. (customer_name, customer_phone, reason, minutes_ago, status)
+# handful of recent fixtures so "View queue" + the Live Queue indicator have
+# something to show right after a seed. Kept in sync with app/api/admin.py.
+# (name, phone, reason, minutes_ago, status, account_id, order_id, sched_in_min)
+# sched_in_min = minutes from now the appointment is booked for (scheduled rows).
 QUEUE_SAMPLES = [
-    # (name, phone, reason, minutes_ago, status, account_id, order_id)
-    ("Devon Marsh",  None,               "new_service",  6,  "waiting",     "AC-3002", "ACT-1002"),
-    (None,           "(555) 019-2244",   "upgrade",      14, "waiting",     "AC-3003", "ORD-2002"),
-    ("Priya Nair",   "(555) 019-7781",   "appointment",  22, "waiting",     "AC-5003", None),
-    ("Wes Okonkwo",  None,               "home",         9,  "in_progress", None,      None),
-    ("Grace Lin",    "(555) 019-3390",   "pickup",       31, "in_progress", None,      None),
+    # Walk-ins waiting to be helped
+    ("Devon Marsh",   None,             "new_service",  6,   "waiting",      "AC-3002", "ACT-1002", None),
+    (None,            "(555) 019-2244", "upgrade",      14,  "waiting",      "AC-3003", "ORD-2002", None),
+    # Customers currently being assisted
+    ("Wes Okonkwo",   None,             "home",         9,   "in_progress",  None,      None,       None),
+    ("Grace Lin",     "(555) 019-3390", "support",      22,  "in_progress",  None,      None,       None),
+    # In-store pickups still to pick off the shelf
+    ("Marcus Reed",   "(555) 019-4410", "pickup",       12,  "ispu_to_pick", "AC-4101", "ORD-5501", None),
+    ("Yuki Tanaka",   None,             "pickup",       4,   "ispu_to_pick", "AC-4102", "ORD-5502", None),
+    # In-store pickups picked & staged, awaiting the customer to collect
+    ("Elena Duarte",  "(555) 019-6620", "pickup",       35,  "ispu_ready",   "AC-4103", "ORD-5477", None),
+    ("Sam Whitfield", None,             "pickup",       58,  "ispu_ready",   "AC-4104", "ORD-5461", None),
+    # Appointments booked for later today
+    ("Priya Nair",    "(555) 019-7781", "appointment",  90,  "scheduled",    "AC-5003", None,       45),
+    ("Omar Haddad",   None,             "appointment",  120, "scheduled",    "AC-5004", None,       120),
+    ("Nina Alvarez",  "(555) 019-8123", "appointment",  200, "scheduled",    "AC-5005", None,       210),
 ]
 
 _intent_keys = list(INTENTS)
@@ -145,14 +157,16 @@ def seed() -> dict:
 
 
 def _seed_queue() -> int:
-    for name, phone, reason, minutes_ago, status, account_id, order_id in QUEUE_SAMPLES:
+    for name, phone, reason, minutes_ago, status, account_id, order_id, sched_in_min in QUEUE_SAMPLES:
         created = NOW - timedelta(minutes=minutes_ago)
         started = NOW - timedelta(minutes=random.randint(1, minutes_ago)) if status == "in_progress" else None
+        scheduled = NOW + timedelta(minutes=sched_in_min) if sched_in_min is not None else None
         db.create_queue_entry(
             customer_name=name, customer_phone=phone, reason=reason, status=status,
             account_id=account_id, order_id=order_id,
             assigned_rep_id=random.choice(REPS) if status == "in_progress" else None,
             created_at=created, updated_at=(started or created), started_at=started,
+            scheduled_at=scheduled,
         )
     return len(QUEUE_SAMPLES)
 

@@ -334,19 +334,25 @@ function QueueRow({
   onAssist?: (entry: A2UIQueueEntry) => void;
 }) {
   const inProgress = entry.status === "in_progress";
+  const scheduled = entry.status === "scheduled";
+  const disabled = inProgress || scheduled;
   const showBothIdentifiers = Boolean(entry.customer_phone && entry.customer_name);
+  const pillKind = scheduled ? "scheduled" : inProgress ? "progress" : "waiting";
+  const pillLabel = scheduled ? "Upcoming" : inProgress ? "Being helped" : "Waiting";
   return (
     <button
       className="a2ui-order"
-      disabled={inProgress}
-      onClick={() => !inProgress && onAssist?.(entry)}
-      title={inProgress ? "Already being helped" : `Assist ${entry.customer_name ?? entry.customer_phone}`}
+      disabled={disabled}
+      onClick={() => !disabled && onAssist?.(entry)}
+      title={
+        scheduled ? `Appointment at ${entry.when_label ?? "later today"}`
+        : inProgress ? "Already being helped"
+        : `Assist ${entry.customer_name ?? entry.customer_phone}`
+      }
     >
       <div className="a2ui-order-top">
         <span className="a2ui-order-id">{entry.customer_name ?? entry.customer_phone ?? "Customer"}</span>
-        <span className={`a2ui-queue-pill a2ui-queue-pill--${inProgress ? "progress" : "waiting"}`}>
-          {inProgress ? "Being helped" : "Waiting"}
-        </span>
+        <span className={`a2ui-queue-pill a2ui-queue-pill--${pillKind}`}>{pillLabel}</span>
       </div>
       <div className="a2ui-order-meta">{entry.reason_label}</div>
       {entry.opportunities && entry.opportunities.length > 0 && (
@@ -361,10 +367,14 @@ function QueueRow({
           {showBothIdentifiers ? entry.customer_phone : ""}
           <span className="a2ui-order-time">
             {showBothIdentifiers ? " · " : ""}
-            {entry.wait_label} {inProgress ? "in" : "waiting"}
+            {scheduled
+              ? `Today ${entry.when_label ?? ""}`
+              : `${entry.wait_label} ${inProgress ? "in" : "waiting"}`}
           </span>
         </span>
-        <span className="a2ui-order-cta">{inProgress ? "In progress" : "Assist →"}</span>
+        <span className="a2ui-order-cta">
+          {scheduled ? "Scheduled" : inProgress ? "In progress" : "Assist →"}
+        </span>
       </div>
     </button>
   );

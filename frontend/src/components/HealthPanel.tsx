@@ -4,6 +4,7 @@ import type { SystemHealth } from "../types";
 
 interface Props {
   health: SystemHealth;
+  runtime?: Record<string, any> | null;  // /health payload: llm_mode, model, langsmith
   onClose: () => void;
 }
 
@@ -74,7 +75,7 @@ function DiagRow({ label, value, tone, mono }: DiagRowProps) {
   );
 }
 
-export default function HealthPanel({ health, onClose }: Props) {
+export default function HealthPanel({ health, runtime, onClose }: Props) {
   const [pingMs, setPingMs] = useState<number | null>(null);
   const [pingError, setPingError] = useState(false);
   const [pinging, setPinging] = useState(false);
@@ -181,6 +182,27 @@ export default function HealthPanel({ health, onClose }: Props) {
             <span className="hpanel-banner-time">Updated {fmtAgo(health.updated_at)}</span>
           )}
         </div>
+
+        {/* Model & tracing (moved here from the topbar pills) */}
+        {runtime && (
+          <div className="hpanel-section">
+            <div className="hpanel-section-head">Model &amp; Tracing</div>
+            <div className="hpanel-diag-rows">
+              <DiagRow
+                label="LLM"
+                value={runtime.llm_mode === "anthropic" ? (runtime.model ?? "anthropic") : "mock (offline)"}
+                tone={runtime.llm_mode === "anthropic" ? "ok" : "warn"}
+                mono
+              />
+              <DiagRow
+                label="LangSmith"
+                value={runtime.langsmith?.enabled ? (runtime.langsmith.project ?? "enabled") : "not configured"}
+                tone={runtime.langsmith?.enabled ? "ok" : undefined}
+                mono
+              />
+            </div>
+          </div>
+        )}
 
         {/* Hard stop */}
         {health.hard_stop && (
