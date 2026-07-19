@@ -1,82 +1,48 @@
 {
-  "generated_at": "2026-07-18T17:32:07.787471+00:00",
-  "last_commit_sha": "64bf285b480afd8ac7bafa1660bfed32cecc1315",
+  "generated_at": "2026-07-19T22:41:00.149287+00:00",
+  "last_commit_sha": "2776c86cd77a177283fe6b5f074770870329f2b1",
   "enhancements": [
     {
-      "tag": "Improved",
-      "title": "'Show me how' now includes a visual demo, not just steps",
-      "detail": "Tapping 'Show me how' on any What's new entry opens one card that unfolds the step-by-step walkthrough, then a short animated demo clip of the real app (when one exists), then any uploaded training video — all in the same place. The separate 'Watch video' button is gone; look for a 🎞 or ▶ hint on the button so you know extra visuals are coming.",
+      "tag": "New",
+      "title": "See the whole store queue at a glance from the top bar",
+      "detail": "A new badge in the top bar always shows how many customers are waiting, how many are currently being helped, and how many are picking up online orders — it updates on its own every few seconds. Tap it to open a full queue view with waiting customers, in-progress visits, pickup orders, and today's scheduled appointments.",
       "keywords": [
-        "show me how",
-        "walkthrough",
-        "demo gif",
-        "watch video",
-        "training video",
-        "what's new"
+        "live queue",
+        "queue badge",
+        "waiting",
+        "ispu",
+        "pickup",
+        "appointments",
+        "top bar"
       ],
-      "answer": "Open the What's new card and tap 'Show me how' on any entry — you'll get a single unfolding card that shows the step-by-step guide first, followed by a short animated demo of the actual app in action (currently available for flows like Live Listen and the check-in queue), and then a training video if one's been added for that feature. There's no separate 'Watch video' button anymore — everything you need is inside the one card, and a 🎞 or ▶ icon on the 'Show me how' button tells you ahead of time whether extra visuals are included.",
+      "answer": "Look at the top bar for a small badge showing counts like waiting, active, and ISPU (in-store pickup) — it refreshes automatically so you don't have to keep checking manually. Tap the badge to open a drawer with four groups: customers waiting, customers currently being assisted, pickup orders that are ready or need to be pulled, and today's remaining scheduled appointments. The 'View queue' card in chat now shows those same upcoming appointments too, listed as 'Upcoming' rows.",
       "walkthrough": {
-        "intro": "Learn how the updated 'Show me how' experience walks you through steps, a demo clip, and video all in one place.",
+        "intro": "Learn how to read the new Live Queue badge and open the full queue drawer to see everyone waiting, being helped, or scheduled today.",
         "steps": [
           {
-            "title": "Open the What's new card",
-            "detail": "Tap the What's new tile to see the current list of enhancements.",
+            "title": "Glance at the top bar badge",
+            "detail": "You'll see a compact count like '3 wait / 2 active / 1 ISPU' — this updates automatically roughly every 20 seconds, no refresh needed.",
             "tip": null
           },
           {
-            "title": "Check for a 🎞 or ▶ hint",
-            "detail": "Some entries show a small icon on the 'Show me how' button letting you know a demo GIF or video is included.",
+            "title": "Tap the badge",
+            "detail": "This opens the Live Queue drawer with the full breakdown.",
             "tip": null
           },
           {
-            "title": "Tap 'Show me how'",
-            "detail": "A step-by-step walkthrough appears right in the chat thread, showing exactly what to tap and where.",
+            "title": "Check the Waiting and Being Assisted sections",
+            "detail": "See exactly who's waiting for help and who a teammate (or you) is already helping.",
             "tip": null
           },
           {
-            "title": "Watch the demo clip play automatically",
-            "detail": "If a demo exists for that feature, a short animated clip of the real app appears right after the steps, in the same card.",
-            "tip": "The demo GIFs currently cover Live Listen end-to-end and the check-in queue with eligibility badges."
-          },
-          {
-            "title": "Watch the training video if there is one",
-            "detail": "If a video has been uploaded for that feature, it plays at the bottom of the same card — no need to leave the app or tap a separate button.",
-            "tip": null
-          }
-        ]
-      }
-    },
-    {
-      "tag": "Improved",
-      "title": "Settings is now organized into simple sections",
-      "detail": "Instead of one long page you had to scroll through, Settings now has a left-side menu with System Health, Email Reports, Playbook, Training & Enablement, and The Opener, so you can jump straight to the part you need.",
-      "keywords": [
-        "settings",
-        "sub-nav",
-        "training and enablement",
-        "system health",
-        "email reports",
-        "playbook",
-        "opener settings"
-      ],
-      "answer": "Open Settings and you'll now see a menu on the left with five sections: System Health, Email Reports, Playbook, Training & Enablement, and The Opener. Tap any section to view just that panel instead of scrolling through everything at once.",
-      "walkthrough": {
-        "intro": "Get comfortable finding things quickly in the redesigned Settings page.",
-        "steps": [
-          {
-            "title": "Open Settings",
-            "detail": "Tap Settings from the main menu.",
+            "title": "Check the Pickup section",
+            "detail": "This shows online orders that still need to be pulled and ones that are staged and ready for pickup.",
             "tip": null
           },
           {
-            "title": "Look at the left-side menu",
-            "detail": "You'll see five sections listed: System Health, Email Reports, Playbook, Training & Enablement, and The Opener.",
-            "tip": null
-          },
-          {
-            "title": "Tap a section",
-            "detail": "Select the section you need, like Email Reports, and only that panel loads on the right.",
-            "tip": "No more scrolling past unrelated settings to find what you want."
+            "title": "Scroll to Upcoming appointments",
+            "detail": "Today's remaining scheduled appointments show at the bottom, so you know who else is coming in.",
+            "tip": "You can also type 'view queue' in chat to get this same appointment info as a card."
           }
         ]
       }
@@ -256,7 +222,7 @@
           },
           {
             "title": "Find them in the queue",
-            "detail": "Open the queue card to see everyone currently waiting and their position in line.",
+            "detail": "Open the queue card, or the new Live Queue badge in the top bar, to see everyone currently waiting and their position in line.",
             "tip": null
           },
           {
@@ -273,7 +239,6 @@
       "detail": "Rep Assist can now scan your open and in-review tickets and sort them into three buckets: ones you can solve by sharing a help article, ones it can fix for you automatically, and ones that need to be flagged as a system problem. Each bucket comes with a one-tap action so you can clear tickets faster.",
       "keywords": [
         "resolution desk",
-        "ticket triage",
         "analyze tickets",
         "one-click fix",
         "bucket",
@@ -351,11 +316,46 @@
           }
         ]
       }
+    },
+    {
+      "tag": "Improved",
+      "title": "Settings is now organized into simple sections",
+      "detail": "Instead of one long page you had to scroll through, Settings now has a left-side menu with System Health, Email Reports, Playbook, Training & Enablement, and The Opener, so you can jump straight to the part you need.",
+      "keywords": [
+        "settings",
+        "sub-nav",
+        "training and enablement",
+        "system health",
+        "email reports",
+        "playbook",
+        "opener settings"
+      ],
+      "answer": "Open Settings and you'll now see a menu on the left with five sections: System Health, Email Reports, Playbook, Training & Enablement, and The Opener. Tap any section to view just that panel instead of scrolling through everything at once.",
+      "walkthrough": {
+        "intro": "Get comfortable finding things quickly in the redesigned Settings page.",
+        "steps": [
+          {
+            "title": "Open Settings",
+            "detail": "Tap Settings from the main menu.",
+            "tip": null
+          },
+          {
+            "title": "Look at the left-side menu",
+            "detail": "You'll see five sections listed: System Health, Email Reports, Playbook, Training & Enablement, and The Opener.",
+            "tip": null
+          },
+          {
+            "title": "Tap a section",
+            "detail": "Select the section you need, like Email Reports, and only that panel loads on the right.",
+            "tip": "No more scrolling past unrelated settings to find what you want."
+          }
+        ]
+      }
     }
   ],
   "suggestions": [
-    "What's different about 'Show me how' now?",
-    "How do I get a Playbook Score after a Live Listen visit?",
-    "How does the Resolution Desk sort my tickets?"
+    "What does the new queue badge in the top bar mean?",
+    "How do I see today's upcoming appointments?",
+    "How does Live Listen coach me after a visit?"
   ]
 }
