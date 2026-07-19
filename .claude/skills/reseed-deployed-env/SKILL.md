@@ -89,9 +89,14 @@ instead of double-seeding).
 ## Don't confuse this with local dev
 
 This skill targets the **live Cloud Run URL**. Local dev reseeding is a
-different, unauthenticated process (`python backend/scripts/seed_ytd.py`,
-or hitting `127.0.0.1:8000`'s same endpoint with no token needed unless
-`ADMIN_TOKEN` is set in `backend/.env`). If the user's ask is ambiguous
+different process: run a seed **script** directly (no token — it bypasses the
+HTTP layer). Use `python backend/scripts/seed_demo.py`, which also populates the
+11 store-queue fixtures (walk-ins, ISPU, and today's appointments) that the Live
+Queue indicator reads; `seed_ytd.py` seeds only engagement/ticket history and
+does **not** touch `queue_entries`. The local `/api/admin/seed` endpoint is
+**not** token-free — `_require_token` fails closed, so it returns `403` on every
+call unless `ADMIN_TOKEN` is set in `backend/.env` (and then it needs a matching
+`X-Admin-Token` header, exactly like deployed). If the user's ask is ambiguous
 about which environment, ask — pointing these commands at the wrong target
 silently does nothing useful.
 
