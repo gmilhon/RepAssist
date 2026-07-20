@@ -1,7 +1,51 @@
 {
-  "generated_at": "2026-07-19T22:41:00.149287+00:00",
-  "last_commit_sha": "2776c86cd77a177283fe6b5f074770870329f2b1",
+  "generated_at": "2026-07-20T03:06:49.641168+00:00",
+  "last_commit_sha": "1cd2cc62f39f4a08fe12ebe45630c37703b7b9c6",
   "enhancements": [
+    {
+      "tag": "Improved",
+      "title": "Settings menu now includes CES Routing for specialist hand-offs",
+      "detail": "Settings still has the simple left-side menu — System Health, Email Reports, Playbook, Training & Enablement, and The Opener — plus a new CES Routing section. CES Routing lets your store admin choose, topic by topic, whether a request is handled by Rep Assist's built-in tools or handed off to an outside specialist support agent; if you're in a hand-off and want regular Rep Assist help back, just ask and it switches back for you.",
+      "keywords": [
+        "ces routing",
+        "specialist agent",
+        "hand back",
+        "settings",
+        "sections",
+        "routing"
+      ],
+      "answer": "CES Routing is a new page inside Settings where your admin turns certain support topics over to an outside specialist agent (built by the CES team) instead of Rep Assist's own built-in resolver — this is decided per topic, not per rep. If you're mid-conversation with that specialist and want normal Rep Assist help instead, just say so (a hand-back phrase) and the conversation switches back to Rep Assist automatically. You won't need to do anything differently day-to-day unless your admin has turned this on for a topic you're working with.",
+      "walkthrough": {
+        "intro": "Learn where to find the new CES Routing section in Settings and what to do if a conversation gets handed to a specialist agent.",
+        "steps": [
+          {
+            "title": "Open Settings",
+            "detail": "Tap Settings from the main menu.",
+            "tip": null
+          },
+          {
+            "title": "Look at the left-side menu",
+            "detail": "You'll now see six sections: System Health, Email Reports, Playbook, Training & Enablement, The Opener, and CES Routing.",
+            "tip": null
+          },
+          {
+            "title": "Tap CES Routing",
+            "detail": "This shows which topics your admin has set up to be handled by an outside specialist agent versus Rep Assist's built-in tools.",
+            "tip": "This page is mostly for admins to configure — as a rep you just need to know it exists."
+          },
+          {
+            "title": "Notice a hand-off during chat",
+            "detail": "If a topic you're working on is routed to the specialist agent, the conversation will keep flowing normally in the same chat thread.",
+            "tip": null
+          },
+          {
+            "title": "Ask to come back to Rep Assist",
+            "detail": "If you want regular Rep Assist help instead, just say so in the chat and it will hand control back automatically.",
+            "tip": null
+          }
+        ]
+      }
+    },
     {
       "tag": "New",
       "title": "See the whole store queue at a glance from the top bar",
@@ -316,46 +360,11 @@
           }
         ]
       }
-    },
-    {
-      "tag": "Improved",
-      "title": "Settings is now organized into simple sections",
-      "detail": "Instead of one long page you had to scroll through, Settings now has a left-side menu with System Health, Email Reports, Playbook, Training & Enablement, and The Opener, so you can jump straight to the part you need.",
-      "keywords": [
-        "settings",
-        "sub-nav",
-        "training and enablement",
-        "system health",
-        "email reports",
-        "playbook",
-        "opener settings"
-      ],
-      "answer": "Open Settings and you'll now see a menu on the left with five sections: System Health, Email Reports, Playbook, Training & Enablement, and The Opener. Tap any section to view just that panel instead of scrolling through everything at once.",
-      "walkthrough": {
-        "intro": "Get comfortable finding things quickly in the redesigned Settings page.",
-        "steps": [
-          {
-            "title": "Open Settings",
-            "detail": "Tap Settings from the main menu.",
-            "tip": null
-          },
-          {
-            "title": "Look at the left-side menu",
-            "detail": "You'll see five sections listed: System Health, Email Reports, Playbook, Training & Enablement, and The Opener.",
-            "tip": null
-          },
-          {
-            "title": "Tap a section",
-            "detail": "Select the section you need, like Email Reports, and only that panel loads on the right.",
-            "tip": "No more scrolling past unrelated settings to find what you want."
-          }
-        ]
-      }
     }
   ],
   "suggestions": [
-    "What does the new queue badge in the top bar mean?",
-    "How do I see today's upcoming appointments?",
-    "How does Live Listen coach me after a visit?"
+    "What is CES Routing in Settings?",
+    "How do I get back to regular Rep Assist if I'm talking to a specialist agent?",
+    "How does the Live Queue badge in the top bar work?"
   ]
 }
