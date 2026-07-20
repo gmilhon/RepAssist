@@ -53,6 +53,27 @@ const DEMO_SCRIPT: { speaker: "Customer" | "Rep"; text: string; delayMs: number 
   { speaker: "Customer", text: "It's account AC-5003 — they said a monthly promo discount would show up on the account, and it never did.", delayMs: 3600 },
 ];
 
+// Shopping demo (played when assisting an Upgrade / New Service visit): the
+// customer drives each cart action so the top cart drawer builds and edits
+// itself live as the conversation plays. Only the customer's lines carry the
+// shopping intent — the rep confirms briefly — so nothing is double-applied.
+const SHOPPING_DEMO_SCRIPT: { speaker: "Customer" | "Rep"; text: string; delayMs: number }[] = [
+  { speaker: "Rep", text: "Welcome back, Ms. Rivera! What can I set you up with today?", delayMs: 2600 },
+  { speaker: "Customer", text: "I'd love to trade in my old iPhone for the new iPhone 17 Pro on Unlimited Ultimate.", delayMs: 3800 },
+  { speaker: "Rep", text: "Perfect — and that credit makes it a great deal.", delayMs: 3000 },
+  { speaker: "Customer", text: "Actually, hold on — let me go with the Pixel 10 instead.", delayMs: 3600 },
+  { speaker: "Rep", text: "You got it.", delayMs: 2400 },
+  { speaker: "Customer", text: "And can I add a new line for my daughter? She'd like the Galaxy S26.", delayMs: 3800 },
+  { speaker: "Rep", text: "Of course.", delayMs: 2400 },
+  { speaker: "Customer", text: "Put her on the Unlimited Ultimate plan — she streams a lot.", delayMs: 3600 },
+  { speaker: "Rep", text: "Done.", delayMs: 2400 },
+  { speaker: "Customer", text: "Oh, throw in an Apple Watch Series 10 for me too.", delayMs: 3600 },
+  { speaker: "Rep", text: "Sure thing.", delayMs: 2400 },
+  { speaker: "Customer", text: "You know what, let's skip the watch for today.", delayMs: 3400 },
+  { speaker: "Rep", text: "No problem — so you're all set with the Pixel 10 upgrade and the new line for your daughter. Want me to place the order?", delayMs: 3000 },
+];
+
+
 function formatElapsed(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
@@ -365,7 +386,7 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
           content: `🎧 Live Listen started — assisting ${label} (${reasonLabel}). I'll flag anything I can help with.${oppLine}`,
         },
       ]);
-      if (listenMode === "demo") playDemoScript();
+      if (listenMode === "demo") playDemoScript(res.session.reason);
       else startListenRecognition();
       scrollDown();
     } catch (e) {
@@ -427,11 +448,15 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
     try { rec.start(); } catch { /* ignore */ }
   }
 
-  function playDemoScript() {
+  function playDemoScript(reason?: string) {
+    // A shopping visit (upgrade / new service) plays the cart-building script,
+    // so the top cart drawer builds itself live; other visits play the
+    // issue-triage script.
+    const script = reason === "upgrade" || reason === "new_service" ? SHOPPING_DEMO_SCRIPT : DEMO_SCRIPT;
     let i = 0;
     const step = () => {
-      if (!listenActiveRef.current || i >= DEMO_SCRIPT.length) return;
-      const line = DEMO_SCRIPT[i++];
+      if (!listenActiveRef.current || i >= script.length) return;
+      const line = script[i++];
       demoTimerRef.current = window.setTimeout(() => {
         if (!listenActiveRef.current) return;
         pushUtterance({ speaker: line.speaker, text: line.text });

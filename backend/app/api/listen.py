@@ -41,7 +41,9 @@ MAX_SUGGESTIONS_PER_CALL = 2
 MAX_UTTERANCE_CHARS = 2000
 MAX_UTTERANCES_PER_CALL = 50
 
-_VALID_INTENTS = {i.value for i in Intent}
+# Shopping intents (add_line/upgrade) are handled by the live cart path
+# (_cart_from_listen), not surfaced as issue-suggestion cards.
+_VALID_INTENTS = {i.value for i in Intent} - {Intent.ADD_LINE.value, Intent.UPGRADE.value}
 
 # Per-session locks serialize the read-analyze-record sequence so two
 # overlapping analyze calls on one session can't race on the JSON columns
@@ -218,11 +220,16 @@ def _cart_from_listen(session: ListenSession, text: str) -> dict | None:
     from .. import shop as shop_engine
     from ..mock_services import shop_data
     cart_row = db.get_cart(session.thread_id)
-    if not cart_row or not cart_row.items:
+    items = list(cart_row.items) if cart_row else []
+    # Build a NEW cart from the conversation only for shopping visits (new
+    # service / upgrade); otherwise only EDIT an existing cart, so an ambient
+    # "I might upgrade someday" in a support call never spawns a cart.
+    shopping_visit = (session.reason or "").lower() in ("new_service", "upgrade")
+    if not items and not shopping_visit:
         return None
     account = shop_data.account_summary(session.account_id)
     try:
-        turn = llm.interpret_shop_turn(text, account, list(cart_row.items),
+        turn = llm.interpret_shop_turn(text, account, items,
                                        thread_id=session.thread_id, rep_id=session.rep_id)
     except Exception as exc:  # noqa: BLE001 - listening must never break
         logger.warning("Listen cart interpret failed (%s)", exc)
@@ -230,7 +237,7 @@ def _cart_from_listen(session: ListenSession, text: str) -> dict | None:
     ops = [o for o in turn.ops if o.op != "none"]
     if not ops:
         return None
-    new_items, notes = shop_engine.apply_ops(list(cart_row.items), ops, account)
+    new_items, notes = shop_engine.apply_ops(items, ops, account)
     db.save_cart(session.thread_id, new_items, account_id=account.get("account_id"))
     return {"cart": shop_engine.cart_view(new_items), "notes": notes}
 
