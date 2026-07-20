@@ -1,7 +1,56 @@
 {
-  "generated_at": "2026-07-20T04:34:11.914044+00:00",
-  "last_commit_sha": "c33192d597e61944f9529b356b0912c72a0d28ca",
+  "generated_at": "2026-07-20T21:55:30.134770+00:00",
+  "last_commit_sha": "d697f88a9007930650d4cc744802d893ac41d526",
   "enhancements": [
+    {
+      "tag": "New",
+      "title": "Build a shopping cart right in chat — add lines, upgrades, and check out",
+      "detail": "When you pull up a customer, Rep Assist now shows an account summary card with their lines (phone/tablet/watch), plans, home internet, upgrade eligibility, and any sales opportunities, plus Add a line and Upgrade buttons. Just tell the assistant what you want to add or change and it builds a cart for you in a drawer, then you can check out with a simulated payment — no real charge is ever made.",
+      "keywords": [
+        "cart",
+        "checkout",
+        "shopping",
+        "add a line",
+        "upgrade",
+        "live listen cart"
+      ],
+      "answer": "Ask to help a checked-in customer and Rep Assist surfaces their account summary — lines, plans, internet service, upgrade eligibility, and opportunities — right in the chat. Say things like 'add a line' or 'upgrade this phone' and the assistant updates a live cart drawer as you talk; when you're ready, say 'place the order' and it walks you through the usual confirmation step before running a simulated payment and printing a receipt (the card is masked and nothing is actually charged). If you're running Live Listen at the same time, cart changes the customer asks for out loud — like swapping a device or changing a plan — get picked up and applied to the draft cart automatically.",
+      "walkthrough": {
+        "intro": "Learn how to use the new in-chat shopping flow to build a cart, make changes by talking, and check out safely with a simulated payment.",
+        "steps": [
+          {
+            "title": "Pull up the customer's account",
+            "detail": "Assist a customer from the queue or chat — Rep Assist shows their account summary card with lines, plans, home internet, and upgrade eligibility.",
+            "tip": null
+          },
+          {
+            "title": "Check for opportunities",
+            "detail": "Look for any flagged opportunities on the summary card, like an upgrade promo or home internet offer.",
+            "tip": null
+          },
+          {
+            "title": "Tap Add a line or Upgrade, or just ask",
+            "detail": "Tap the button on the summary card, or type something like 'add a tablet line' or 'upgrade to the new phone' — either way, Rep Assist starts building a cart.",
+            "tip": null
+          },
+          {
+            "title": "Watch the cart drawer update live",
+            "detail": "A cart drawer opens at the top of the screen and updates as you keep chatting — swap a device, change a plan, or add/remove items just by describing what the customer wants.",
+            "tip": "If you're running Live Listen with this customer, cart changes they ask for out loud get applied automatically too."
+          },
+          {
+            "title": "Say 'place the order' to check out",
+            "detail": "This takes you through the usual confirmation step, then runs a simulated payment with a masked card — no real money is charged.",
+            "tip": null
+          },
+          {
+            "title": "Review the order card and receipt",
+            "detail": "Once confirmed, the cart clears and Rep Assist shows an order card confirming what was placed.",
+            "tip": null
+          }
+        ]
+      }
+    },
     {
       "tag": "Improved",
       "title": "Menu moved into one global drawer, plus a quick 'new chat' button",
@@ -319,52 +368,11 @@
           }
         ]
       }
-    },
-    {
-      "tag": "Improved",
-      "title": "System health status indicator now catches problems automatically",
-      "detail": "The colored badge in the top bar still shows whether everything is running normally (green), there's a known issue (yellow), or a serious outage (red), and tapping it shows what's affected and live connection speed to each server region. Now it can also flip itself to yellow and pop up a toast on your screen automatically if Rep Assist's automated fixes start failing more than usual — even before an admin notices.",
-      "keywords": [
-        "system status",
-        "outage",
-        "system health",
-        "down",
-        "slow",
-        "server issue",
-        "green yellow red",
-        "auto alert"
-      ],
-      "answer": "The health badge at the top of the screen turns yellow or red when there's a known issue, and tapping it opens a panel with details, any workaround, and live round-trip times to the East, Central, and West server regions. On top of admins posting status changes, the system now watches itself in the background — if automated troubleshooting starts failing more often than normal, it automatically marks the system degraded and pushes a toast notification to your screen without waiting for a human to spot it. An admin still has to clear that warning manually once the issue is resolved.",
-      "walkthrough": {
-        "intro": "Learn to read the system health badge and understand what an automatic alert means.",
-        "steps": [
-          {
-            "title": "Glance at the top bar badge",
-            "detail": "Green means everything's normal, yellow means a known issue, red means a serious outage.",
-            "tip": null
-          },
-          {
-            "title": "Tap the badge for details",
-            "detail": "A panel opens showing what's affected, any workaround, and live connection speed to the East, Central, and West server regions.",
-            "tip": null
-          },
-          {
-            "title": "Watch for an automatic toast alert",
-            "detail": "If Rep Assist's own automated fixes start failing more than usual, it can flip itself yellow and pop up a toast notification without an admin posting anything.",
-            "tip": "This means the system caught the problem itself — no need to report it, just keep working carefully until it clears."
-          },
-          {
-            "title": "Wait for it to clear",
-            "detail": "An admin will manually clear the warning once the underlying issue is resolved.",
-            "tip": null
-          }
-        ]
-      }
     }
   ],
   "suggestions": [
-    "Where did the chat menu options go?",
-    "How do I start a brand-new conversation?",
-    "Why did my Send button look squished on my phone before?"
+    "How do I add a line or upgrade a customer's phone through chat?",
+    "How does the new shopping cart checkout work — is it a real charge?",
+    "What shows up in a customer's account summary card?"
   ]
 }
