@@ -25,9 +25,9 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 
 /* ---- top bar ---- */
 .topbar {
-  display: flex; align-items: center; gap: 24px;
+  display: flex; align-items: center; gap: 14px;
   background: var(--ink); color: #fff;
-  padding: 0 20px; height: 60px; flex: none;
+  padding: 0 16px; height: 60px; flex: none;
 }
 .brand { display: flex; align-items: baseline; gap: 10px; }
 .brand-mark {
@@ -38,13 +38,21 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 }
 .brand-name { font-weight: 800; font-size: 18px; letter-spacing: -0.2px; }
 .brand-sub { font-size: 12px; color: #b9bcc4; }
-.tabs { display: flex; gap: 4px; margin-left: 12px; }
-.tab {
-  background: transparent; color: #c9ccd3; border: none; cursor: pointer;
-  padding: 8px 14px; border-radius: 8px; font-size: 14px; font-weight: 600;
+
+/* Hamburger that opens the global nav drawer (replaces the inline tabs). */
+.topbar-menu {
+  background: transparent; color: #fff; border: none; cursor: pointer;
+  font-size: 19px; line-height: 1; width: 38px; height: 38px; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  transition: background 0.12s;
 }
-.tab:hover { background: #1c1d22; color: #fff; }
-.tab.active { background: var(--vz-red); color: #fff; }
+.topbar-menu:hover { background: #1c1d22; }
+/* Current-view label — wayfinding now that the tabs live in the drawer. */
+.topbar-view {
+  padding-left: 16px; margin-left: 4px;
+  border-left: 1px solid rgba(255, 255, 255, 0.16);
+  font-size: 14px; font-weight: 700; color: #fff; white-space: nowrap;
+}
 
 /* Right side of the topbar: Live Queue indicator + System Health badge */
 .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
@@ -70,33 +78,58 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 
 .content { flex: 1; overflow: hidden; }
 
-/* ---- chat ---- */
-.chat-shell { position: relative; height: 100%; overflow: hidden; }
-/* The CTA sidebar is an overlay drawer, collapsed by default so the chat is
-   full-width; opened from the ☰ button at the bottom-left of the composer. */
-.chat-side {
-  position: absolute; top: 0; left: 0; bottom: 0; z-index: 50;
-  width: 300px; max-width: 86%;
-  display: flex; flex-direction: column;
-  background: var(--card); border-right: 1px solid var(--line);
-  padding: 18px; overflow-y: auto;
-  transform: translateX(-100%);
-  transition: transform 0.22s ease;
-}
-.chat-side.open { transform: translateX(0); box-shadow: 2px 0 20px rgba(0, 0, 0, 0.14); }
-.chat-side-backdrop {
-  position: absolute; inset: 0; z-index: 40;
-  background: rgba(20, 22, 26, 0.30);
+/* ---- Global navigation drawer (opened from the topbar ☰ or the composer ☰) ---- */
+.app-drawer-backdrop {
+  position: fixed; inset: 0; z-index: 90;
+  background: rgba(15, 17, 21, 0.44);
   animation: chat-fade-in 0.18s ease;
 }
-@keyframes chat-fade-in { from { opacity: 0; } to { opacity: 1; } }
-.chat-side-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.chat-side-close {
-  background: none; border: none; cursor: pointer; font-size: 15px; line-height: 1;
-  color: var(--ink-2); padding: 5px 7px; border-radius: 8px; flex-shrink: 0;
+.app-drawer {
+  position: fixed; top: 0; left: 0; bottom: 0; z-index: 100;
+  width: 300px; max-width: 88%;
+  display: flex; flex-direction: column;
+  background: var(--card); border-right: 1px solid var(--line);
+  transform: translateX(-100%);
+  transition: transform 0.24s ease;
 }
-.chat-side-close:hover { background: var(--bg); color: var(--ink); }
-.chat-side h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--ink-2); }
+.app-drawer.open { transform: translateX(0); box-shadow: 2px 0 24px rgba(0, 0, 0, 0.18); }
+@keyframes chat-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+.app-drawer-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 13px 16px; border-bottom: 1px solid var(--line); flex: none;
+}
+.app-drawer-brand { display: flex; align-items: center; gap: 9px; }
+.app-drawer-title { font-weight: 800; font-size: 16px; color: var(--ink); }
+.app-drawer-close {
+  background: none; border: none; cursor: pointer; font-size: 15px; line-height: 1;
+  color: var(--ink-2); width: 30px; height: 30px; border-radius: 8px; flex: none;
+}
+.app-drawer-close:hover { background: var(--bg); color: var(--ink); }
+
+.app-drawer-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 14px 20px; }
+.drawer-group { margin-bottom: 2px; }
+.drawer-subhead {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--ink-2); margin: 12px 4px 6px;
+}
+.drawer-nav-item {
+  display: flex; align-items: center; gap: 11px; width: 100%; text-align: left; cursor: pointer;
+  background: none; border: none; border-radius: 9px; padding: 9px 10px; margin-bottom: 2px;
+  color: var(--ink); font: inherit; transition: background 0.12s;
+}
+.drawer-nav-item:hover { background: var(--bg); }
+.drawer-nav-item.active { background: var(--vz-red); color: #fff; }
+.drawer-nav-icon { font-size: 16px; width: 22px; text-align: center; flex: none; }
+.drawer-nav-label { font-size: 14px; font-weight: 600; }
+.drawer-divider { height: 1px; background: var(--line); margin: 14px 4px 2px; }
+.drawer-quick-label {
+  font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px;
+  color: var(--ink); margin: 8px 4px 0;
+}
+
+/* ---- chat ---- */
+.chat-shell { position: relative; height: 100%; overflow: hidden; }
 .chip {
   display: block; width: 100%; text-align: left; cursor: pointer;
   background: #fafbfc; border: 1px solid var(--line); border-radius: 10px;
@@ -380,22 +413,30 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 .typing span:nth-child(3) { animation-delay: 0.4s; }
 @keyframes blink { 0%, 60%, 100% { opacity: 0.3; } 30% { opacity: 1; } }
 
-.composer { display: flex; gap: 10px; padding: 16px 24px; border-top: 1px solid var(--line); background: #fff; }
-.composer input { flex: 1; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; font-size: 14px; }
+.composer { display: flex; align-items: center; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--line); background: #fff; }
+/* min-width:0 lets the input shrink inside the flex row so the trailing buttons
+   (incl. Send) always stay visible — without it a long row overflows and pushes
+   Send off-screen on narrow viewports. */
+.composer input { flex: 1; min-width: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; font-size: 14px; }
 .composer input:focus { outline: none; border-color: var(--vz-red); }
+.composer .btn { flex: none; }
 
 .btn { border: none; border-radius: 9px; padding: 10px 16px; font-size: 14px; font-weight: 600; cursor: pointer; }
 .btn.primary { background: var(--vz-red); color: #fff; }
 .btn.primary:hover:not(:disabled) { background: var(--vz-red-dark); }
 .btn.ghost { background: #fff; border: 1px solid var(--line); color: var(--ink); }
 .btn:disabled { opacity: 0.5; cursor: default; }
-/* ☰ menu button in the composer — opens the CTA drawer (matches .btn.listen). */
-.btn.composer-menu {
+/* ☰ menu (opens the nav drawer) and + (new conversation) — leading composer
+   buttons, styled as subtle icon buttons like .btn.listen. */
+.btn.composer-menu,
+.btn.composer-new {
   background: #fff; border: 1px solid var(--line); color: var(--ink-2);
-  padding: 10px 12px; font-size: 16px; line-height: 1;
+  padding: 10px 12px; line-height: 1;
 }
-.btn.composer-menu:hover:not(:disabled) { border-color: var(--vz-red); color: var(--ink); }
-.btn.composer-menu.active { background: var(--vz-red); color: #fff; border-color: var(--vz-red); }
+.btn.composer-menu { font-size: 16px; }
+.btn.composer-new { font-size: 20px; padding: 10px 13px; }
+.btn.composer-menu:hover:not(:disabled),
+.btn.composer-new:hover:not(:disabled) { border-color: var(--vz-red); color: var(--vz-red); }
 
 /* ---- Live Listen ---- */
 /* Composer button — visually distinct from .btn.mic: slower, wider ring pulse
@@ -1133,27 +1174,16 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
     height: auto;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px 14px;
+    gap: 8px 12px;
     padding: 8px 14px;
   }
-  .brand { margin-right: auto; }
   .brand-sub { display: none; }               /* non-essential; biggest space hog */
-  .topbar-right { margin-left: 0; }
-  .tabs {
-    order: 3;                                  /* drop to a second row */
-    width: 100%;
-    margin-left: 0;
-    overflow-x: auto;                          /* horizontally scrollable strip */
-    flex-wrap: nowrap;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;                     /* Firefox */
-  }
-  .tabs::-webkit-scrollbar { display: none; }  /* WebKit */
-  .tab { flex: 0 0 auto; white-space: nowrap; }
+  /* .topbar-right keeps its base margin-left:auto so the status badges hug the right. */
 }
 
 /* ---- Phones: compact the Live Queue badge to just its counts ---- */
 @media (max-width: 640px) {
+  .topbar-view { display: none; }             /* the drawer's active state covers wayfinding here */
   .queue-badge-name { display: none; }
   .queue-badge-segs { padding-left: 0; border-left: none; }
 }
@@ -1165,15 +1195,8 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 
 /* ---- Phones: stack master/detail views and tighten spacing ---- */
 @media (max-width: 680px) {
-  /* Chat: full-width conversation; the CTA drawer overlays from the left. */
+  /* Chat: full-width conversation; navigation is in the global drawer. */
   .chat-shell { display: flex; flex-direction: column; min-height: 0; }
-  .chat-side {
-    width: min(330px, 88%);
-    padding: 16px;
-    /* Clear the fixed composer dock so the last CTA isn't hidden behind it. */
-    padding-bottom: 84px;
-  }
-  .cta-tiles { display: flex; flex-direction: column; }
   .chat-main { flex: 1; min-height: 0; }
   .messages { padding: 16px 14px; gap: 12px; padding-bottom: 80px; }
   /* Pin the whole dock (live transcript + input) to the bottom together. */
@@ -1185,10 +1208,16 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
     z-index: 50;
     box-shadow: 0 -1px 0 var(--line);
   }
+  /* Compact the leading/trailing buttons so all of ☰ + · input · mic · listen ·
+     Send fit on a narrow row (min-width:0 on the input does the rest). */
   .composer {
-    padding: 10px 14px;
+    gap: 6px;
+    padding: 10px 12px;
     padding-bottom: calc(10px + env(safe-area-inset-bottom));
   }
+  .composer .btn { padding: 9px 10px; }
+  .btn.composer-new { padding: 9px 11px; font-size: 18px; }
+  .btn.primary { padding: 9px 13px; }
   .listen-dock { padding: 8px 14px 10px; }
   .empty { margin-top: 5vh; }
   .bubble { max-width: 88%; }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
+import type { ChatAction, LookupKind } from "../chatActions";
 import type { A2UICoachingEntry, A2UIElement, A2UIEnhancement, A2UIQueue, A2UIQueueEntry, ChatResponse, CoachingResult, ConfirmationPayload, ListenSession, ListenUtterance, PlaybookGrade, ResolutionCard, SendSummaryResult, VisitSummary, Walkthrough } from "../types";
 import { VISIT_REASONS } from "../types";
 import { A2UIRenderer, Stars } from "./A2UI";
@@ -20,30 +21,6 @@ interface Msg {
   coaching?: CoachingResult;
   walkthrough?: { title: string; steps: Walkthrough; gifUrl?: string | null; gifCaption?: string | null; videoUrl?: string | null };
 }
-
-// First-step CTAs — tapping one sends a starter prompt; the assistant then asks
-// for the specifics it needs (order/account id).
-const FIRST_STEPS: { icon: string; label: string; prompt: string }[] = [
-  { icon: "⚡", label: "Fix an activation", prompt: "I have a line stuck in activation that I need to fix." },
-  { icon: "🔓", label: "Unblock an order", prompt: "A customer's order is blocked and I need to release it." },
-  { icon: "🏷️", label: "Apply a promo", prompt: "A promo didn't apply to a customer's account." },
-  { icon: "💵", label: "Explain a charge", prompt: "I need help explaining a charge on the customer's bill." },
-  { icon: "🎁", label: "Request a credit", prompt: "The customer is requesting a bill credit." },
-];
-
-type LookupKind = "orders" | "tickets" | "system" | "huddle" | "queue";
-
-// Context lookups — tapping one reveals the matching A2UI card in the chat.
-const LOOKUPS: { icon: string; label: string; kind: LookupKind }[] = [
-  { icon: "📦", label: "Recent orders", kind: "orders" },
-  { icon: "🎫", label: "My open tickets", kind: "tickets" },
-];
-
-// Briefings — MCP-backed informational cards.
-const BRIEFINGS: { icon: string; label: string; kind: LookupKind }[] = [
-  { icon: "✨", label: "System enhancements", kind: "system" },
-  { icon: "🚀", label: "The Opener", kind: "huddle" },
-];
 
 const STATUS_LABEL: Record<string, string> = {
   resolved: "Resolved",
@@ -90,16 +67,22 @@ function timeGreeting(): string {
   return "Good evening";
 }
 
-export default function ChatWidget() {
+interface ChatWidgetProps {
+  onOpenMenu: () => void;
+  chatAction: ChatAction | null;
+  chatActionNonce: number;
+  onChatActionDone: () => void;
+}
+
+export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, onChatActionDone }: ChatWidgetProps) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [threadId, setThreadId] = useState<string | null>(null);
   const [pending, setPending] = useState<ConfirmationPayload | null>(null);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
-  // The CTA sidebar is a drawer, collapsed by default so the chat is full-width.
-  const [sideOpen, setSideOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const lastActionNonce = useRef(0);
   const recognitionRef = useRef<any>(null);
 
   // Check-in form state
@@ -641,101 +624,25 @@ export default function ChatWidget() {
     setCiError(null);
   }
 
+  // Execute a quick-action dispatched from the global drawer (App owns the
+  // drawer; ChatWidget owns the handlers). The nonce ref-guard makes this fire
+  // exactly once per dispatch — not on StrictMode's double-invoke or a remount.
+  useEffect(() => {
+    if (chatActionNonce === lastActionNonce.current) return;
+    lastActionNonce.current = chatActionNonce;
+    if (!chatAction) return;
+    switch (chatAction.kind) {
+      case "prompt": send(chatAction.value); break;
+      case "lookup": showLookup(chatAction.value); break;
+      case "coaching": showCoaching(); break;
+      case "checkin": setCiError(null); setCheckInOpen(true); break;
+      case "reset": reset(); break;
+    }
+    onChatActionDone();
+  }, [chatActionNonce]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className="chat-shell">
-      {sideOpen && <div className="chat-side-backdrop" onClick={() => setSideOpen(false)} />}
-      <div
-        className={`chat-side${sideOpen ? " open" : ""}`}
-        onClick={(e) => {
-          // A CTA / reset / close click also dismisses the drawer so the rep
-          // lands back on the full chat after picking an action.
-          if ((e.target as HTMLElement).closest(".cta-tile, .reset, .chat-side-close"))
-            setSideOpen(false);
-        }}
-      >
-        <div className="chat-side-head">
-          <h3>First steps</h3>
-          <button
-            type="button"
-            className="chat-side-close"
-            onClick={() => setSideOpen(false)}
-            aria-label="Close menu"
-            title="Close menu"
-          >
-            ✕
-          </button>
-        </div>
-        <p className="muted">Tap to begin, or type your own.</p>
-
-        <div className="cta-tiles">
-          {FIRST_STEPS.map((s) => (
-            <button key={s.label} className="cta-tile" disabled={busy} onClick={() => send(s.prompt)}>
-              <span className="cta-tile-icon">{s.icon}</span>
-              <span className="cta-tile-label">{s.label}</span>
-            </button>
-          ))}
-        </div>
-
-        <div className="cta-subhead">Front desk</div>
-        <div className="cta-tiles">
-          <button
-            className="cta-tile"
-            disabled={busy}
-            onClick={() => {
-              setCiError(null);
-              setCheckInOpen(true);
-            }}
-          >
-            <span className="cta-tile-icon">📝</span>
-            <span className="cta-tile-label">Check In</span>
-          </button>
-          <button className="cta-tile cta-tile--lookup" disabled={busy} onClick={() => showLookup("queue")}>
-            <span className="cta-tile-icon">🧑‍🤝‍🧑</span>
-            <span className="cta-tile-label">View queue</span>
-            <span className="cta-tile-chevron">›</span>
-          </button>
-          <button className="cta-tile cta-tile--lookup" disabled={busy} onClick={showCoaching}>
-            <span className="cta-tile-icon">🎯</span>
-            <span className="cta-tile-label">Coaching</span>
-            <span className="cta-tile-chevron">›</span>
-          </button>
-        </div>
-
-        <div className="cta-subhead">Look up</div>
-        <div className="cta-tiles">
-          {LOOKUPS.map((c) => (
-            <button
-              key={c.kind}
-              className="cta-tile cta-tile--lookup"
-              disabled={busy}
-              onClick={() => showLookup(c.kind)}
-            >
-              <span className="cta-tile-icon">{c.icon}</span>
-              <span className="cta-tile-label">{c.label}</span>
-              <span className="cta-tile-chevron">›</span>
-            </button>
-          ))}
-        </div>
-
-        <div className="cta-subhead">Briefings</div>
-        <div className="cta-tiles">
-          {BRIEFINGS.map((c) => (
-            <button
-              key={c.kind}
-              className="cta-tile cta-tile--lookup"
-              disabled={busy}
-              onClick={() => showLookup(c.kind)}
-            >
-              <span className="cta-tile-icon">{c.icon}</span>
-              <span className="cta-tile-label">{c.label}</span>
-              <span className="cta-tile-chevron">›</span>
-            </button>
-          ))}
-        </div>
-
-        <button className="reset" onClick={reset}>↺ New conversation</button>
-      </div>
-
       <div className="chat-main">
         <div className="messages" ref={scrollRef}>
           {messages.length === 0 && (
@@ -971,13 +878,21 @@ export default function ChatWidget() {
         >
           <button
             type="button"
-            className={`btn composer-menu${sideOpen ? " active" : ""}`}
-            onClick={() => setSideOpen((v) => !v)}
-            title="First steps &amp; menu"
+            className="btn composer-menu"
+            onClick={onOpenMenu}
+            title="Menu"
             aria-label="Open menu"
-            aria-expanded={sideOpen}
           >
             ☰
+          </button>
+          <button
+            type="button"
+            className="btn composer-new"
+            onClick={reset}
+            title="New conversation"
+            aria-label="New conversation"
+          >
+            +
           </button>
           <input
             value={input}

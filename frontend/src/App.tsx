@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
+import type { ChatAction } from "./chatActions";
+import AppDrawer from "./components/AppDrawer";
+import type { Tab } from "./components/AppDrawer";
 import ChatWidget from "./components/ChatWidget";
 import HealthPanel from "./components/HealthPanel";
 import LiveQueuePanel from "./components/LiveQueuePanel";
@@ -9,8 +12,6 @@ import CXDashboard from "./components/CXDashboard";
 import ProductionDashboard from "./components/ProductionDashboard";
 import SettingsPage from "./components/SettingsPage";
 import type { LiveQueueSnapshot, SystemHealth } from "./types";
-
-type Tab = "chat" | "desk" | "ops" | "cx" | "prod" | "settings";
 
 const STATUS_COLOR: Record<string, string> = {
   operational: "green",
@@ -24,6 +25,16 @@ const STATUS_LABEL: Record<string, string> = {
   outage: "Service outage",
 };
 
+// Current-view label shown in the topbar (the tab buttons moved into the drawer).
+const VIEW_TITLES: Record<Tab, string> = {
+  chat: "Rep Assist",
+  desk: "Resolution Desk",
+  ops: "Performance",
+  cx: "CX Monitor",
+  prod: "Production",
+  settings: "Settings",
+};
+
 interface HealthToast {
   id: number;
   health: SystemHealth;
@@ -31,6 +42,11 @@ interface HealthToast {
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("chat");
+  const [menuOpen, setMenuOpen] = useState(false);
+  // A quick-action dispatched from the drawer into ChatWidget. The nonce forces
+  // the chat's effect to re-run even when the same action is picked twice.
+  const [chatAction, setChatAction] = useState<ChatAction | null>(null);
+  const [chatActionNonce, setChatActionNonce] = useState(0);
   const [health, setHealth] = useState<Record<string, any> | null>(null);
   const [sysHealth, setSysHealth] = useState<SystemHealth>({
     status: "operational", description: "", workaround: "", hard_stop: false, updated_at: null,
@@ -86,37 +102,42 @@ export default function App() {
     setHealthToasts(prev => prev.filter(t => t.id !== id));
   }
 
+  function navigate(next: Tab) {
+    setTab(next);
+    setMenuOpen(false);
+  }
+
+  // Drawer → chat quick-action: make sure we're on the chat view, then hand the
+  // action to ChatWidget (which owns the handlers) via a nonce-bumped prop.
+  function dispatchChatAction(action: ChatAction) {
+    setTab("chat");
+    setChatAction(action);
+    setChatActionNonce(n => n + 1);
+    setMenuOpen(false);
+  }
+
   const shStatus = sysHealth?.status ?? "operational";
   const qc = liveQueue?.counts;
 
   return (
     <div className="app">
       <header className="topbar">
+        <button
+          className="topbar-menu"
+          onClick={() => setMenuOpen(true)}
+          aria-label="Open menu"
+          aria-expanded={menuOpen}
+          title="Menu"
+        >
+          ☰
+        </button>
         <div className="brand">
           <span className="brand-mark">✓</span>
           <span className="brand-name">Rep Assist</span>
           <span className="brand-sub">Assisted Sales &amp; Service</span>
         </div>
-        <nav className="tabs">
-          <button className={tab === "chat" ? "tab active" : "tab"} onClick={() => setTab("chat")}>
-            Rep Assist
-          </button>
-          <button className={tab === "desk" ? "tab active" : "tab"} onClick={() => setTab("desk")}>
-            Resolution Desk
-          </button>
-          <button className={tab === "ops" ? "tab active" : "tab"} onClick={() => setTab("ops")}>
-            Performance
-          </button>
-          <button className={tab === "cx" ? "tab active" : "tab"} onClick={() => setTab("cx")}>
-            CX Monitor
-          </button>
-          <button className={tab === "prod" ? "tab active" : "tab"} onClick={() => setTab("prod")}>
-            Production
-          </button>
-          <button className={tab === "settings" ? "tab active" : "tab"} onClick={() => setTab("settings")}>
-            Settings
-          </button>
-        </nav>
+        {/* Wayfinding label for secondary views; the chat "home" is the brand itself. */}
+        {tab !== "chat" && <span className="topbar-view">{VIEW_TITLES[tab]}</span>}
 
         <div className="topbar-right">
           <button
@@ -147,13 +168,28 @@ export default function App() {
       </header>
 
       <main className="content">
-        {tab === "chat" && <ChatWidget />}
+        {tab === "chat" && (
+          <ChatWidget
+            onOpenMenu={() => setMenuOpen(true)}
+            chatAction={chatAction}
+            chatActionNonce={chatActionNonce}
+            onChatActionDone={() => setChatAction(null)}
+          />
+        )}
         {tab === "desk" && <ReviewConsole />}
         {tab === "ops" && <OperationsDashboard />}
         {tab === "cx" && <CXDashboard />}
         {tab === "prod" && <ProductionDashboard />}
         {tab === "settings" && <SettingsPage onHealthChange={loadSysHealth} />}
       </main>
+
+      <AppDrawer
+        open={menuOpen}
+        tab={tab}
+        onNavigate={navigate}
+        onChatAction={dispatchChatAction}
+        onClose={() => setMenuOpen(false)}
+      />
 
       {showHealthPanel && (
         <HealthPanel health={sysHealth} runtime={health} onClose={() => setShowHealthPanel(false)} />
