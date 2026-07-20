@@ -1,47 +1,43 @@
 {
-  "generated_at": "2026-07-20T03:06:49.641168+00:00",
-  "last_commit_sha": "1cd2cc62f39f4a08fe12ebe45630c37703b7b9c6",
+  "generated_at": "2026-07-20T03:59:57.817208+00:00",
+  "last_commit_sha": "87eb194dd4e398d485af20c48a89ad9c1a6e3ed8",
   "enhancements": [
     {
       "tag": "Improved",
-      "title": "Settings menu now includes CES Routing for specialist hand-offs",
-      "detail": "Settings still has the simple left-side menu — System Health, Email Reports, Playbook, Training & Enablement, and The Opener — plus a new CES Routing section. CES Routing lets your store admin choose, topic by topic, whether a request is handled by Rep Assist's built-in tools or handed off to an outside specialist support agent; if you're in a hand-off and want regular Rep Assist help back, just ask and it switches back for you.",
+      "title": "Chat menu tucked into a quick-access drawer",
+      "detail": "Your chat conversation now fills the whole screen. The First Steps, Front Desk, Look Up, and Briefings options you used to see on the left are now inside a slide-out drawer you open with a ☰ button at the bottom-left of your message box.",
       "keywords": [
-        "ces routing",
-        "specialist agent",
-        "hand back",
-        "settings",
-        "sections",
-        "routing"
+        "hamburger menu",
+        "sidebar",
+        "drawer",
+        "menu button",
+        "front desk",
+        "look up",
+        "briefings"
       ],
-      "answer": "CES Routing is a new page inside Settings where your admin turns certain support topics over to an outside specialist agent (built by the CES team) instead of Rep Assist's own built-in resolver — this is decided per topic, not per rep. If you're mid-conversation with that specialist and want normal Rep Assist help instead, just say so (a hand-back phrase) and the conversation switches back to Rep Assist automatically. You won't need to do anything differently day-to-day unless your admin has turned this on for a topic you're working with.",
+      "answer": "Rep Assist now opens straight into your full-width conversation instead of showing a side menu by default. To get to First Steps, Front Desk, Look Up, or Briefings, tap the ☰ button at the bottom-left of the composer to slide out the menu, pick what you need, and it automatically closes so you're back in the conversation. This works the same way on phone and desktop.",
       "walkthrough": {
-        "intro": "Learn where to find the new CES Routing section in Settings and what to do if a conversation gets handed to a specialist agent.",
+        "intro": "Learn where the First Steps, Front Desk, Look Up, and Briefings options moved to, and how to get to them quickly.",
         "steps": [
           {
-            "title": "Open Settings",
-            "detail": "Tap Settings from the main menu.",
+            "title": "Open a chat",
+            "detail": "Rep Assist now opens directly into the full conversation view — you won't see a menu on the left side anymore.",
             "tip": null
           },
           {
-            "title": "Look at the left-side menu",
-            "detail": "You'll now see six sections: System Health, Email Reports, Playbook, Training & Enablement, The Opener, and CES Routing.",
+            "title": "Tap the ☰ button",
+            "detail": "Look at the bottom-left of your message box and tap the ☰ icon to slide out the menu drawer.",
             "tip": null
           },
           {
-            "title": "Tap CES Routing",
-            "detail": "This shows which topics your admin has set up to be handled by an outside specialist agent versus Rep Assist's built-in tools.",
-            "tip": "This page is mostly for admins to configure — as a rep you just need to know it exists."
-          },
-          {
-            "title": "Notice a hand-off during chat",
-            "detail": "If a topic you're working on is routed to the specialist agent, the conversation will keep flowing normally in the same chat thread.",
+            "title": "Browse the menu groups",
+            "detail": "You'll see the same four groups as before: First Steps, Front Desk, Look Up, and Briefings.",
             "tip": null
           },
           {
-            "title": "Ask to come back to Rep Assist",
-            "detail": "If you want regular Rep Assist help instead, just say so in the chat and it will hand control back automatically.",
-            "tip": null
+            "title": "Pick an option",
+            "detail": "Tap any item — the drawer closes automatically and drops you back into the chat with that action running.",
+            "tip": "If you tap outside the drawer or hit close, it dismisses without doing anything."
           }
         ]
       }
@@ -129,7 +125,7 @@
           },
           {
             "title": "Open the Coaching tile",
-            "detail": "Tap the 🎯 Coaching tile in the sidebar to see a list of your recent graded visits.",
+            "detail": "Tap the 🎯 Coaching tile in the menu drawer to see a list of your recent graded visits.",
             "tip": null
           },
           {
@@ -250,8 +246,13 @@
         "intro": "Learn how to check in a walk-in customer and pick them up from the queue.",
         "steps": [
           {
+            "title": "Open the menu drawer",
+            "detail": "Tap the ☰ button at the bottom-left of the composer, then choose Front Desk to see the Check In option.",
+            "tip": null
+          },
+          {
             "title": "Tap Check In",
-            "detail": "Find the Check In button in the Front Desk group and tap it to open the intake form.",
+            "detail": "This opens the intake form for logging a walk-in customer.",
             "tip": null
           },
           {
@@ -266,7 +267,7 @@
           },
           {
             "title": "Find them in the queue",
-            "detail": "Open the queue card, or the new Live Queue badge in the top bar, to see everyone currently waiting and their position in line.",
+            "detail": "Open the queue card, or the Live Queue badge in the top bar, to see everyone currently waiting and their position in line.",
             "tip": null
           },
           {
@@ -294,7 +295,7 @@
         "steps": [
           {
             "title": "Open the Resolution Desk",
-            "detail": "Navigate to the Resolution Desk section from the main menu.",
+            "detail": "Tap the ☰ menu button and navigate to the Resolution Desk section.",
             "tip": null
           },
           {
@@ -363,8 +364,8 @@
     }
   ],
   "suggestions": [
-    "What is CES Routing in Settings?",
-    "How do I get back to regular Rep Assist if I'm talking to a specialist agent?",
-    "How does the Live Queue badge in the top bar work?"
+    "Where did the Front Desk and Look Up menu go?",
+    "How do I check in a walk-in customer now?",
+    "What does the 💡 badge in the queue mean?"
   ]
 }
