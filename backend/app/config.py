@@ -32,6 +32,17 @@ class Settings(BaseModel):
     occ_agent_url: str = os.getenv("OCC_AGENT_URL", "").rstrip("/")
     occ_agent_token: str = os.getenv("OCC_AGENT_TOKEN", "").strip()
 
+    # External Google CX Agent Studio (CES) agent, relayed to per-intent from the
+    # graph's `ces_remote` node (see integrations/ces_client.py). Connection
+    # config is sensitive → env/Secret Manager. An empty deployment turns the
+    # feature off (enabled() is False). `ces_stub` keeps replies in-process for
+    # the offline demo/tests; set CES_STUB=false — plus a Cloud Run service
+    # account granted a CES-invoke role — to hit the live `runSession` API.
+    ces_deployment: str = os.getenv("CES_DEPLOYMENT", "").strip()   # projects/…/apps/{app}/deployments/{dep}
+    ces_app_version: str = os.getenv("CES_APP_VERSION", "").strip()  # projects/…/apps/{app}/versions/{ver}
+    ces_location: str = os.getenv("CES_LOCATION", "us").strip()
+    ces_stub: bool = os.getenv("CES_STUB", "false").lower() == "true"
+
     # Persistence
     tickets_db_url: str = os.getenv("TICKETS_DB_URL", "sqlite:///./repassist.db")
     checkpoint_db: str = os.getenv("CHECKPOINT_DB", "./checkpoints.sqlite")
@@ -82,6 +93,13 @@ class Settings(BaseModel):
     def langsmith_enabled(self) -> bool:
         """True when a LangSmith API key is present — enables auto-tracing."""
         return bool(self.langsmith_api_key)
+
+    @property
+    def ces_enabled(self) -> bool:
+        """True when a CES deployment is configured — gates per-intent routing to
+        the external CES agent. Independent of `ces_stub` (which only decides
+        whether the relay call is live or the in-process stub)."""
+        return bool(self.ces_deployment)
 
 
 @lru_cache

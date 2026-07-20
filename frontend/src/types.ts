@@ -413,6 +413,24 @@ export interface OSTArticleRef {
   category: string;
 }
 
+// ── CES Routing (Settings → CES Routing) ────────────────────────────────────
+export interface CesRoutingIntent {
+  intent: string;
+  label: string;
+  enabled: boolean;              // true → relayed to CES; false → built-in resolver/knowledge
+  entry_agent: string | null;    // optional CES sub-agent (Billing/Accounts/…)
+  has_resolver: boolean;         // a built-in resolver already owns this intent
+}
+
+export interface CesRouting {
+  configured: boolean;           // CES_DEPLOYMENT set → routing can take effect
+  stubbed: boolean;              // replies are the in-process stub (offline), not the live API
+  deployment: string | null;
+  location: string;
+  entry_agents: string[];
+  intents: CesRoutingIntent[];
+}
+
 export interface A2UIResponse {
   elements: A2UIElement[];
 }

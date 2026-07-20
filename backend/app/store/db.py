@@ -10,6 +10,7 @@ from sqlmodel import Session, SQLModel, create_engine, select
 from ..config import get_settings
 from .models import (
     ActionAudit,
+    CesRoute,
     EnhancementVideo,
     Engagement,
     GapType,
@@ -559,6 +560,33 @@ def set_enhancement_hidden(title: str, hidden: bool) -> None:
         elif not hidden and existing:
             s.delete(existing)
             s.commit()
+
+
+# --------------------------------------------------------------------------- #
+# CES routing policy (Settings → CES Routing; read live by route_after_triage)
+# --------------------------------------------------------------------------- #
+def ces_routes() -> dict[str, CesRoute]:
+    """All routing rows, keyed by intent. Read once per turn by the router."""
+    with Session(_engine) as s:
+        return {r.intent: r for r in s.exec(select(CesRoute)).all()}
+
+
+def ces_enabled_intents() -> set[str]:
+    """Intents currently switched ON to relay to the external CES agent."""
+    return {intent for intent, r in ces_routes().items() if r.enabled}
+
+
+def set_ces_route(intent: str, enabled: bool, entry_agent: Optional[str] = None) -> None:
+    """Upsert one intent's routing rule (idempotent). Passing entry_agent=None
+    leaves the existing sub-agent untouched; passing "" clears it."""
+    with Session(_engine) as s:
+        r = s.get(CesRoute, intent) or CesRoute(intent=intent)
+        r.enabled = enabled
+        if entry_agent is not None:
+            r.entry_agent = entry_agent or None
+        r.updated_at = datetime.now(timezone.utc)
+        s.add(r)
+        s.commit()
 
 
 # --------------------------------------------------------------------------- #

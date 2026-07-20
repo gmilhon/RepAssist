@@ -156,6 +156,24 @@ class HiddenEnhancement(SQLModel, table=True):
     hidden_at: datetime = Field(default_factory=_now)
 
 
+class CesRoute(SQLModel, table=True):
+    """Which triage intents relay to the external Google CES `repAssist` agent
+    instead of the built-in resolver/knowledge node. Managed from Settings → CES
+    Routing and read live each turn (see graph.nodes.route_after_triage), so a
+    manager's toggle takes effect on the very next message. Mirrors the
+    HiddenEnhancement pattern: a tiny policy table keyed by a stable string.
+
+    The connection itself (which deployment, where) is env/Secret-Manager config,
+    NOT stored here — this table holds only the on/off routing policy."""
+
+    __tablename__ = "ces_routes"
+
+    intent: str = Field(primary_key=True)          # Intent value: "billing", "activation", …
+    enabled: bool = True
+    entry_agent: Optional[str] = None              # optional CES sub-agent (Billing/Accounts/…)
+    updated_at: datetime = Field(default_factory=_now)
+
+
 class HuddleItem(SQLModel, table=True):
     """A Morning Huddle field-news item, managed from the Settings page and
     served by the 'news' MCP stub."""

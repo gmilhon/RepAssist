@@ -33,5 +33,9 @@ class GraphState(TypedDict, total=False):
     resolution: Optional[dict]         # final Resolution.model_dump()
     ticket_id: Optional[str]
 
+    # External CES relay (see graph.nodes.ces_remote)
+    ces_active: Optional[bool]         # a CES sub-conversation currently owns this thread (sticky)
+    ces_session_id: Optional[str]      # reused across turns so CES keeps context
+
     # Observability
     trace: Annotated[list[dict[str, Any]], operator.add]

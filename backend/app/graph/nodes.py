@@ -11,7 +11,7 @@ from langgraph.types import interrupt
 
 from .. import llm
 from ..config import get_settings
-from ..integrations import agents_client
+from ..integrations import agents_client, ces_client
 from ..schemas import (
     DiagnoseRequest,
     Intent,
@@ -64,6 +64,39 @@ def _trace(node: str, **detail) -> list[dict]:
 
 
 # --------------------------------------------------------------------------- #
+# CES relay helpers (see ces_remote + route_after_triage)
+# --------------------------------------------------------------------------- #
+# Phrases a rep can type to leave an in-flight CES sub-conversation and hand the
+# thread back to Rep Assist. Detected in triage, which clears the sticky flag.
+_CES_HANDBACK = (
+    "back to rep assist", "back to repassist", "exit ces", "leave ces",
+    "stop ces", "done with ces", "hand back", "handoff back", "handoff to rep assist",
+)
+
+
+def _wants_ces_handback(text: str) -> bool:
+    t = text.lower()
+    return any(phrase in t for phrase in _CES_HANDBACK)
+
+
+def _ces_session_id(state: GraphState) -> str:
+    """Stable per-thread CES session id, reused across turns for multi-turn
+    context. Matches the CES id regex [A-Za-z0-9][A-Za-z0-9-_]{4,62}."""
+    tid = (state.get("thread_id") or "anon").replace("-", "")[:48]
+    return f"ra{tid}"
+
+
+def _enrich_for_ces(text: str, ents: dict) -> str:
+    """Append known ids to the relayed text so the CES steering agent can skip
+    slot-filling — the same pre-fill trick the built-in resolvers use to avoid
+    re-prompting the rep for data we already have."""
+    labels = {"customer_name": "Customer", "account_id": "account_id",
+              "order_id": "order_id", "mtn": "mtn"}
+    tags = [f"({labels[k]}: {ents[k]})" for k in labels if ents.get(k)]
+    return " ".join([text, *tags]).strip()
+
+
+# --------------------------------------------------------------------------- #
 # 1. Triage
 # --------------------------------------------------------------------------- #
 def triage(state: GraphState) -> dict:
@@ -95,7 +128,7 @@ def triage(state: GraphState) -> dict:
         entities.get("order_id"), entities.get("account_id")
     )
 
-    return {
+    updates = {
         "intent": intent,
         "confidence": confidence,
         "sales_intent": sales_intent,
@@ -111,6 +144,12 @@ def triage(state: GraphState) -> dict:
             entities=entities,
         ),
     }
+    # If the rep explicitly asks to leave an in-flight CES sub-conversation, clear
+    # the sticky flag here (before route_after_triage) so this turn is handled by
+    # Rep Assist again instead of being relayed to CES.
+    if state.get("ces_active") and _wants_ces_handback(text):
+        updates["ces_active"] = False
+    return updates
 
 
 def route_after_triage(state: GraphState) -> str:
@@ -118,11 +157,22 @@ def route_after_triage(state: GraphState) -> str:
     intent = state.get("intent") or "other"
     confidence = state.get("confidence") or 0.0
     entities = state.get("entities", {})
+    # Sticky: an in-flight CES sub-conversation keeps the thread until the rep
+    # hands back (triage clears ces_active on a hand-back phrase). Checked first
+    # so a mid-flow follow-up ("the name is John") stays with CES even if it
+    # classifies as low-confidence/other on its own.
+    if state.get("ces_active") and ces_client.enabled():
+        return "ces_remote"
     # Ticket reference takes priority — look it up regardless of other keywords.
     if entities.get("ticket_ref_id"):
         return "ticket_recap"
     if confidence < threshold:
         return "ticket_fallback"
+    # Per-intent CES routing, managed live in Settings → CES Routing. CES
+    # self-slot-fills, so we route even when a required id is missing —
+    # intentionally ahead of the clarify gate below.
+    if ces_client.enabled() and intent in db.ces_enabled_intents():
+        return "ces_remote"
     # Ask for a missing required id rather than escalating.
     needed = NEEDS_ID.get(intent)
     if needed and not entities.get(needed):
@@ -243,6 +293,57 @@ def system_help(state: GraphState) -> dict:
         "resolution": Resolution(status="info", summary=answer, capability="system-mcp").model_dump(),
         "messages": [{"role": "assistant", "content": answer, "card": None}],
         "trace": _trace("system_help"),
+    }
+
+
+# --------------------------------------------------------------------------- #
+# 1e. CES relay — hand the turn to the external Google CES `repAssist` agent
+# --------------------------------------------------------------------------- #
+def ces_remote(state: GraphState) -> dict:
+    """Relay one rep turn to the external CES agent and surface its reply
+    verbatim (an advisory relay — no writes; see ces_client's docstring). The
+    reply is shown as-is rather than run back through `compose`, because compose
+    would re-voice it with the LLM and lose the external agent's actual words.
+    A stable CES session id is threaded on the state for multi-turn context, and
+    `ces_active` keeps the thread on CES until the rep hands back."""
+    sid = state.get("ces_session_id") or _ces_session_id(state)
+    intent = state.get("intent") or "other"
+    route = db.ces_routes().get(intent)
+    entry_agent = route.entry_agent if route else None
+    relayed = _enrich_for_ces(_last_user_text(state), state.get("entities") or {})
+
+    try:
+        turn = ces_client.run_turn(sid, relayed, entry_agent)
+    except Exception as exc:  # noqa: BLE001 - run_turn shouldn't raise, but never break the chat
+        logger.warning("CES relay failed (%s) — escalating", exc)
+        return {
+            "route": "ticket_fallback",
+            "ces_active": False,
+            "diagnosis": {"can_resolve": False,
+                          "summary": "The external CES agent is unavailable; escalating to a specialist."},
+            "trace": _trace("ces_remote", ok=False),
+        }
+
+    source = "CES · repAssist" + (f" · {entry_agent}" if entry_agent else "")
+    card = {
+        "intent": intent,
+        "status": "info",          # a relayed conversational turn, not a closed resolution
+        "root_cause": None,
+        "actions_taken": [],
+        "capability": source,
+        "ticket_id": None,
+        "order_context": state.get("order_context"),
+    }
+    return {
+        "messages": [{"role": "assistant", "content": turn.text, "card": card}],
+        # Carry a matching Resolution so _shape/_record classify the turn as an
+        # answered (info) interaction attributed to CES, not a resolution/escalation.
+        "resolution": Resolution(status="info", summary=turn.text, capability=source).model_dump(),
+        "ces_active": True,        # sticky until the rep hands back
+        "ces_session_id": sid,
+        "route": "reply",          # terminal: reply is verbatim, no compose rewrite
+        "trace": _trace("ces_remote", ok=True, entry_agent=entry_agent,
+                        stubbed=getattr(turn, "stubbed", False)),
     }
 
 

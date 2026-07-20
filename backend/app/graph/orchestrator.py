@@ -8,7 +8,12 @@ Flow:
                     ├→ promo ───────┘           └→ ticket_fallback → compose
                     ├→ occ ─────────────────────→ confirm / ticket_fallback
                     ├→ knowledge ───────────────→ compose
+                    ├→ ces_remote ──────────────→ END (verbatim) / ticket_fallback
                     └→ ticket_fallback ─────────→ compose
+
+`ces_remote` relays the turn to the external Google CES agent when the intent is
+switched on in Settings → CES Routing (and CES_DEPLOYMENT is set); its reply is
+surfaced verbatim rather than re-voiced through `compose`.
 
 `confirm` issues a LangGraph `interrupt()` so the rep can approve/deny any
 mutating fix; the API surfaces it and resumes with `Command(resume=...)`.
@@ -40,6 +45,7 @@ def _build() :
     builder.add_node("promo", nodes.promo_resolver)
     builder.add_node("occ", nodes.occ_resolver)
     builder.add_node("knowledge", nodes.knowledge)
+    builder.add_node("ces_remote", nodes.ces_remote)
     builder.add_node("confirm", nodes.confirm)
     builder.add_node("ticket_fallback", nodes.ticket_fallback)
     builder.add_node("compose", nodes.compose)
@@ -57,6 +63,7 @@ def _build() :
             "promo": "promo",
             "occ": "occ",
             "knowledge": "knowledge",
+            "ces_remote": "ces_remote",
             "ticket_fallback": "ticket_fallback",
         },
     )
@@ -64,6 +71,12 @@ def _build() :
     builder.add_edge("clarify", END)
     builder.add_edge("ticket_recap", END)
     builder.add_edge("system_help", END)
+    # ces_remote replies verbatim (terminal) on success, or escalates on failure.
+    builder.add_conditional_edges(
+        "ces_remote",
+        nodes.route_by_state,
+        {"reply": END, "ticket_fallback": "ticket_fallback"},
+    )
     for resolver in ("activation", "pending_order", "promo", "occ"):
         builder.add_conditional_edges(
             resolver,

@@ -1,4 +1,4 @@
-import type { A2UIResponse, AnalyzeResult, CallAgentResult, CandidateDefect, CapabilityGap, ChatResponse, CheckInResult, CoachingResult, CXOverview, EmailSettings, EmailSubscriber, EnhancementVideo, FileDefectResult, HuddleItem, JiraDefectItem, ListenUtterance, LiveQueueSnapshot, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, PlaybookGuideline, ProductionAnalyzeResult, ProductionIssue, ProductionOverview, QueueEntry, SendReportResult, SendSummaryResult, StartListenResult, StopListenResult, SystemHealth, Ticket, TicketAnalyzeResult, TrainingEnhancement, VideoStoryboard, Walkthrough } from "./types";
+import type { A2UIResponse, AnalyzeResult, CallAgentResult, CandidateDefect, CapabilityGap, CesRouting, ChatResponse, CheckInResult, CoachingResult, CXOverview, EmailSettings, EmailSubscriber, EnhancementVideo, FileDefectResult, HuddleItem, JiraDefectItem, ListenUtterance, LiveQueueSnapshot, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, PlaybookGuideline, ProductionAnalyzeResult, ProductionIssue, ProductionOverview, QueueEntry, SendReportResult, SendSummaryResult, StartListenResult, StopListenResult, SystemHealth, Ticket, TicketAnalyzeResult, TrainingEnhancement, VideoStoryboard, Walkthrough } from "./types";
 
 async function http<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -140,6 +140,14 @@ export const api = {
     }),
   removePlaybookGuideline: (id: number) =>
     fetch(`/api/playbook/guidelines/${id}`, { method: "DELETE" }).then(() => undefined),
+
+  // CES Routing (Settings → CES Routing)
+  getCesRouting: () => http<CesRouting>("/api/settings/ces-routing"),
+  setCesRoute: (intent: string, enabled: boolean, entry_agent?: string | null) =>
+    http<{ intent: string; enabled: boolean; entry_agent: string | null }>("/api/settings/ces-routing", {
+      method: "POST",
+      body: JSON.stringify({ intent, enabled, entry_agent: entry_agent ?? null }),
+    }),
 
   // Morning Huddle management (Settings)
   listHuddleItems: () => http<HuddleItem[]>("/api/huddle/items"),

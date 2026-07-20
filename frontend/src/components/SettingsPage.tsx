@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import type { EmailSettings, EmailSubscriber, HuddleItem, OSTArticleRef, PlaybookGuideline, SystemHealth, TrainingEnhancement, VideoStoryboard } from "../types";
+import type { CesRouting, CesRoutingIntent, EmailSettings, EmailSubscriber, HuddleItem, OSTArticleRef, PlaybookGuideline, SystemHealth, TrainingEnhancement, VideoStoryboard } from "../types";
 
 const HUDDLE_CATEGORIES = ["To-Do", "Promo", "Device", "Policy", "Network", "News"];
 const PLAYBOOK_CATEGORIES = ["Customer Needs", "Sales Positioning"];
 
-type SettingsSection = "health" | "email" | "playbook" | "training" | "opener";
+type SettingsSection = "health" | "email" | "playbook" | "training" | "opener" | "ces";
 const SETTINGS_SECTIONS: { key: SettingsSection; label: string; icon: string }[] = [
   { key: "health", label: "System Health", icon: "🩺" },
   { key: "email", label: "Email Reports", icon: "✉️" },
   { key: "playbook", label: "Playbook", icon: "📋" },
   { key: "training", label: "Training & Enablement", icon: "🎬" },
+  { key: "ces", label: "CES Routing", icon: "🔀" },
   { key: "opener", label: "The Opener", icon: "🚀" },
 ];
 
@@ -61,8 +62,11 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
   const [copiedTitle, setCopiedTitle] = useState<string | null>(null);
   const [videoUploads, setVideoUploads] = useState<Record<string, { uploading: boolean; error: string }>>({});
 
+  // CES Routing state
+  const [ces, setCes] = useState<CesRouting | null>(null);
+
   async function reload() {
-    const [subs, settings, hItems, arts, sh, gls, enh] = await Promise.all([
+    const [subs, settings, hItems, arts, sh, gls, enh, cesRouting] = await Promise.all([
       api.listSubscribers(),
       api.emailSettings(),
       api.listHuddleItems(),
@@ -70,6 +74,7 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
       api.getSystemHealth(),
       api.listPlaybookGuidelines(),
       api.trainingEnhancements(),
+      api.getCesRouting(),
     ]);
     setSubscribers(subs);
     setSmtp(settings);
@@ -81,7 +86,32 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
     setShHardStop(sh.hard_stop);
     setGuidelines(gls);
     setEnhancements(enh);
+    setCes(cesRouting);
     setLoading(false);
+  }
+
+  // Optimistic per-intent CES routing toggle (mirrors toggleHidden).
+  function patchCesIntent(intent: string, patch: Partial<CesRoutingIntent>) {
+    setCes((c) => c && { ...c, intents: c.intents.map((x) => (x.intent === intent ? { ...x, ...patch } : x)) });
+  }
+
+  async function toggleCesRoute(it: CesRoutingIntent) {
+    const next = !it.enabled;
+    patchCesIntent(it.intent, { enabled: next });
+    try {
+      await api.setCesRoute(it.intent, next, it.entry_agent);
+    } catch {
+      patchCesIntent(it.intent, { enabled: it.enabled });
+    }
+  }
+
+  async function setCesEntryAgent(it: CesRoutingIntent, agent: string | null) {
+    patchCesIntent(it.intent, { entry_agent: agent });
+    try {
+      await api.setCesRoute(it.intent, it.enabled, agent ?? "");
+    } catch {
+      patchCesIntent(it.intent, { entry_agent: it.entry_agent });
+    }
   }
 
   async function makeStoryboard(e: TrainingEnhancement) {
@@ -689,6 +719,96 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
         )}
       </div>
 
+      )}
+
+      {/* ── CES Routing ──────────────────────────────────────────────── */}
+      {section === "ces" && (
+      <div className="settings-section">
+        <div className="settings-section-head">
+          <h3 className="settings-section-title">CES Routing</h3>
+          <p className="settings-section-sub">
+            Relay selected triage intents to the external <strong>Google CX Agent Studio</strong> (CES){" "}
+            <code>repAssist</code> agent instead of the built-in resolver. Toggles take effect on the
+            rep's next message. Intents with a built-in resolver are <strong>overridden</strong>; the
+            rest <strong>gain new capability</strong>. This is an advisory relay — the rep-confirmation
+            gate still governs any account change.
+          </p>
+        </div>
+
+        {!ces ? (
+          <div className="settings-loading">Loading…</div>
+        ) : (
+          <>
+            {/* Connection banner — reuses the SMTP badge styling */}
+            <div className={`settings-smtp-badge ${ces.configured ? "is-live" : "is-off"}`}>
+              <span className="settings-smtp-dot" />
+              {ces.configured ? (
+                <>
+                  Connected · <strong>{ces.deployment}</strong>
+                  {ces.stubbed && <> · <em>stubbed (offline replies)</em></>}
+                </>
+              ) : (
+                <>
+                  Not configured — set <code>CES_DEPLOYMENT</code> in <code>backend/.env</code> (and grant the
+                  Cloud Run service account a CES-invoke role) to enable routing.
+                </>
+              )}
+            </div>
+
+            <div className="settings-table-wrap">
+              <table className="settings-table">
+                <thead>
+                  <tr>
+                    <th>Intent</th>
+                    <th title="Whether a built-in Rep Assist resolver already handles this intent">Built-in</th>
+                    <th>Route</th>
+                    <th title="Optional CES domain sub-agent to enter">CES entry agent</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ces.intents.map((it) => (
+                    <tr key={it.intent} className={ces.configured && it.enabled ? "" : "settings-row-inactive"}>
+                      <td className="settings-email">{it.label}</td>
+                      <td className="settings-name">
+                        {it.has_resolver
+                          ? <span title="CES overrides the built-in resolver for this intent">Overrides resolver</span>
+                          : <span className="settings-none">Adds capability</span>}
+                      </td>
+                      <td>
+                        <button
+                          className={`settings-toggle ${it.enabled ? "on" : "off"}`}
+                          disabled={!ces.configured}
+                          onClick={() => toggleCesRoute(it)}
+                          title={
+                            !ces.configured
+                              ? "Set CES_DEPLOYMENT to enable routing"
+                              : it.enabled
+                              ? "Relaying to CES — click to use the built-in path"
+                              : "Using the built-in path — click to relay to CES"
+                          }
+                        >
+                          {it.enabled ? "CES" : "Built-in"}
+                        </button>
+                      </td>
+                      <td>
+                        <select
+                          className="settings-input settings-input--name"
+                          value={it.entry_agent ?? ""}
+                          disabled={!ces.configured || !it.enabled}
+                          onChange={(e) => setCesEntryAgent(it, e.target.value || null)}
+                        >
+                          <option value="">Auto (steering agent)</option>
+                          {ces.entry_agents.map((a) => <option key={a} value={a}>{a}</option>)}
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
       )}
 
       {/* ── The Opener ───────────────────────────────────────────────── */}
