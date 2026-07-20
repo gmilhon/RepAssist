@@ -85,6 +85,23 @@ You need a GCP project with billing enabled. The script enables the required API
 Non-secret config (model, LangSmith project, SMTP host/user/from) is passed via
 `--set-env-vars`. **`GET /api/email/settings` never returns secret values.**
 
+### CES agent routing (optional)
+
+`deploy.sh` also passes the **CES agent** connection config via `--set-env-vars`
+so the [CES Routing](23-ces-agent-routing.md) feature is live in the deployed
+demo:
+
+| Env var | Deployed value | Notes |
+|---|---|---|
+| `CES_DEPLOYMENT` | the `repAssist` deployment resource | Empty → feature off. A resource path, not a secret. |
+| `CES_LOCATION` | `us` | Region for the request header. |
+| `CES_STUB` | `true` | Ships in **stub mode** — the relay uses deterministic in-process replies, so the feature is demoable with **no external calls and no IAM changes**. |
+
+To make the deployed relay hit the real CES API, set `CES_STUB=false` and grant
+the Cloud Run runtime service account a CES-invoke IAM role for
+`ces.googleapis.com` (the app and the reference deployment share a project, so
+this is only an IAM grant). See [doc 23](23-ces-agent-routing.md#configuration).
+
 > **Gotcha — `--set-secrets` replaces the whole set.** When updating one secret on
 > a running service, pass *all* of them in a single `--set-secrets` flag, or the
 > others get dropped.

@@ -59,6 +59,7 @@ dev team should build next, so the assistant keeps getting better.
 20. [Live Listen](docs/20-live-listen.md) — a read-only AI copilot over a live rep–customer conversation: suggestion cards that hand off into the normal chat, a Playbook score at the end of the visit, GenAI per-rep coaching, and a one-tap customer visit-summary email.
 21. [Training & Enablement](docs/21-training-and-enablement.md) — one "Show me how" per feature combining auto-generated steps, an animated demo GIF, and an uploaded training video, plus an AI storyboard/narration generator.
 22. [Live Queue](docs/22-live-queue.md) — real-time floor snapshot: waiting, being assisted, in-store pickups, and today's appointments, in a topbar indicator + popup.
+23. [CES Agent Routing](docs/23-ces-agent-routing.md) — relay selected triage intents to an external Google CX Agent Studio (CES) agent, switched on per-intent from Settings, built on `runSession` with an offline stub.
 
 ## 60-second quickstart
 

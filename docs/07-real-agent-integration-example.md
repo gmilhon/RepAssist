@@ -7,6 +7,13 @@ contract) — which proves the pattern generalizes across agents with different
 shapes and auth schemes. The same recipe applies to Pending Order and any future
 agent.
 
+> **Two integration styles.** This doc covers the **diagnose/execute adapter** —
+> the right shape for a task agent that proposes a discrete, confirm-gated
+> account change. For a **conversational** external agent that you relay whole
+> turns to (and surface its reply), see
+> [CES Agent Routing](23-ces-agent-routing.md), which hides a Google CES
+> `runSession` relay behind the same "config toggle, not a rewrite" principle.
+
 ## The idea
 
 The orchestrator only knows our **internal contract**

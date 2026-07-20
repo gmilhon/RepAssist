@@ -138,7 +138,7 @@ gcloud run deploy "$SERVICE" \
   --cpu 1 \
   --timeout 600 \
   --set-secrets "ANTHROPIC_API_KEY=rep-assist-anthropic-key:latest,LANGCHAIN_API_KEY=rep-assist-langsmith-key:latest,SMTP_PASSWORD=rep-assist-smtp-password:latest,ADMIN_TOKEN=rep-assist-admin-token:latest" \
-  --set-env-vars "LANGCHAIN_PROJECT=rep-assist,ANTHROPIC_MODEL=claude-sonnet-5,SMTP_HOST=smtp.gmail.com,SMTP_PORT=587,SMTP_USER=milhon@gmail.com,SMTP_FROM=Grady Milhon <milhon@gmail.com>,SMTP_TLS=true"
+  --set-env-vars "LANGCHAIN_PROJECT=rep-assist,ANTHROPIC_MODEL=claude-sonnet-5,SMTP_HOST=smtp.gmail.com,SMTP_PORT=587,SMTP_USER=milhon@gmail.com,SMTP_FROM=Grady Milhon <milhon@gmail.com>,SMTP_TLS=true,CES_DEPLOYMENT=projects/test-494103/locations/us/apps/5948d35e-d531-47ae-9316-57428c210a4c/deployments/19188296-9a28-42bc-8a57-50958d1ef6db,CES_LOCATION=us,CES_STUB=true"
 
 # --------------------------------------------------------------------------- #
 # 7. Print the URL

@@ -35,7 +35,10 @@ flowchart TD
     triage -->|pending_order| pending_order
     triage -->|promo| promo
     triage -->|billing/general| knowledge
+    triage -->|"intent routed to CES (Settings)"| ces_remote
     triage -->|other / low conf| ticket_fallback
+    ces_remote -->|verbatim reply| END
+    ces_remote -->|relay failed| ticket_fallback
     activation -->|proposes change| confirm
     activation -->|can't fix| ticket_fallback
     pending_order -->|proposes change| confirm
@@ -67,6 +70,8 @@ class GraphState(TypedDict, total=False):
     proposed_action: Optional[dict]                 # mutating fix awaiting approval
     resolution: Optional[dict]                      # final Resolution
     ticket_id: Optional[str]
+    ces_active: Optional[bool]                      # sticky: a CES sub-conversation owns the thread
+    ces_session_id: Optional[str]                   # reused across turns for CES multi-turn context
     trace: Annotated[list[dict], operator.add]      # per-node breadcrumbs
 ```
 
@@ -77,13 +82,17 @@ class GraphState(TypedDict, total=False):
 | `triage` | Classify intent + confidence, extract ids, fetch order context | `llm.classify`, `agents_client.order_context` |
 | `activation` / `pending_order` / `promo` | Ask the matching existing agent to diagnose; set a proposed action, resolve, or mark unresolved | `agents_client.diagnose` |
 | `knowledge` | KB lookup for billing/general | `agents_client.kb_search` |
+| `ces_remote` | Relay the turn to an external CES agent when the intent is routed there in Settings; surface its reply verbatim ([doc 23](23-ces-agent-routing.md)) | `ces_client.run_turn` |
 | `confirm` | **`interrupt()`** for rep approval; on approve, execute the change | `agents_client.execute` |
 | `ticket_fallback` | Create a human ticket with full context | `store.db.create_ticket` |
 | `compose` | Build the rep-facing reply + a structured UI card | `llm.compose_reply` |
 
 Routing uses two edge functions: `route_after_triage` (intent + a confidence
 threshold) and `route_by_state` (follow the `route` a node set). Low confidence
-or `other` short-circuits straight to `ticket_fallback`.
+or `other` short-circuits straight to `ticket_fallback`. `route_after_triage`
+also honours the live **CES routing** policy — a sticky `ces_active`
+sub-conversation, or an intent a manager has switched on in Settings, is relayed
+to `ces_remote` instead of the built-in path ([doc 23](23-ces-agent-routing.md)).
 
 ## The human-in-the-loop interrupt
 
