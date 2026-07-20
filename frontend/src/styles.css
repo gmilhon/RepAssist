@@ -71,11 +71,31 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 .content { flex: 1; overflow: hidden; }
 
 /* ---- chat ---- */
-.chat-shell { display: grid; grid-template-columns: 280px 1fr; grid-template-rows: 1fr; height: 100%; }
+.chat-shell { position: relative; height: 100%; overflow: hidden; }
+/* The CTA sidebar is an overlay drawer, collapsed by default so the chat is
+   full-width; opened from the ☰ button at the bottom-left of the composer. */
 .chat-side {
+  position: absolute; top: 0; left: 0; bottom: 0; z-index: 50;
+  width: 300px; max-width: 86%;
+  display: flex; flex-direction: column;
   background: var(--card); border-right: 1px solid var(--line);
   padding: 18px; overflow-y: auto;
+  transform: translateX(-100%);
+  transition: transform 0.22s ease;
 }
+.chat-side.open { transform: translateX(0); box-shadow: 2px 0 20px rgba(0, 0, 0, 0.14); }
+.chat-side-backdrop {
+  position: absolute; inset: 0; z-index: 40;
+  background: rgba(20, 22, 26, 0.30);
+  animation: chat-fade-in 0.18s ease;
+}
+@keyframes chat-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.chat-side-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.chat-side-close {
+  background: none; border: none; cursor: pointer; font-size: 15px; line-height: 1;
+  color: var(--ink-2); padding: 5px 7px; border-radius: 8px; flex-shrink: 0;
+}
+.chat-side-close:hover { background: var(--bg); color: var(--ink); }
 .chat-side h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--ink-2); }
 .chip {
   display: block; width: 100%; text-align: left; cursor: pointer;
@@ -107,7 +127,7 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 .cta-tile--lookup { background: #fff; }
 .cta-tile--lookup .cta-tile-label { color: var(--ink-2); }
 
-.chat-main { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.chat-main { display: flex; flex-direction: column; height: 100%; min-width: 0; overflow: hidden; }
 .messages { flex: 1; min-height: 0; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 14px; }
 .empty { max-width: 520px; margin: 8vh auto 0; text-align: center; }
 .empty h2 { font-size: 22px; }
@@ -369,6 +389,13 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 .btn.primary:hover:not(:disabled) { background: var(--vz-red-dark); }
 .btn.ghost { background: #fff; border: 1px solid var(--line); color: var(--ink); }
 .btn:disabled { opacity: 0.5; cursor: default; }
+/* ☰ menu button in the composer — opens the CTA drawer (matches .btn.listen). */
+.btn.composer-menu {
+  background: #fff; border: 1px solid var(--line); color: var(--ink-2);
+  padding: 10px 12px; font-size: 16px; line-height: 1;
+}
+.btn.composer-menu:hover:not(:disabled) { border-color: var(--vz-red); color: var(--ink); }
+.btn.composer-menu.active { background: var(--vz-red); color: #fff; border-color: var(--vz-red); }
 
 /* ---- Live Listen ---- */
 /* Composer button — visually distinct from .btn.mic: slower, wider ring pulse
@@ -1138,32 +1165,15 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 
 /* ---- Phones: stack master/detail views and tighten spacing ---- */
 @media (max-width: 680px) {
-  /* Chat: quick-issue list on top (capped), conversation below */
+  /* Chat: full-width conversation; the CTA drawer overlays from the left. */
   .chat-shell { display: flex; flex-direction: column; min-height: 0; }
   .chat-side {
-    max-height: 38vh;
-    border-right: none;
-    border-bottom: 1px solid var(--line);
-    padding: 14px 16px;
+    width: min(330px, 88%);
+    padding: 16px;
+    /* Clear the fixed composer dock so the last CTA isn't hidden behind it. */
+    padding-bottom: 84px;
   }
-  /* Gradient at bottom signals more content below */
-  .chat-side::after {
-    content: '';
-    display: block;
-    position: sticky;
-    bottom: 0;
-    height: 44px;
-    margin-top: -44px;
-    background: linear-gradient(to bottom, transparent, var(--card));
-    pointer-events: none;
-  }
-  /* 2-column grid halves the vertical footprint of each tile section */
-  .cta-tiles { display: grid; grid-template-columns: 1fr 1fr; }
-  .cta-tile { padding: 10px 10px; }
-  /* Chevron doesn't fit cleanly in compact grid cells */
-  .cta-tile-chevron { display: none; }
-  /* Last odd tile in a section spans both columns instead of orphaning */
-  .cta-tile:last-child:nth-child(odd) { grid-column: span 2; }
+  .cta-tiles { display: flex; flex-direction: column; }
   .chat-main { flex: 1; min-height: 0; }
   .messages { padding: 16px 14px; gap: 12px; padding-bottom: 80px; }
   /* Pin the whole dock (live transcript + input) to the bottom together. */

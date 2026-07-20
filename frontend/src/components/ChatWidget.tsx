@@ -97,6 +97,8 @@ export default function ChatWidget() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
+  // The CTA sidebar is a drawer, collapsed by default so the chat is full-width.
+  const [sideOpen, setSideOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
 
@@ -641,8 +643,28 @@ export default function ChatWidget() {
 
   return (
     <div className="chat-shell">
-      <div className="chat-side">
-        <h3>First steps</h3>
+      {sideOpen && <div className="chat-side-backdrop" onClick={() => setSideOpen(false)} />}
+      <div
+        className={`chat-side${sideOpen ? " open" : ""}`}
+        onClick={(e) => {
+          // A CTA / reset / close click also dismisses the drawer so the rep
+          // lands back on the full chat after picking an action.
+          if ((e.target as HTMLElement).closest(".cta-tile, .reset, .chat-side-close"))
+            setSideOpen(false);
+        }}
+      >
+        <div className="chat-side-head">
+          <h3>First steps</h3>
+          <button
+            type="button"
+            className="chat-side-close"
+            onClick={() => setSideOpen(false)}
+            aria-label="Close menu"
+            title="Close menu"
+          >
+            ✕
+          </button>
+        </div>
         <p className="muted">Tap to begin, or type your own.</p>
 
         <div className="cta-tiles">
@@ -722,8 +744,8 @@ export default function ChatWidget() {
               <h2>{timeGreeting()}! I'm here to help.</h2>
               <p className="muted">
                 Stuck on an activation, a blocked order, a promo, or a billing question?
-                Pick a first step and I'll sort it out — or just describe it in your own words.
-                I can also keep you in the loop on what's new.
+                Just describe it in your own words — or tap <strong>☰</strong> at the bottom-left
+                for a first step. I can also keep you in the loop on what's new.
               </p>
               <div className="empty-suggest">
                 <span className="empty-suggest-label">Catch up before your first customer</span>
@@ -947,6 +969,16 @@ export default function ChatWidget() {
             send(input);
           }}
         >
+          <button
+            type="button"
+            className={`btn composer-menu${sideOpen ? " active" : ""}`}
+            onClick={() => setSideOpen((v) => !v)}
+            title="First steps &amp; menu"
+            aria-label="Open menu"
+            aria-expanded={sideOpen}
+          >
+            ☰
+          </button>
           <input
             value={input}
             disabled={busy}
