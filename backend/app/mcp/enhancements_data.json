@@ -1,43 +1,42 @@
 {
-  "generated_at": "2026-07-20T03:59:57.817208+00:00",
-  "last_commit_sha": "87eb194dd4e398d485af20c48a89ad9c1a6e3ed8",
+  "generated_at": "2026-07-20T04:34:11.914044+00:00",
+  "last_commit_sha": "c33192d597e61944f9529b356b0912c72a0d28ca",
   "enhancements": [
     {
       "tag": "Improved",
-      "title": "Chat menu tucked into a quick-access drawer",
-      "detail": "Your chat conversation now fills the whole screen. The First Steps, Front Desk, Look Up, and Briefings options you used to see on the left are now inside a slide-out drawer you open with a ☰ button at the bottom-left of your message box.",
+      "title": "Menu moved into one global drawer, plus a quick 'new chat' button",
+      "detail": "Every screen now opens the same slide-out menu — tap the ☰ in the top corner or the one next to your message box while chatting. Inside you'll find Workspace, Analytics, and Admin sections, plus a Quick start area with the same shortcuts you used to see as chat buttons. There's also a new + button next to your message box to jump straight into a fresh conversation, and we fixed a bug where the Send button could get pushed off the edge of the screen on phones.",
       "keywords": [
-        "hamburger menu",
-        "sidebar",
-        "drawer",
-        "menu button",
-        "front desk",
-        "look up",
-        "briefings"
+        "menu",
+        "navigation drawer",
+        "new conversation",
+        "plus button",
+        "send button",
+        "mobile"
       ],
-      "answer": "Rep Assist now opens straight into your full-width conversation instead of showing a side menu by default. To get to First Steps, Front Desk, Look Up, or Briefings, tap the ☰ button at the bottom-left of the composer to slide out the menu, pick what you need, and it automatically closes so you're back in the conversation. This works the same way on phone and desktop.",
+      "answer": "Rep Assist now uses one navigation drawer everywhere in the app instead of separate menus per screen — open it from the ☰ in the top bar on any screen, or the ☰ next to your message box while chatting. Inside, options are grouped into Workspace, Analytics, and Admin, with a Quick start section holding the same shortcuts (like Front Desk and Look Up) you used to tap as chat buttons. We also added a + button beside the composer to instantly start a new conversation, and fixed a mobile bug where the Send button could get squeezed off-screen.",
       "walkthrough": {
-        "intro": "Learn where the First Steps, Front Desk, Look Up, and Briefings options moved to, and how to get to them quickly.",
+        "intro": "Learn where the app's menu options moved to and how to start a fresh conversation quickly.",
         "steps": [
           {
-            "title": "Open a chat",
-            "detail": "Rep Assist now opens directly into the full conversation view — you won't see a menu on the left side anymore.",
+            "title": "Tap the ☰ in the top bar",
+            "detail": "No matter what screen you're on, tap the ☰ icon at the top of the app to slide out the global menu.",
             "tip": null
           },
           {
-            "title": "Tap the ☰ button",
-            "detail": "Look at the bottom-left of your message box and tap the ☰ icon to slide out the menu drawer.",
+            "title": "Or tap the ☰ next to your message box",
+            "detail": "While in a chat, you can also open the same drawer using the ☰ button beside the composer.",
             "tip": null
           },
           {
-            "title": "Browse the menu groups",
-            "detail": "You'll see the same four groups as before: First Steps, Front Desk, Look Up, and Briefings.",
+            "title": "Browse the sections",
+            "detail": "Inside you'll see Workspace, Analytics, and Admin groups, plus a Quick start section with shortcuts like Front Desk and Look Up.",
             "tip": null
           },
           {
-            "title": "Pick an option",
-            "detail": "Tap any item — the drawer closes automatically and drops you back into the chat with that action running.",
-            "tip": "If you tap outside the drawer or hit close, it dismisses without doing anything."
+            "title": "Tap + to start a new conversation",
+            "detail": "Next to your message box, tap the + button to jump straight into a brand-new chat without closing out of the app.",
+            "tip": "If your Send button ever looked squished off the edge of your phone screen, that's fixed now — the message box shrinks properly so Send always stays visible."
           }
         ]
       }
@@ -247,7 +246,7 @@
         "steps": [
           {
             "title": "Open the menu drawer",
-            "detail": "Tap the ☰ button at the bottom-left of the composer, then choose Front Desk to see the Check In option.",
+            "detail": "Tap the ☰ button and choose Front Desk to see the Check In option.",
             "tip": null
           },
           {
@@ -364,8 +363,8 @@
     }
   ],
   "suggestions": [
-    "Where did the Front Desk and Look Up menu go?",
-    "How do I check in a walk-in customer now?",
-    "What does the 💡 badge in the queue mean?"
+    "Where did the chat menu options go?",
+    "How do I start a brand-new conversation?",
+    "Why did my Send button look squished on my phone before?"
   ]
 }
