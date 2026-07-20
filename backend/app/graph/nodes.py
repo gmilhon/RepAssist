@@ -9,9 +9,10 @@ import logging
 
 from langgraph.types import interrupt
 
-from .. import llm
+from .. import llm, shop as shop_engine
 from ..config import get_settings
 from ..integrations import agents_client, ces_client
+from ..mock_services import shop_data
 from ..schemas import (
     DiagnoseRequest,
     Intent,
@@ -163,11 +164,20 @@ def route_after_triage(state: GraphState) -> str:
     # classifies as low-confidence/other on its own.
     if state.get("ces_active") and ces_client.enabled():
         return "ces_remote"
+    # Sticky: an in-flight shopping session keeps the thread so mid-flow turns
+    # ("the Pixel 10", "Unlimited Ultimate") build the cart even though they
+    # classify as low-confidence/other on their own. `shop` clears it on exit.
+    if state.get("shop_active"):
+        return "shop"
     # Ticket reference takes priority — look it up regardless of other keywords.
     if entities.get("ticket_ref_id"):
         return "ticket_recap"
     if confidence < threshold:
         return "ticket_fallback"
+    # Shopping intents (add a line / upgrade) → the cart-building node. No id is
+    # required to start; the account context is looked up when available.
+    if intent in (Intent.ADD_LINE.value, Intent.UPGRADE.value):
+        return "shop"
     # Per-intent CES routing, managed live in Settings → CES Routing. CES
     # self-slot-fills, so we route even when a required id is missing —
     # intentionally ahead of the clarify gate below.
@@ -185,6 +195,8 @@ def route_after_triage(state: GraphState) -> str:
         "billing": "knowledge",
         "general": "knowledge",
         "system": "system_help",
+        "add_line": "shop",
+        "upgrade": "shop",
         "other": "ticket_fallback",
     }.get(intent, "ticket_fallback")
 
@@ -348,6 +360,93 @@ def ces_remote(state: GraphState) -> dict:
 
 
 # --------------------------------------------------------------------------- #
+# 1f. Shopping — build/update the cart (add a line / upgrade)
+# --------------------------------------------------------------------------- #
+_SHOP_EXIT = ("back to rep assist", "done shopping", "that's all", "thats all",
+              "all set", "cancel the order", "cancel shopping", "exit shopping",
+              "leave shopping", "never mind")
+
+
+def _wants_shop_exit(text: str) -> bool:
+    t = text.lower()
+    return any(p in t for p in _SHOP_EXIT)
+
+
+def shop(state: GraphState) -> dict:
+    """Interpret the rep's turn into cart operations and update this thread's
+    cart — the in-chat add-a-line / upgrade experience surfaced in the top cart
+    drawer. Sticky: the shopping session owns the thread until the rep exits.
+    Advisory only — no order/payment in this phase."""
+    thread_id = state.get("thread_id") or "anon"
+    text = _last_user_text(state)
+    ents = state.get("entities") or {}
+    account = shop_data.account_summary(ents.get("account_id"))
+
+    cart_row = db.get_cart(thread_id)
+    items = list(cart_row.items) if cart_row else []
+
+    card = {"intent": state.get("intent"), "status": "info", "root_cause": None,
+            "actions_taken": [], "capability": "shopping-assistant",
+            "ticket_id": None, "order_context": None}
+
+    # Rep is stepping out of the shopping flow — close it cleanly (keep the cart).
+    if _wants_shop_exit(text):
+        view = shop_engine.cart_view(items)
+        n = len(view["items"])
+        msg = (f"No problem — I've saved the cart ({n} item{'s' if n != 1 else ''}, "
+               f"${view['monthly_total']:.2f}/mo). Reopen the cart anytime to keep going."
+               if n else "No problem — nothing's in the cart. What else can I help with?")
+        return {
+            "messages": [{"role": "assistant", "content": msg, "card": card}],
+            "resolution": Resolution(status="info", summary=msg, capability="shopping-assistant").model_dump(),
+            "cart": view, "shop_active": False, "route": "reply",
+            "trace": _trace("shop", exit=True),
+        }
+
+    # Checkout: propose the order and route through the rep-confirmation gate
+    # (the same interrupt() that guards every account change). Payment is
+    # simulated in confirm() — never a real charge.
+    if shop_engine.wants_checkout(text):
+        view = shop_engine.cart_view(items)
+        if not view["items"]:
+            msg = "The cart's empty — add a line or an upgrade first, then we can place the order."
+            return {
+                "messages": [{"role": "assistant", "content": msg, "card": card}],
+                "resolution": Resolution(status="info", summary=msg, capability="shopping-assistant").model_dump(),
+                "cart": view, "shop_active": True, "route": "reply",
+                "trace": _trace("shop", checkout="empty"),
+            }
+        prompt = shop_engine.order_prompt(items)
+        return {
+            "proposed_action": {
+                "service": "shop", "operation": "place_order",
+                "params": {"item_count": len(view["items"]), "monthly_total": view["monthly_total"]},
+                "human_prompt": prompt,
+            },
+            "resolution": Resolution(status="proposed", summary=prompt,
+                                     capability="shopping-assistant").model_dump(),
+            "cart": view, "shop_active": True, "route": "confirm",
+            "trace": _trace("shop", checkout=True, items=len(view["items"])),
+        }
+
+    turn = llm.interpret_shop_turn(text, account, items,
+                                   thread_id=thread_id, rep_id=state.get("rep_id"))
+    new_items, _notes = shop_engine.apply_ops(items, turn.ops, account)
+    db.save_cart(thread_id, new_items, account_id=account.get("account_id"))
+    view = shop_engine.cart_view(new_items)
+
+    return {
+        "messages": [{"role": "assistant", "content": turn.reply, "card": card}],
+        "resolution": Resolution(status="info", summary=turn.reply,
+                                 capability="shopping-assistant").model_dump(),
+        "cart": view,
+        "shop_active": True,
+        "route": "reply",
+        "trace": _trace("shop", ops=[o.op for o in turn.ops], items=len(new_items)),
+    }
+
+
+# --------------------------------------------------------------------------- #
 # 2. Specialist resolvers (call the existing agent microservices)
 # --------------------------------------------------------------------------- #
 def _run_resolver(state: GraphState, intent: Intent) -> dict:
@@ -459,15 +558,52 @@ def confirm(state: GraphState) -> dict:
     capability = (state.get("resolution") or {}).get("capability")
 
     if not approved:
+        # Shopping: keep the cart so the rep can keep editing; other flows cancel.
+        is_shop = action.get("service") == "shop"
         return {
-            "route": "compose",
+            "route": "reply" if is_shop else "compose",
             "confirm_decision": False,
+            "messages": [{"role": "assistant",
+                          "content": "No problem — I didn't place the order. The cart's still here whenever you're ready.",
+                          "card": None}] if is_shop else [],
             "resolution": Resolution(
                 status="cancelled",
-                summary="Rep declined the proposed fix; no changes were made.",
+                summary="Rep declined; the order was not placed." if is_shop
+                else "Rep declined the proposed fix; no changes were made.",
                 capability=capability,
             ).model_dump(),
-            "trace": _trace("confirm", approved=False),
+            "shop_active": True if is_shop else None,
+            "trace": _trace("confirm", approved=False, shop=is_shop),
+        }
+
+    # Shopping checkout: place the order + SIMULATE payment (no real charge),
+    # gated by the same rep approval above. Then clear the cart.
+    if action.get("service") == "shop":
+        account = shop_data.account_summary((state.get("entities") or {}).get("account_id"))
+        result = shop_engine.place_order(
+            (state.get("cart") or {}).get("items", []), account,
+            thread_id=state.get("thread_id"), rep_id=state.get("rep_id"),
+        )
+        db.record_action_audit(thread_id=state.get("thread_id"), rep_id=state.get("rep_id"),
+                               service="shop", operation="place_order",
+                               approved=approved, success=True)
+        db.clear_cart(state.get("thread_id") or "anon")
+        summary = (f"✅ Order {result['order_id']} placed — ${result['monthly_total']:.2f}/mo"
+                   + (f" + ${result['onetime_total']:.2f} today" if result["onetime_total"] else "")
+                   + f", charged to {result['payment_method']}. Confirmation sent to the customer.")
+        card = {"intent": state.get("intent"), "status": "resolved", "root_cause": None,
+                "actions_taken": [], "capability": "shopping-assistant",
+                "ticket_id": None, "order_context": None}
+        return {
+            "route": "reply",
+            "confirm_decision": True,
+            "messages": [{"role": "assistant", "content": summary, "card": card,
+                          "a2ui": [{"type": "order_confirmation", **result}]}],
+            "resolution": Resolution(status="resolved", summary=summary,
+                                     capability="shopping-assistant").model_dump(),
+            "cart": {"items": [], "monthly_total": 0.0, "onetime_total": 0.0},
+            "shop_active": False,
+            "trace": _trace("confirm", approved=True, order=result["order_id"]),
         }
 
     exec_result = agents_client.execute(ProposedAction(**action))

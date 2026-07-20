@@ -15,6 +15,8 @@ class Intent(str, Enum):
     BILLING = "billing"
     GENERAL = "general"
     SYSTEM = "system"
+    ADD_LINE = "add_line"      # shopping: add a new line (device + plan)
+    UPGRADE = "upgrade"        # shopping: upgrade an existing line's device
     OTHER = "other"
 
 
@@ -54,6 +56,8 @@ INTENT_TO_CAPABILITY = {
     Intent.BILLING: "billing-knowledge-base",
     Intent.GENERAL: "knowledge-base",
     Intent.SYSTEM: "system-mcp",
+    Intent.ADD_LINE: "shopping-assistant",
+    Intent.UPGRADE: "shopping-assistant",
     Intent.OTHER: "human-tier-2",
 }
 
@@ -62,7 +66,7 @@ class TriageResult(BaseModel):
     """Structured output of the triage/classification step."""
 
     intent: Literal[
-        "activation", "pending_order", "promo", "occ", "billing", "general", "system", "other"
+        "activation", "pending_order", "promo", "occ", "billing", "general", "system", "add_line", "upgrade", "other"
     ] = Field(description="Best-matching issue category for the rep's request.")
     confidence: float = Field(
         description="0.0–1.0 confidence in the chosen intent.", ge=0.0, le=1.0
@@ -80,7 +84,7 @@ class LiveSuggestion(BaseModel):
     """One actionable issue spotted in a live-listen transcript window."""
 
     intent: Literal[
-        "activation", "pending_order", "promo", "occ", "billing", "general", "system", "other"
+        "activation", "pending_order", "promo", "occ", "billing", "general", "system", "add_line", "upgrade", "other"
     ] = Field(description="Best-matching issue category for the spotted issue.")
     confidence: float = Field(
         description="0.0–1.0 confidence that this is a real, new, actionable issue.",
@@ -309,6 +313,49 @@ class Resolution(BaseModel):
     root_cause: Optional[str] = None
     actions_taken: list[str] = Field(default_factory=list)
     capability: Optional[str] = None  # which agent/skill handled it
+
+
+# ---- Shopping cart (in-chat "add a line" / "upgrade" experience) ----
+
+
+class CartItem(BaseModel):
+    item_id: str
+    kind: Literal["new_line", "upgrade", "home_internet"]
+    device: Optional[str] = None
+    device_type: Optional[str] = None       # phone | tablet | watch
+    plan: Optional[str] = None
+    promo: Optional[str] = None
+    line_id: Optional[str] = None           # existing line being upgraded
+    monthly: float = 0.0                    # recurring $/mo (device payment + plan − promo)
+    onetime: float = 0.0                    # upfront $ (device retail − credits), 0 on device-payment
+    summary: str = ""                       # one-line human label
+
+
+class Cart(BaseModel):
+    items: list[CartItem] = Field(default_factory=list)
+    monthly_total: float = 0.0
+    onetime_total: float = 0.0
+
+
+class CartOp(BaseModel):
+    """One mutation the shopping assistant applies to the cart for a turn."""
+
+    op: Literal[
+        "add_line", "upgrade", "set_device", "set_plan", "apply_promo",
+        "remove_item", "clear", "none",
+    ] = Field(description="The cart mutation to perform.")
+    device: Optional[str] = Field(default=None, description="Exact catalog device name, e.g. 'iPhone 17 Pro'. Null if not specified.")
+    plan: Optional[str] = Field(default=None, description="Exact catalog plan name, e.g. 'Unlimited Ultimate'. Null if not specified.")
+    line_id: Optional[str] = Field(default=None, description="For an upgrade: the existing line id being upgraded, e.g. 'L2'. Null otherwise.")
+    promo: Optional[str] = Field(default=None, description="Exact catalog promo label to apply. Null if none.")
+    target: Optional[str] = Field(default=None, description="For set_device/set_plan/remove_item: which cart item to change, by its device name or 'new line'/'upgrade'. Null to apply to the most recent item.")
+
+
+class ShopTurn(BaseModel):
+    """Structured interpretation of one rep turn during a shopping session."""
+
+    ops: list[CartOp] = Field(description="Cart mutations to apply this turn, in order. Empty when the rep is only asking a question.")
+    reply: str = Field(description="Short, friendly rep-facing reply: what changed in the cart and what's still needed (device? plan?).")
 
 
 # ---- HTTP request/response contracts for the existing agent services ----

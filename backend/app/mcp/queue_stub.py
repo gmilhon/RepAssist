@@ -55,6 +55,7 @@ def get_queue(arguments: dict) -> dict:
             "status": e.status,  # waiting | in_progress
             "wait_label": _ago_label(int((now - _aware(e.created_at)).total_seconds() // 60)),
             "assigned_rep_id": e.assigned_rep_id,
+            "account_id": e.account_id,
             # Sales opportunities the rep should position for this customer.
             "opportunities": eligibility_badges(resolve_eligibility(e.account_id)),
             "prompt": (
@@ -80,6 +81,7 @@ def get_queue(arguments: dict) -> dict:
             "wait_label": _ago_label(max(0, int((sched - now).total_seconds() // 60))),
             "when_label": sched.astimezone().strftime("%-I:%M %p"),
             "assigned_rep_id": None,
+            "account_id": e.account_id,
             "opportunities": eligibility_badges(resolve_eligibility(e.account_id)),
             "prompt": (
                 f"My next appointment is {e.customer_name or e.customer_phone or 'a customer'} "

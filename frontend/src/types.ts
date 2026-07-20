@@ -117,6 +117,7 @@ export interface A2UIQueueEntry {
   wait_label: string;
   when_label?: string;   // appointment time of day, for scheduled rows
   assigned_rep_id: string | null;
+  account_id?: string | null;
   opportunities?: string[];
   prompt: string;
 }
@@ -149,6 +150,57 @@ export interface A2UILiveSuggestion extends ListenSuggestion {
   type: "live_suggestion";
 }
 
+// ── Shopping: account summary + cart ────────────────────────────────────────
+export interface AccountLine {
+  line_id: string;
+  phone: string;
+  device: string;
+  device_type: "phone" | "tablet" | "watch" | string;
+  plan: string;
+  upgrade_eligible: boolean;
+}
+
+export interface AccountSummary {
+  account_id: string | null;
+  name: string;
+  tenure_months: number | null;
+  lines: AccountLine[];
+  home_internet: { product: string; name: string; plan: string } | null;
+  eligibility: { upgrade_promo: string | null; fiber_eligible: boolean; fwa_eligible: boolean };
+}
+
+export interface A2UIAccountSummary extends AccountSummary {
+  type: "account_summary";
+}
+
+export interface CartItem {
+  item_id: string;
+  kind: "new_line" | "upgrade" | "home_internet";
+  device: string | null;
+  device_type: string | null;
+  plan: string | null;
+  promo: string | null;
+  line_id: string | null;
+  monthly: number;
+  onetime: number;
+  summary: string;
+}
+
+export interface Cart {
+  items: CartItem[];
+  monthly_total: number;
+  onetime_total: number;
+}
+
+export interface A2UIOrderConfirmation {
+  type: "order_confirmation";
+  order_id: string;
+  items: CartItem[];
+  monthly_total: number;
+  onetime_total: number;
+  payment_method: string;
+}
+
 export type A2UIElement =
   | A2UIRecentOrders
   | A2UIOpenTickets
@@ -157,6 +209,8 @@ export type A2UIElement =
   | A2UIKnowledgeArticle
   | A2UIQueue
   | A2UILiveSuggestion
+  | A2UIAccountSummary
+  | A2UIOrderConfirmation
   | A2UICoaching;
 
 // ── Store check-in ─────────────────────────────────────────────────────────
@@ -283,6 +337,8 @@ export interface StartListenResult {
 export interface AnalyzeResult {
   suggestions: ListenSuggestion[];
   entities: Record<string, string>;
+  // Cart mutations heard during a Live Listen session (Phase 3), if any.
+  cart?: { cart: Cart; notes: string[] } | null;
 }
 
 export interface VisitSummary {
@@ -466,6 +522,8 @@ export interface ChatResponse {
   intent: string | null;
   confidence: number | null;
   ticket_id: string | null;
+  cart?: Cart | null;          // shopping cart snapshot (present during a shopping session)
+  shop_active?: boolean;
   trace: Array<Record<string, any>>;
 }
 

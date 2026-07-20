@@ -1,5 +1,7 @@
 import { useState } from "react";
 import type {
+  A2UIAccountSummary,
+  A2UIOrderConfirmation,
   A2UICoaching,
   A2UICoachingEntry,
   A2UIElement,
@@ -60,6 +62,10 @@ export function A2UIRenderer({
             return <LiveSuggestionCard key={i} el={el} onAction={onAction} disabled={actionsDisabled} />;
           case "coaching":
             return <CoachingListCard key={i} el={el} onCoach={onCoach} disabled={actionsDisabled} />;
+          case "account_summary":
+            return <AccountSummaryCard key={i} el={el} onAction={onAction} disabled={actionsDisabled} />;
+          case "order_confirmation":
+            return <OrderConfirmationCard key={i} el={el} />;
           default:
             return null; // unknown element types are ignored, not fatal
         }
@@ -503,6 +509,98 @@ function KnowledgeArticleCard({ el }: { el: A2UIKnowledgeArticle }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+const DEVICE_ICON: Record<string, string> = { phone: "📱", tablet: "▨", watch: "⌚" };
+
+function AccountSummaryCard({ el, onAction, disabled }: {
+  el: A2UIAccountSummary;
+  onAction: (prompt: string, entities?: Record<string, string>) => void;
+  disabled?: boolean;
+}) {
+  const elig = el.eligibility;
+  const opps: string[] = [];
+  if (elig.upgrade_promo) opps.push(elig.upgrade_promo);
+  if (elig.fiber_eligible) opps.push("Fiber Home Internet eligible");
+  if (elig.fwa_eligible) opps.push("Fixed Wireless eligible");
+  return (
+    <div className="a2ui-card a2ui-account">
+      <div className="a2ui-card-head">
+        <span className="a2ui-card-eyebrow">👤 Account{el.account_id ? ` · ${el.account_id}` : ""}</span>
+        <h4 className="a2ui-card-title">
+          {el.name}
+          {el.tenure_months ? <span className="a2ui-account-tenure"> · {el.tenure_months} mo tenure</span> : null}
+        </h4>
+      </div>
+      <div className="a2ui-account-lines">
+        {el.lines.map((ln) => (
+          <div key={ln.line_id} className="a2ui-account-line">
+            <span className="a2ui-account-dev-icon">{DEVICE_ICON[ln.device_type] ?? "📱"}</span>
+            <div className="a2ui-account-line-main">
+              <div className="a2ui-account-dev">
+                {ln.device}
+                {ln.upgrade_eligible && <span className="a2ui-account-upgrade">Upgrade eligible</span>}
+              </div>
+              <div className="a2ui-account-line-sub">{ln.phone} · {ln.plan}</div>
+            </div>
+          </div>
+        ))}
+        {el.home_internet && (
+          <div className="a2ui-account-line">
+            <span className="a2ui-account-dev-icon">🏠</span>
+            <div className="a2ui-account-line-main">
+              <div className="a2ui-account-dev">{el.home_internet.name}</div>
+              <div className="a2ui-account-line-sub">Home internet</div>
+            </div>
+          </div>
+        )}
+      </div>
+      {opps.length > 0 && (
+        <div className="a2ui-account-opps">
+          <span className="a2ui-account-opps-label">💡 Opportunities</span>
+          {opps.map((o, i) => <span key={i} className="a2ui-account-opp">{o}</span>)}
+        </div>
+      )}
+      <div className="a2ui-account-actions">
+        <button className="btn small" disabled={disabled} onClick={() => onAction("I'd like to add a new line for this customer.")}>
+          + Add a line
+        </button>
+        <button className="btn ghost small" disabled={disabled} onClick={() => onAction("Let's upgrade a line for this customer.")}>
+          ⇪ Upgrade a line
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function OrderConfirmationCard({ el }: { el: A2UIOrderConfirmation }) {
+  return (
+    <div className="a2ui-card a2ui-order">
+      <div className="a2ui-order-head">
+        <span className="a2ui-order-check">✓</span>
+        <div>
+          <div className="a2ui-order-title">Order placed</div>
+          <div className="a2ui-order-id">{el.order_id}</div>
+        </div>
+      </div>
+      <div className="a2ui-order-items">
+        {el.items.map((it) => (
+          <div key={it.item_id} className="a2ui-order-item">
+            <span className="a2ui-order-item-name">
+              {it.device ?? "Device"}{it.line_id ? ` · ${it.line_id}` : ""}
+              <span className="a2ui-order-item-plan"> · {it.plan ?? "—"}</span>
+            </span>
+            <span className="a2ui-order-item-price">${it.monthly.toFixed(2)}/mo</span>
+          </div>
+        ))}
+      </div>
+      <div className="a2ui-order-total">
+        <span>Monthly total</span>
+        <span className="a2ui-order-total-amt">${el.monthly_total.toFixed(2)}/mo</span>
+      </div>
+      <div className="a2ui-order-pay">💳 Payment taken · {el.payment_method}{el.onetime_total ? ` · $${el.onetime_total.toFixed(2)} today` : ""}</div>
     </div>
   );
 }

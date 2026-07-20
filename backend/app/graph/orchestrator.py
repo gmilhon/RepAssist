@@ -46,6 +46,7 @@ def _build() :
     builder.add_node("occ", nodes.occ_resolver)
     builder.add_node("knowledge", nodes.knowledge)
     builder.add_node("ces_remote", nodes.ces_remote)
+    builder.add_node("shop", nodes.shop)
     builder.add_node("confirm", nodes.confirm)
     builder.add_node("ticket_fallback", nodes.ticket_fallback)
     builder.add_node("compose", nodes.compose)
@@ -64,6 +65,7 @@ def _build() :
             "occ": "occ",
             "knowledge": "knowledge",
             "ces_remote": "ces_remote",
+            "shop": "shop",
             "ticket_fallback": "ticket_fallback",
         },
     )
@@ -76,6 +78,13 @@ def _build() :
         "ces_remote",
         nodes.route_by_state,
         {"reply": END, "ticket_fallback": "ticket_fallback"},
+    )
+    # shop replies with the updated cart (terminal), or routes to the confirm
+    # gate to place an order.
+    builder.add_conditional_edges(
+        "shop",
+        nodes.route_by_state,
+        {"reply": END, "confirm": "confirm", "ticket_fallback": "ticket_fallback"},
     )
     for resolver in ("activation", "pending_order", "promo", "occ"):
         builder.add_conditional_edges(
@@ -91,7 +100,9 @@ def _build() :
     builder.add_conditional_edges(
         "confirm",
         nodes.route_by_state,
-        {"compose": "compose", "ticket_fallback": "ticket_fallback"},
+        # "reply" (terminal) is the shopping-checkout confirmation, which emits its
+        # own order card rather than being re-voiced by compose.
+        {"compose": "compose", "reply": END, "ticket_fallback": "ticket_fallback"},
     )
     builder.add_edge("ticket_fallback", "compose")
     builder.add_edge("compose", END)
@@ -141,6 +152,8 @@ def _shape(thread_id: str, snapshot) -> dict:
             "sales_intent": values.get("sales_intent"),
             "rep_id": values.get("rep_id"),
             "ticket_id": values.get("ticket_id"),
+            "cart": values.get("cart"),
+            "shop_active": values.get("shop_active", False),
             "trace": values.get("trace", []),
         }
 
@@ -162,6 +175,8 @@ def _shape(thread_id: str, snapshot) -> dict:
         "sales_intent": values.get("sales_intent"),
         "rep_id": values.get("rep_id"),
         "ticket_id": values.get("ticket_id"),
+        "cart": values.get("cart"),          # shopping cart snapshot for the cart drawer
+        "shop_active": values.get("shop_active", False),
         "trace": values.get("trace", []),
     }
 

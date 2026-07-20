@@ -25,6 +25,7 @@ from .schemas import (
     PlaybookGuidelineScore,
     ProductionAnalysis,
     Resolution,
+    ShopTurn,
     StoryboardScene,
     SystemEnhancementsDoc,
     TicketClassificationBatch,
@@ -264,6 +265,12 @@ def _mock_classify(text: str) -> TriageResult:
              "tell me about", "walk me through", "steps to", "where do", "policy",
              "eligib"):
         intent, conf = "general", 0.8
+    elif has("add a line", "add line", "new line", "another line", "add a phone",
+             "add a tablet", "add a watch", "add a device"):
+        intent, conf = "add_line", 0.85
+    elif has("upgrade", "trade in", "trade-in", "new phone for", "swap the phone",
+             "early upgrade"):
+        intent, conf = "upgrade", 0.82
     elif has("activat", "provision", "sim card", "won't turn on", "not active", "no service"):
         intent, conf = "activation", 0.82
     elif has("pending", "blocking", "blocked", "stuck order", "can't order"):
@@ -801,6 +808,73 @@ def compose_reply(
         _log_usage("compose", settings.anthropic_model, int((time.monotonic() - t0) * 1000),
                    thread_id=thread_id, success=False, fallback=True)
         return _mock_compose(resolution, ticket_id)
+
+
+# --------------------------------------------------------------------------- #
+# Shopping — interpret a rep turn into cart operations (add a line / upgrade)
+# --------------------------------------------------------------------------- #
+def _shop_system() -> str:
+    """Built from the live catalog so device/plan/promo names stay in sync."""
+    from .mock_services import shop_data as cat
+    devices = "\n".join(f"  - {d['name']} ({d['type']}, ${d['price']:.0f})" for d in cat.DEVICES)
+    plans = "\n".join(f"  - {p['name']} (${p['price']:.0f}/mo, for {'/'.join(p['for'])})" for p in cat.PLANS)
+    promos = "\n".join(f"  - {pr['label']}" for pr in cat.PROMOS)
+    return (
+        "You are a retail sales assistant helping a store rep build a shopping cart for a "
+        "customer who wants to ADD A LINE or UPGRADE a device. Interpret the rep's latest "
+        "message into structured cart operations (ops) plus a short, friendly reply. Use "
+        "ONLY devices, plans, and promos from this catalog, and write names EXACTLY as shown:\n\n"
+        f"DEVICES:\n{devices}\n\nPLANS:\n{plans}\n\nPROMOS:\n{promos}\n\n"
+        "Rules:\n"
+        "- 'add a line' → op 'add_line' (include device/plan if the rep named them).\n"
+        "- 'upgrade line N' / 'trade in' → op 'upgrade' (line_id like 'L2'; device if named).\n"
+        "- Changing an item already in the cart → 'set_device' / 'set_plan' / 'apply_promo' "
+        "(use target to say which item, by device name).\n"
+        "- 'remove'/'take off' → 'remove_item'; 'start over'/'clear' → 'clear'.\n"
+        "- If the rep only asks a question, return empty ops and answer in reply.\n"
+        "- Match each device to its closest catalog entry and use that exact name.\n"
+        "- reply: one or two sentences — what changed, then ask for the next missing detail."
+    )
+
+
+def interpret_shop_turn(text: str, account: dict, cart_items: list[dict],
+                        thread_id: str | None = None, rep_id: str | None = None) -> ShopTurn:
+    """Turn one rep message into cart ops + a reply, given the customer's account
+    and the current cart. Falls back to the deterministic rule-based interpreter
+    offline or on any live failure — so shopping works with zero credentials."""
+    from . import shop
+    settings = get_settings()
+    if not settings.llm_enabled:
+        _log_usage("shop", settings.anthropic_model, 0, thread_id=thread_id, fallback=True)
+        return shop.fallback_interpret(text, account, cart_items)
+    t0 = time.monotonic()
+    try:
+        client = _client()
+        context = {
+            "account": {"name": account.get("name"), "lines": account.get("lines"),
+                        "home_internet": account.get("home_internet"),
+                        "eligibility": account.get("eligibility")},
+            "current_cart": cart_items,
+            "rep_message": text,
+        }
+        resp = client.messages.parse(
+            model=settings.anthropic_model, max_tokens=1024,
+            system=_shop_system(),
+            messages=[{"role": "user",
+                       "content": f"Context:\n{context}\n\nInterpret the rep's latest message into cart ops + a reply."}],
+            output_format=ShopTurn,
+        )
+        result = resp.parsed_output
+        if result is None:
+            raise ValueError("empty parsed_output")
+        _log_usage("shop", settings.anthropic_model, int((time.monotonic() - t0) * 1000),
+                   thread_id=thread_id, resp=resp)
+        return result
+    except Exception as exc:  # noqa: BLE001 - graceful degradation
+        logger.warning("Live shop interpret failed (%s); using rule-based fallback", exc)
+        _log_usage("shop", settings.anthropic_model, int((time.monotonic() - t0) * 1000),
+                   thread_id=thread_id, success=False, fallback=True)
+        return shop.fallback_interpret(text, account, cart_items)
 
 
 EXEC_SUMMARY_SYSTEM = (

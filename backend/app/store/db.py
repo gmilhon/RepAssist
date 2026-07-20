@@ -21,6 +21,8 @@ from .models import (
     PlaybookGuideline,
     QueueEntry,
     QueueStatus,
+    ShoppingCart,
+    ShopOrder,
     Ticket,
     TicketStatus,
 )
@@ -560,6 +562,47 @@ def set_enhancement_hidden(title: str, hidden: bool) -> None:
         elif not hidden and existing:
             s.delete(existing)
             s.commit()
+
+
+# --------------------------------------------------------------------------- #
+# Shopping cart (in-chat add-a-line / upgrade flow; rendered in the cart drawer)
+# --------------------------------------------------------------------------- #
+def get_cart(thread_id: str) -> Optional[ShoppingCart]:
+    with Session(_engine) as s:
+        return s.get(ShoppingCart, thread_id)
+
+
+def save_cart(thread_id: str, items: list, account_id: Optional[str] = None) -> ShoppingCart:
+    """Upsert a thread's cart items (reassigns the JSON list — SQLAlchemy
+    doesn't track in-place mutations of a plain JSON column)."""
+    with Session(_engine) as s:
+        cart = s.get(ShoppingCart, thread_id) or ShoppingCart(thread_id=thread_id)
+        cart.items = list(items)
+        if account_id is not None:
+            cart.account_id = account_id
+        cart.updated_at = datetime.now(timezone.utc)
+        s.add(cart)
+        s.commit()
+        s.refresh(cart)
+        return cart
+
+
+def clear_cart(thread_id: str) -> None:
+    with Session(_engine) as s:
+        cart = s.get(ShoppingCart, thread_id)
+        if cart:
+            s.delete(cart)
+            s.commit()
+
+
+def create_shop_order(**kwargs) -> ShopOrder:
+    """Record a placed order (after the rep approves at the confirm gate)."""
+    order = ShopOrder(**kwargs)
+    with Session(_engine) as s:
+        s.add(order)
+        s.commit()
+        s.refresh(order)
+    return order
 
 
 # --------------------------------------------------------------------------- #

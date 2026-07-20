@@ -1,4 +1,4 @@
-import type { A2UIResponse, AnalyzeResult, CallAgentResult, CandidateDefect, CapabilityGap, CesRouting, ChatResponse, CheckInResult, CoachingResult, CXOverview, EmailSettings, EmailSubscriber, EnhancementVideo, FileDefectResult, HuddleItem, JiraDefectItem, ListenUtterance, LiveQueueSnapshot, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, PlaybookGuideline, ProductionAnalyzeResult, ProductionIssue, ProductionOverview, QueueEntry, SendReportResult, SendSummaryResult, StartListenResult, StopListenResult, SystemHealth, Ticket, TicketAnalyzeResult, TrainingEnhancement, VideoStoryboard, Walkthrough } from "./types";
+import type { A2UIElement, A2UIResponse, AccountSummary, AnalyzeResult, CallAgentResult, CandidateDefect, CapabilityGap, Cart, CesRouting, ChatResponse, CheckInResult, CoachingResult, CXOverview, EmailSettings, EmailSubscriber, EnhancementVideo, FileDefectResult, HuddleItem, JiraDefectItem, ListenUtterance, LiveQueueSnapshot, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, PlaybookGuideline, ProductionAnalyzeResult, ProductionIssue, ProductionOverview, QueueEntry, SendReportResult, SendSummaryResult, StartListenResult, StopListenResult, SystemHealth, Ticket, TicketAnalyzeResult, TrainingEnhancement, VideoStoryboard, Walkthrough } from "./types";
 
 async function http<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -140,6 +140,11 @@ export const api = {
     }),
   removePlaybookGuideline: (id: number) =>
     fetch(`/api/playbook/guidelines/${id}`, { method: "DELETE" }).then(() => undefined),
+
+  // Shopping (in-chat add-a-line / upgrade)
+  shopAccount: (account_id?: string | null) =>
+    http<{ summary: AccountSummary; elements: A2UIElement[] }>(`/api/shop/account${qs({ account_id: account_id ?? undefined })}`),
+  shopCart: (thread_id: string) => http<Cart>(`/api/shop/cart/${thread_id}`),
 
   // CES Routing (Settings → CES Routing)
   getCesRouting: () => http<CesRouting>("/api/settings/ces-routing"),

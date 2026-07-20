@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import type { ChatAction, LookupKind } from "../chatActions";
-import type { A2UICoachingEntry, A2UIElement, A2UIEnhancement, A2UIQueue, A2UIQueueEntry, ChatResponse, CoachingResult, ConfirmationPayload, ListenSession, ListenUtterance, PlaybookGrade, ResolutionCard, SendSummaryResult, VisitSummary, Walkthrough } from "../types";
+import type { A2UICoachingEntry, A2UIElement, A2UIEnhancement, A2UIQueue, A2UIQueueEntry, Cart, ChatResponse, CoachingResult, ConfirmationPayload, ListenSession, ListenUtterance, PlaybookGrade, ResolutionCard, SendSummaryResult, VisitSummary, Walkthrough } from "../types";
 import { VISIT_REASONS } from "../types";
 import { A2UIRenderer, Stars } from "./A2UI";
 
@@ -81,6 +81,9 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
+  // Shopping cart (built through the chat; shown in the top cart drawer).
+  const [cart, setCart] = useState<Cart | null>(null);
+  const [cartOpen, setCartOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastActionNonce = useRef(0);
   const recognitionRef = useRef<any>(null);
@@ -226,6 +229,17 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
     const entities: Record<string, string> = { visit_reason: entry.reason };
     if (entry.customer_name) entities.customer_name = entry.customer_name;
     if (entry.customer_phone) entities.customer_phone = entry.customer_phone;
+    if (entry.account_id) entities.account_id = entry.account_id;
+    // Surface the customer's account summary card up front so the rep can see
+    // their lines/devices/plans and any opportunities before assisting.
+    try {
+      const acct = await api.shopAccount(entry.account_id);
+      if (acct.elements?.length) {
+        setMessages((m) => [...m, { role: "assistant", a2ui: acct.elements }]);
+      }
+    } catch {
+      /* account summary is best-effort */
+    }
     send(entry.prompt, entities);
   }
 
@@ -252,6 +266,13 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
         ...m,
         { role: "assistant", content: res.assistant_message ?? "", card: res.card, a2ui: res.a2ui ?? undefined },
       ]);
+    }
+    // Shopping: reflect the updated cart in the top drawer, and pop it open the
+    // first time an item is added so the rep sees the cart building.
+    if (res.cart) {
+      const hadItems = (cart?.items.length ?? 0) > 0;
+      setCart(res.cart);
+      if (res.cart.items.length > 0 && !hadItems) setCartOpen(true);
     }
     scrollDown();
   }
@@ -470,6 +491,16 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
         ]);
         scrollDown();
       }
+      // Live Listen heard a cart change — update the drawer + note it inline.
+      if (res.cart) {
+        const hadItems = (cart?.items.length ?? 0) > 0;
+        setCart(res.cart.cart);
+        if (res.cart.cart.items.length > 0 && !hadItems) setCartOpen(true);
+        if (res.cart.notes.length) {
+          setMessages((m) => [...m, { role: "assistant", content: `🛒 Cart updated from the conversation — ${res.cart!.notes.join(", ")}.` }]);
+          scrollDown();
+        }
+      }
     } catch (e) {
       console.warn("Live Listen analyze failed", e); // listening must never break chat
     } finally {
@@ -594,7 +625,10 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
   async function decide(approved: boolean) {
     if (!threadId || !pending) return;
     setBusy(true);
-    const label = approved ? "Yes, apply the fix" : "No, don't make changes";
+    const isOrder = pending.action.service === "shop";
+    const label = approved
+      ? (isOrder ? "Place the order." : "Yes, apply the fix")
+      : (isOrder ? "Not yet." : "No, don't make changes");
     setMessages((m) => [...m, { role: "user", content: label }]);
     setPending(null);
     try {
@@ -622,6 +656,8 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
     setInput("");
     setCheckInOpen(false);
     setCiError(null);
+    setCart(null);
+    setCartOpen(false);
   }
 
   // Execute a quick-action dispatched from the global drawer (App owns the
@@ -644,6 +680,15 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
   return (
     <div className="chat-shell">
       <div className="chat-main">
+        {cart && cart.items.length > 0 && (
+          <CartDrawer
+            cart={cart}
+            open={cartOpen}
+            onToggle={() => setCartOpen((o) => !o)}
+            onCheckout={() => send("I'm ready to place the order.")}
+            busy={busy}
+          />
+        )}
         <div className="messages" ref={scrollRef}>
           {messages.length === 0 && (
             <div className="empty">
@@ -815,25 +860,28 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
             </div>
           )}
 
-          {pending && (
-            <div className="bubble assistant">
-              <div className="confirm-card">
-                <div className="confirm-head">⚠️ Confirm before I make a change</div>
-                <div className="confirm-prompt">{pending.prompt}</div>
-                <div className="confirm-meta">
-                  <code>{pending.action.service}/{pending.action.operation}</code>
-                </div>
-                <div className="confirm-actions">
-                  <button className="btn primary" disabled={busy} onClick={() => decide(true)}>
-                    Approve &amp; apply
-                  </button>
-                  <button className="btn ghost" disabled={busy} onClick={() => decide(false)}>
-                    Decline
-                  </button>
+          {pending && (() => {
+            const isOrder = pending.action.service === "shop";
+            return (
+              <div className="bubble assistant">
+                <div className="confirm-card">
+                  <div className="confirm-head">{isOrder ? "🛒 Confirm the order" : "⚠️ Confirm before I make a change"}</div>
+                  <div className="confirm-prompt">{pending.prompt}</div>
+                  <div className="confirm-meta">
+                    <code>{pending.action.service}/{pending.action.operation}</code>
+                  </div>
+                  <div className="confirm-actions">
+                    <button className="btn primary" disabled={busy} onClick={() => decide(true)}>
+                      {isOrder ? "Place order & take payment" : "Approve & apply"}
+                    </button>
+                    <button className="btn ghost" disabled={busy} onClick={() => decide(false)}>
+                      {isOrder ? "Not yet" : "Decline"}
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {busy && <div className="bubble assistant"><div className="typing"><span /><span /><span /></div></div>}
         </div>
@@ -934,6 +982,61 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
         </form>
         </div>
       </div>
+    </div>
+  );
+}
+
+const CART_KIND_LABEL: Record<string, string> = {
+  new_line: "New line",
+  upgrade: "Upgrade",
+  home_internet: "Home internet",
+};
+
+// The shopping cart, built through the chat — a collapsible drawer pinned to the
+// top of the conversation that opens/closes and live-updates as the rep chats.
+function CartDrawer({ cart, open, onToggle, onCheckout, busy }: {
+  cart: Cart; open: boolean; onToggle: () => void; onCheckout: () => void; busy: boolean;
+}) {
+  const n = cart.items.length;
+  return (
+    <div className={`cart-drawer${open ? " open" : ""}`}>
+      <button className="cart-bar" onClick={onToggle} aria-expanded={open} title={open ? "Collapse cart" : "Expand cart"}>
+        <span className="cart-bar-icon">🛒</span>
+        <span className="cart-bar-title">Cart</span>
+        <span className="cart-bar-count">{n} item{n !== 1 ? "s" : ""}</span>
+        <span className="cart-bar-total">${cart.monthly_total.toFixed(2)}/mo</span>
+        <span className="cart-bar-chevron">{open ? "▾" : "▸"}</span>
+      </button>
+      {open && (
+        <div className="cart-body">
+          {cart.items.map((it) => (
+            <div key={it.item_id} className="cart-item">
+              <span className={`cart-item-kind cart-item-kind--${it.kind}`}>{CART_KIND_LABEL[it.kind] ?? it.kind}</span>
+              <div className="cart-item-main">
+                <div className="cart-item-device">
+                  {it.device ?? "Device TBD"}
+                  {it.line_id ? <span className="cart-item-line"> · {it.line_id}</span> : null}
+                </div>
+                <div className="cart-item-sub">
+                  {it.plan ?? "Plan TBD"}
+                  {it.promo ? <span className="cart-item-promo"> · {it.promo}</span> : null}
+                </div>
+              </div>
+              <span className="cart-item-price">${it.monthly.toFixed(2)}<span className="cart-item-per">/mo</span></span>
+            </div>
+          ))}
+          <div className="cart-footer">
+            <span className="cart-footer-label">Monthly total</span>
+            <span className="cart-footer-total">${cart.monthly_total.toFixed(2)}/mo</span>
+          </div>
+          <div className="cart-actions">
+            <button className="btn primary cart-checkout" disabled={busy} onClick={onCheckout}>
+              Review &amp; place order
+            </button>
+          </div>
+          <div className="cart-hint">Keep chatting to add, change, or remove items, then place the order.</div>
+        </div>
+      )}
     </div>
   );
 }

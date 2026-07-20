@@ -162,6 +162,81 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 
 .chat-main { display: flex; flex-direction: column; height: 100%; min-width: 0; overflow: hidden; }
 .messages { flex: 1; min-height: 0; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+
+/* ---- Shopping cart drawer (pinned to the top of the chat; opens/closes) ---- */
+.cart-drawer { flex: none; background: #fff; border-bottom: 1px solid var(--line); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04); }
+.cart-bar {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  background: none; border: none; cursor: pointer; padding: 11px 20px; font: inherit; text-align: left;
+  transition: background 0.12s;
+}
+.cart-bar:hover { background: var(--bg); }
+.cart-bar-icon { font-size: 16px; line-height: 1; }
+.cart-bar-title { font-weight: 700; font-size: 14px; color: var(--ink); }
+.cart-bar-count { font-size: 12px; color: var(--ink-2); background: var(--bg); border-radius: 20px; padding: 2px 9px; }
+.cart-bar-total { margin-left: auto; font-weight: 700; font-size: 14px; color: var(--vz-red); }
+.cart-bar-chevron { color: var(--ink-2); font-size: 11px; width: 12px; text-align: center; }
+.cart-body { padding: 4px 20px 14px; display: flex; flex-direction: column; max-height: 42vh; overflow-y: auto; }
+.cart-item { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.cart-item:last-of-type { border-bottom: none; }
+.cart-item-kind {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+  padding: 3px 8px; border-radius: 6px; flex: none; background: #eef1f6; color: var(--ink-2);
+}
+.cart-item-kind--new_line { background: #e7f3ee; color: #0a7d4f; }
+.cart-item-kind--upgrade { background: #eef0ff; color: #3a49c9; }
+.cart-item-main { flex: 1; min-width: 0; }
+.cart-item-device { font-weight: 600; font-size: 13.5px; color: var(--ink); }
+.cart-item-line { color: var(--ink-2); font-weight: 500; }
+.cart-item-sub { font-size: 12px; color: var(--ink-2); margin-top: 1px; }
+.cart-item-promo { color: #0a7d4f; }
+.cart-item-price { font-weight: 700; font-size: 13.5px; color: var(--ink); white-space: nowrap; }
+.cart-item-per { font-weight: 500; font-size: 11px; color: var(--ink-2); }
+.cart-footer { display: flex; align-items: center; justify-content: space-between; padding-top: 10px; margin-top: 4px; border-top: 2px solid var(--line); }
+.cart-footer-label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.cart-footer-total { font-size: 16px; font-weight: 800; color: var(--vz-red); }
+.cart-hint { font-size: 11.5px; color: var(--ink-2); margin-top: 8px; }
+
+/* ---- Account summary card (shopping) ---- */
+.a2ui-account-tenure { font-weight: 500; font-size: 13px; color: var(--ink-2); }
+.a2ui-account-lines { display: flex; flex-direction: column; margin: 6px 0 2px; }
+.a2ui-account-line { display: flex; align-items: center; gap: 11px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.a2ui-account-line:last-child { border-bottom: none; }
+.a2ui-account-dev-icon { font-size: 18px; width: 24px; text-align: center; flex: none; }
+.a2ui-account-line-main { flex: 1; min-width: 0; }
+.a2ui-account-dev { font-weight: 600; font-size: 13.5px; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+.a2ui-account-upgrade {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
+  color: #0a7d4f; background: #e7f3ee; border-radius: 5px; padding: 2px 6px;
+}
+.a2ui-account-line-sub { font-size: 12px; color: var(--ink-2); }
+.a2ui-account-opps { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+.a2ui-account-opps-label { font-size: 11.5px; font-weight: 700; color: var(--ink-2); }
+.a2ui-account-opp { font-size: 11.5px; color: #7a5b00; background: #fff5db; border: 1px solid #f0e2b6; border-radius: 20px; padding: 3px 10px; }
+.a2ui-account-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+/* Cart "place order" button */
+.cart-actions { margin-top: 10px; }
+.cart-checkout { width: 100%; }
+
+/* ---- Order confirmation card ---- */
+.a2ui-order { border-left: 3px solid var(--ok); }
+.a2ui-order-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.a2ui-order-check {
+  width: 30px; height: 30px; border-radius: 50%; background: var(--ok); color: #fff;
+  display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; flex: none;
+}
+.a2ui-order-title { font-weight: 800; font-size: 15px; color: var(--ink); }
+.a2ui-order-id { font-size: 12px; color: var(--ink-2); font-family: ui-monospace, monospace; }
+.a2ui-order-items { display: flex; flex-direction: column; }
+.a2ui-order-item { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.a2ui-order-item:last-child { border-bottom: none; }
+.a2ui-order-item-name { color: var(--ink); font-weight: 600; }
+.a2ui-order-item-plan { color: var(--ink-2); font-weight: 500; }
+.a2ui-order-item-price { color: var(--ink); font-weight: 700; white-space: nowrap; }
+.a2ui-order-total { display: flex; justify-content: space-between; padding-top: 9px; margin-top: 3px; border-top: 2px solid var(--line); font-weight: 600; color: var(--ink-2); font-size: 13px; }
+.a2ui-order-total-amt { color: var(--ink); font-weight: 800; font-size: 15px; }
+.a2ui-order-pay { margin-top: 10px; font-size: 12.5px; color: #0a7d4f; background: #e7f3ee; border-radius: 8px; padding: 8px 10px; }
 .empty { max-width: 520px; margin: 8vh auto 0; text-align: center; }
 .empty h2 { font-size: 22px; }
 .empty-wave { font-size: 30px; display: inline-block; margin-bottom: 6px; animation: empty-wave-motion 1.8s ease-in-out 1; transform-origin: 70% 70%; }

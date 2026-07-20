@@ -156,6 +156,42 @@ class HiddenEnhancement(SQLModel, table=True):
     hidden_at: datetime = Field(default_factory=_now)
 
 
+class ShoppingCart(SQLModel, table=True):
+    """The in-progress shopping cart for one chat thread (the in-chat
+    add-a-line / upgrade experience). Rebuilt turn-by-turn by graph.nodes.shop
+    and rendered in the chat's top cart drawer. Items are a JSON blob so the
+    item shape can evolve without a migration."""
+
+    __tablename__ = "shopping_carts"
+
+    thread_id: str = Field(primary_key=True)
+    account_id: Optional[str] = None
+    items: list = Field(default_factory=list, sa_column=Column(JSON))
+    updated_at: datetime = Field(default_factory=_now)
+
+
+def _order_id() -> str:
+    return "SO-" + uuid.uuid4().hex[:8].upper()
+
+
+class ShopOrder(SQLModel, table=True):
+    """A placed shopping order (add-a-line / upgrade checkout). The 'payment' is
+    SIMULATED — no real charge is ever made; this records the demo receipt after
+    the rep approves the order at the confirmation gate."""
+
+    __tablename__ = "shop_orders"
+
+    id: str = Field(default_factory=_order_id, primary_key=True)
+    created_at: datetime = Field(default_factory=_now)
+    thread_id: Optional[str] = None
+    rep_id: Optional[str] = None
+    account_id: Optional[str] = None
+    items: list = Field(default_factory=list, sa_column=Column(JSON))
+    monthly_total: float = 0.0
+    onetime_total: float = 0.0
+    payment_method: str = ""       # masked mock card, e.g. "Visa ending 4242"
+
+
 class CesRoute(SQLModel, table=True):
     """Which triage intents relay to the external Google CES `repAssist` agent
     instead of the built-in resolver/knowledge node. Managed from Settings → CES

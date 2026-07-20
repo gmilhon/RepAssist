@@ -37,5 +37,9 @@ class GraphState(TypedDict, total=False):
     ces_active: Optional[bool]         # a CES sub-conversation currently owns this thread (sticky)
     ces_session_id: Optional[str]      # reused across turns so CES keeps context
 
+    # In-chat shopping (see graph.nodes.shop)
+    shop_active: Optional[bool]        # a shopping session owns this thread (sticky)
+    cart: Optional[dict]              # latest cart view {items, monthly_total, onetime_total} for the drawer
+
     # Observability
     trace: Annotated[list[dict[str, Any]], operator.add]

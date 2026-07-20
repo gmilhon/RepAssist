@@ -60,6 +60,7 @@ dev team should build next, so the assistant keeps getting better.
 21. [Training & Enablement](docs/21-training-and-enablement.md) — one "Show me how" per feature combining auto-generated steps, an animated demo GIF, and an uploaded training video, plus an AI storyboard/narration generator.
 22. [Live Queue](docs/22-live-queue.md) — real-time floor snapshot: waiting, being assisted, in-store pickups, and today's appointments, in a topbar indicator + popup.
 23. [CES Agent Routing](docs/23-ces-agent-routing.md) — relay selected triage intents to an external Google CX Agent Studio (CES) agent, switched on per-intent from Settings, built on `runSession` with an offline stub.
+24. [In-Chat Shopping](docs/24-in-chat-shopping.md) — account summary + a chat-built shopping cart (add a line / upgrade) in a top drawer, checkout behind the confirmation gate with a simulated payment, and Live-Listen cart edits.
 
 ## 60-second quickstart
 

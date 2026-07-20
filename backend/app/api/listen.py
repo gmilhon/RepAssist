@@ -177,7 +177,7 @@ def analyze(session_id: str, req: AnalyzeRequest) -> dict:
     if not utterances:
         known = {**_session_entities(session), **llm.extract_entities(
             " ".join(u["text"] for u in (session.transcript or [])[-WINDOW_UTTERANCES:]))}
-        return {"suggestions": [], "entities": known}
+        return {"suggestions": [], "entities": known, "cart": None}
 
     with _session_locks[session_id]:
         # Re-read under the lock so overlapping calls see each other's appends
@@ -186,7 +186,53 @@ def analyze(session_id: str, req: AnalyzeRequest) -> dict:
         if not session or session.status != "active":
             raise HTTPException(409, "Listen session has ended")
         session = db.append_listen_utterances(session_id, utterances)
-        return _run_analysis(session)
+        result = _run_analysis(session)
+        # Also fold any cart mutations heard in the NEW utterances into the
+        # thread's shopping cart (idempotent — only the new batch is interpreted).
+        result["cart"] = _cart_from_listen(session, " ".join(u["text"] for u in utterances))
+        return result
+
+
+# Cheap pre-filter: only spend an LLM cart-interpret call when the new
+# utterances actually mention a device/plan or a cart verb.
+_CART_VERBS = ("swap", "change", "switch", "instead", "add", "remove", "drop",
+               "take off", "upgrade", "plan", "trade")
+
+
+def _has_cart_hint(text: str) -> bool:
+    from .. import shop as shop_engine
+    return bool(
+        shop_engine.cat.find_device(text) or shop_engine.cat.find_plan(text)
+        or any(v in text.lower() for v in _CART_VERBS)
+    )
+
+
+def _cart_from_listen(session: ListenSession, text: str) -> dict | None:
+    """During Live Listen, interpret the NEWEST utterances for cart mutations
+    (swap device, change plan, add/remove) and apply them to the thread's DRAFT
+    cart, so the cart drawer updates as the conversation happens. Read-only
+    w.r.t. the account — the order still requires the confirm gate. Only runs
+    while a cart is in progress, and only when the text hints at shopping."""
+    if not text.strip() or not _has_cart_hint(text):
+        return None
+    from .. import shop as shop_engine
+    from ..mock_services import shop_data
+    cart_row = db.get_cart(session.thread_id)
+    if not cart_row or not cart_row.items:
+        return None
+    account = shop_data.account_summary(session.account_id)
+    try:
+        turn = llm.interpret_shop_turn(text, account, list(cart_row.items),
+                                       thread_id=session.thread_id, rep_id=session.rep_id)
+    except Exception as exc:  # noqa: BLE001 - listening must never break
+        logger.warning("Listen cart interpret failed (%s)", exc)
+        return None
+    ops = [o for o in turn.ops if o.op != "none"]
+    if not ops:
+        return None
+    new_items, notes = shop_engine.apply_ops(list(cart_row.items), ops, account)
+    db.save_cart(session.thread_id, new_items, account_id=account.get("account_id"))
+    return {"cart": shop_engine.cart_view(new_items), "notes": notes}
 
 
 def _run_analysis(session: ListenSession) -> dict:
