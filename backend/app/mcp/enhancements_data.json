@@ -1,22 +1,24 @@
 {
-  "generated_at": "2026-07-20T21:55:30.134770+00:00",
-  "last_commit_sha": "d697f88a9007930650d4cc744802d893ac41d526",
+  "generated_at": "2026-07-20T22:53:17.444779+00:00",
+  "last_commit_sha": "cd36fd49eb01ba6806fa89730fa9a5bf6c666ec3",
   "enhancements": [
     {
-      "tag": "New",
-      "title": "Build a shopping cart right in chat — add lines, upgrades, and check out",
-      "detail": "When you pull up a customer, Rep Assist now shows an account summary card with their lines (phone/tablet/watch), plans, home internet, upgrade eligibility, and any sales opportunities, plus Add a line and Upgrade buttons. Just tell the assistant what you want to add or change and it builds a cart for you in a drawer, then you can check out with a simulated payment — no real charge is ever made.",
+      "tag": "Improved",
+      "title": "Build a shopping cart right in chat — now with a hands-off demo mode",
+      "detail": "When you pull up a customer, Rep Assist shows an account summary card with their lines, plans, home internet, upgrade eligibility, and sales opportunities, plus Add a line and Upgrade buttons. Tell the assistant what you want to add or change and it builds a cart for you in a drawer, then you can check out with a simulated payment — no real charge is ever made. You can now also see the whole thing play out on its own: start Live Listen demo mode on an Upgrade or New Service visit and a scripted shopping conversation runs automatically, building and editing the cart live in the drawer so you can watch how it works without a mic or a real customer.",
       "keywords": [
         "cart",
         "checkout",
         "shopping",
         "add a line",
         "upgrade",
-        "live listen cart"
+        "live listen cart",
+        "demo mode",
+        "shopping demo"
       ],
-      "answer": "Ask to help a checked-in customer and Rep Assist surfaces their account summary — lines, plans, internet service, upgrade eligibility, and opportunities — right in the chat. Say things like 'add a line' or 'upgrade this phone' and the assistant updates a live cart drawer as you talk; when you're ready, say 'place the order' and it walks you through the usual confirmation step before running a simulated payment and printing a receipt (the card is masked and nothing is actually charged). If you're running Live Listen at the same time, cart changes the customer asks for out loud — like swapping a device or changing a plan — get picked up and applied to the draft cart automatically.",
+      "answer": "Ask to help a checked-in customer and Rep Assist surfaces their account summary — lines, plans, internet service, upgrade eligibility, and opportunities — right in the chat. Say things like 'add a line' or 'upgrade this phone' and the assistant updates a live cart drawer as you talk; when you're ready, say 'place the order' and it walks you through the usual confirmation step before running a simulated payment and printing a receipt (the card is masked and nothing is actually charged). If you're running Live Listen at the same time, cart changes the customer asks for out loud get picked up automatically — and if you start a demo session on an Upgrade or New Service visit, Rep Assist now plays a full scripted shopping conversation for you, driving the cart through a trade-in, device swap, added line, and plan change entirely on its own so you can watch the flow before trying it live.",
       "walkthrough": {
-        "intro": "Learn how to use the new in-chat shopping flow to build a cart, make changes by talking, and check out safely with a simulated payment.",
+        "intro": "Learn how to use the in-chat shopping flow to build a cart, make changes by talking, check out safely, and try a hands-off demo of the whole thing.",
         "steps": [
           {
             "title": "Pull up the customer's account",
@@ -37,6 +39,11 @@
             "title": "Watch the cart drawer update live",
             "detail": "A cart drawer opens at the top of the screen and updates as you keep chatting — swap a device, change a plan, or add/remove items just by describing what the customer wants.",
             "tip": "If you're running Live Listen with this customer, cart changes they ask for out loud get applied automatically too."
+          },
+          {
+            "title": "Or try the demo instead of a real customer",
+            "detail": "Start a Live Listen demo session on an Upgrade or New Service visit and Rep Assist plays a full scripted shopping conversation itself — no mic needed — driving the cart through a trade-in, device swap, added line, and plan change live in the drawer.",
+            "tip": "Great for practicing what to expect before you run this with a real customer."
           },
           {
             "title": "Say 'place the order' to check out",
@@ -371,8 +378,8 @@
     }
   ],
   "suggestions": [
-    "How do I add a line or upgrade a customer's phone through chat?",
-    "How does the new shopping cart checkout work — is it a real charge?",
-    "What shows up in a customer's account summary card?"
+    "How do I try the shopping cart demo without a real customer?",
+    "How does Live Listen build the cart automatically while I talk to a customer?",
+    "What happens when I say 'place the order' during a shopping cart chat?"
   ]
 }
