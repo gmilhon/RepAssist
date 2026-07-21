@@ -11,8 +11,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .api import (
-    admin, chat, coaching, cx, email_reports, huddle, insights, listen, mcp,
-    metrics, playbook, production, queue, shop, system_health, tickets, training,
+    admin, chat, checkout, coaching, cx, email_reports, huddle, insights, listen,
+    mcp, metrics, playbook, production, queue, shop, system_health, tickets, training,
 )
 from .api import settings as settings_api  # aliased: `settings` is the Settings instance below
 from .config import get_settings
@@ -61,6 +61,7 @@ app.include_router(coaching.router)
 app.include_router(training.router)
 app.include_router(settings_api.router)
 app.include_router(shop.router)
+app.include_router(checkout.router)
 
 
 @app.on_event("startup")

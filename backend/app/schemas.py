@@ -320,14 +320,17 @@ class Resolution(BaseModel):
 
 class CartItem(BaseModel):
     item_id: str
-    kind: Literal["new_line", "upgrade", "home_internet"]
+    kind: Literal["new_line", "upgrade", "home_internet", "perk", "accessory"]
     device: Optional[str] = None
     device_type: Optional[str] = None       # phone | tablet | watch
     plan: Optional[str] = None
     promo: Optional[str] = None
     line_id: Optional[str] = None           # existing line being upgraded
-    monthly: float = 0.0                    # recurring $/mo (device payment + plan − promo)
-    onetime: float = 0.0                    # upfront $ (device retail − credits), 0 on device-payment
+    protection: Optional[dict] = None       # device protection add-on {name, monthly, blurb}
+    trade_in: Optional[dict] = None         # trade-in on this line {device, credit}
+    fulfillment: Optional[str] = None       # pickup | ship (default pickup)
+    monthly: float = 0.0                    # recurring $/mo (device payment + plan + protection − promo)
+    onetime: float = 0.0                    # upfront $ (accessories); device financing is $0 today
     summary: str = ""                       # one-line human label
 
 
@@ -342,13 +345,20 @@ class CartOp(BaseModel):
 
     op: Literal[
         "add_line", "upgrade", "set_device", "set_plan", "apply_promo",
+        "add_protection", "decline_protection", "add_perk", "remove_perk",
+        "add_accessory", "set_fulfillment", "set_trade_in",
         "remove_item", "clear", "none",
     ] = Field(description="The cart mutation to perform.")
     device: Optional[str] = Field(default=None, description="Exact catalog device name, e.g. 'iPhone 17 Pro'. Null if not specified.")
     plan: Optional[str] = Field(default=None, description="Exact catalog plan name, e.g. 'Unlimited Ultimate'. Null if not specified.")
     line_id: Optional[str] = Field(default=None, description="For an upgrade: the existing line id being upgraded, e.g. 'L2'. Null otherwise.")
     promo: Optional[str] = Field(default=None, description="Exact catalog promo label to apply. Null if none.")
-    target: Optional[str] = Field(default=None, description="For set_device/set_plan/remove_item: which cart item to change, by its device name or 'new line'/'upgrade'. Null to apply to the most recent item.")
+    protection: Optional[str] = Field(default=None, description="For add_protection: exact catalog protection name, e.g. 'Total Mobile Protection'. Null to use the default tier for the device.")
+    perk: Optional[str] = Field(default=None, description="For add_perk/remove_perk: exact catalog perk name, e.g. 'Netflix', 'YouTube TV'. Null otherwise.")
+    accessory: Optional[str] = Field(default=None, description="For add_accessory: exact catalog accessory name, e.g. 'Protective Case'. Null otherwise.")
+    fulfillment: Optional[str] = Field(default=None, description="For set_fulfillment: 'pickup' (in-store now) or 'ship' (ship to home). Null otherwise.")
+    trade_in_device: Optional[str] = Field(default=None, description="For set_trade_in: the customer's old device being traded in, e.g. 'iPhone 13'. Null otherwise.")
+    target: Optional[str] = Field(default=None, description="For set_device/set_plan/add_protection/set_fulfillment/remove_item: which cart item to change, by its device name or 'new line'/'upgrade'. Null to apply to the most recent item.")
 
 
 class ShopTurn(BaseModel):

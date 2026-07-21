@@ -51,6 +51,40 @@ HOME_INTERNET = {
     "fwa": {"product": "fwa", "name": "Fixed Wireless Internet", "price": 50.0},
 }
 
+# Device protection (insurance) — ALWAYS offered when a device is added to the
+# cart. Priced per month; `for` gates which device types each tier covers.
+PROTECTION = [
+    {"id": "protect-total", "name": "Total Mobile Protection", "monthly": 17.0,
+     "for": ["phone"], "blurb": "Loss, theft, damage + same-day replacement & tech support"},
+    {"id": "protect-tablet", "name": "Tablet Protection", "monthly": 11.0,
+     "for": ["tablet"], "blurb": "Damage, malfunction & battery coverage"},
+    {"id": "protect-watch", "name": "Wearable Protection", "monthly": 5.0,
+     "for": ["watch"], "blurb": "Damage & malfunction coverage for watches"},
+]
+
+# Perks / add-ons — optional streaming & service subscriptions sold at the
+# wireless "perk" price ($10/mo each) regardless of retail value.
+PERK_PRICE = 10.0
+PERKS = [
+    {"id": "youtube-tv", "name": "YouTube TV", "monthly": PERK_PRICE, "blurb": "Live TV streaming"},
+    {"id": "netflix", "name": "Netflix", "monthly": PERK_PRICE, "blurb": "Netflix Standard, ad-free"},
+    {"id": "max", "name": "Max", "monthly": PERK_PRICE, "blurb": "HBO Max — ad-free movies & series"},
+    {"id": "apple-one", "name": "Apple One", "monthly": PERK_PRICE, "blurb": "Apple Music, TV+, Arcade & iCloud+"},
+    {"id": "disney-bundle", "name": "Disney+ Bundle", "monthly": PERK_PRICE, "blurb": "Disney+, Hulu & ESPN+"},
+]
+
+# Accessories — one-time-charge items (collected today and taxed).
+ACCESSORIES = [
+    {"id": "case", "name": "Protective Case", "price": 39.99, "blurb": "Drop-tested rugged case"},
+    {"id": "screen-protector", "name": "Screen Protector", "price": 24.99, "blurb": "Tempered glass, installed in-store"},
+    {"id": "fast-charger", "name": "Fast Charger", "price": 29.99, "blurb": "35W USB-C wall charger"},
+    {"id": "earbuds", "name": "Wireless Earbuds", "price": 99.99, "blurb": "Noise-cancelling earbuds"},
+]
+
+# Fees & tax — one-time charges ALWAYS collected at checkout ("due today").
+ACTIVATION_FEE = 35.0   # per new line / upgrade
+TAX_RATE = 0.0825       # sales tax on device retail + accessories, collected upfront
+
 TERM_MONTHS = 36  # device-payment term used for the monthly estimate
 
 
@@ -128,6 +162,9 @@ def account_summary(account_id: str | None) -> dict:
     acct = ACCOUNTS.get((account_id or "").strip().upper(), {}) if account_id else {}
     profile = _PROFILES.get((account_id or "").strip().upper(), _DEFAULT_PROFILE)
     elig = resolve_eligibility(account_id)
+    # Existing customer only: an estimate of what they pay today (plans + home
+    # internet), so checkout can show current vs. new "View Together" totals.
+    existing = account_id and (account_id or "").strip().upper() in _PROFILES
     return {
         "account_id": (account_id or "").strip().upper() or None,
         "name": acct.get("name", "Guest"),
@@ -135,7 +172,25 @@ def account_summary(account_id: str | None) -> dict:
         "lines": profile["lines"],
         "home_internet": profile.get("home_internet"),
         "eligibility": elig,
+        "current_monthly": current_monthly(profile) if existing else None,
+        "primary_phone": profile["lines"][0]["phone"] if profile.get("lines") else None,
     }
+
+
+def current_monthly(profile: dict) -> float:
+    """Estimate an account's current recurring bill from its existing lines'
+    plans + home internet (illustrative — device payments aren't tracked here)."""
+    total = 0.0
+    for ln in profile.get("lines", []):
+        p = plan_by_name(ln.get("plan"))
+        if p:
+            total += p["price"]
+    hi = profile.get("home_internet")
+    if hi:
+        prod = HOME_INTERNET.get(hi.get("product"))
+        if prod:
+            total += prod["price"]
+    return round(total, 2)
 
 
 # --------------------------------------------------------------------------- #
@@ -209,3 +264,86 @@ def promo_by_label(label: str | None) -> dict | None:
     if not label:
         return None
     return next((pr for pr in PROMOS if pr["label"].lower() == label.lower()), None)
+
+
+# ---- Protection / perks / accessories lookups (device add-ons + one-times) ---- #
+def protection_for_type(device_type: str | None) -> dict | None:
+    """The default protection tier offered for a device type (phone/tablet/watch)."""
+    if not device_type:
+        return None
+    return next((p for p in PROTECTION if device_type in p["for"]), None)
+
+
+def find_protection(query: str | None) -> dict | None:
+    if not query:
+        return None
+    q = query.lower()
+    for p in PROTECTION:
+        if p["name"].lower() in q or p["id"].replace("-", " ") in q:
+            return p
+    # Full words only — avoid matching "protective case" (an accessory).
+    if "protection" in q or "insurance" in q or "coverage" in q or "warranty" in q:
+        return PROTECTION[0]
+    return None
+
+
+def protection_by_name(name: str | None) -> dict | None:
+    if not name:
+        return None
+    return next((p for p in PROTECTION if p["name"].lower() == name.lower()), None)
+
+
+def find_perk(query: str | None) -> dict | None:
+    if not query:
+        return None
+    q = query.lower()
+    for pk in PERKS:
+        if pk["name"].lower() in q or pk["id"].replace("-", " ") in q:
+            return pk
+    if "youtube" in q:
+        return _perk("youtube-tv")
+    if "hbo" in q:
+        return _perk("max")
+    if "disney" in q or "hulu" in q:
+        return _perk("disney-bundle")
+    if "apple" in q and ("one" in q or "music" in q):
+        return _perk("apple-one")
+    return None
+
+
+def perk_by_name(name: str | None) -> dict | None:
+    if not name:
+        return None
+    return next((pk for pk in PERKS if pk["name"].lower() == name.lower()), None)
+
+
+def _perk(pid: str) -> dict | None:
+    return next((pk for pk in PERKS if pk["id"] == pid), None)
+
+
+def find_accessory(query: str | None) -> dict | None:
+    if not query:
+        return None
+    q = query.lower()
+    for a in ACCESSORIES:
+        if a["name"].lower() in q or a["id"].replace("-", " ") in q:
+            return a
+    if "case" in q:
+        return _acc("case")
+    if "charger" in q:
+        return _acc("fast-charger")
+    if "screen" in q or "protector" in q:
+        return _acc("screen-protector")
+    if "earbud" in q or "buds" in q or "headphone" in q:
+        return _acc("earbuds")
+    return None
+
+
+def accessory_by_name(name: str | None) -> dict | None:
+    if not name:
+        return None
+    return next((a for a in ACCESSORIES if a["name"].lower() == name.lower()), None)
+
+
+def _acc(aid: str) -> dict | None:
+    return next((a for a in ACCESSORIES if a["id"] == aid), None)

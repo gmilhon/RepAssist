@@ -6,10 +6,13 @@ the chat renders as rich, interactive cards. The tool decides *what* to show; th
 client decides *how* to render it. This keeps the agent↔UI contract explicit and
 makes the chat feel like a workspace, not just a text box.
 
-Eight element types ship today. The default view leads with first-step CTA tiles
-(see [Default chat view](#default-chat-view-first-step-ctas)); the rest are
-revealed from the sidebar, returned inline by the graph, or (for the last two)
-produced by the read-only [Live Listen](20-live-listen.md) copilot:
+The default view leads with a **"Run a demo"** launcher
+(see [Default chat view](#default-chat-view--drawer-ctas)); the element types
+below are revealed from the drawer, returned inline by the graph, or (for the last
+two) produced by the read-only [Live Listen](20-live-listen.md) copilot. The
+in-chat shopping + POS checkout adds its own cards (account summary, and the
+`view_together` / `payment` / `signature` / `order_confirmation` wizard steps
+rendered by `CheckoutFlow`) — see [doc 24](24-in-chat-shopping.md):
 
 - **Recent orders** — orders the rep has recently serviced (*orders* server). One
   tap picks up that order and starts the conversation.
@@ -281,20 +284,20 @@ async function showLookup(kind: "orders" | "tickets") {
 path as typing — so the LangGraph triage → route → resolve → confirm flow runs
 unchanged.
 
-### Default chat view (first-step CTAs)
+### Default chat view + drawer CTAs
 
-The default (empty) view leads with **CTA tiles** in the sidebar rather than
-proactively-loaded data. Three tile groups:
+The empty view leads with a prominent **"Run a demo"** launcher
+([doc 25](25-guided-demos.md)) plus two "catch up" chips (`The Opener`,
+`What's new`). The **☰** drawer holds the rest, grouped:
 
-- **First steps** — action CTAs (`Fix an activation`, `Unblock an order`, `Apply a
-  promo`, `Explain a charge`, `Request a credit`). Tapping one **sends a starter
-  prompt immediately**; the assistant then **asks a follow-up** for the specifics
-  it needs (see [Clarify + slot-fill](#follow-up-questions-clarify--slot-fill)).
+- **Front desk** — `Check In`, `View queue`, `Coaching` → reveal a card / open a form.
 - **Look up** — `Recent orders`, `My open tickets` → reveal the A2UI card on demand.
 - **Briefings** — `System enhancements`, `The Opener` → reveal the A2UI card.
 
-This keeps the landing view uncluttered while the MCP-backed cards stay one tap
-away.
+(The old **First steps** action CTAs — `Fix an activation`, `Unblock an order`, … —
+were removed; reps just describe the problem, or assist a waiting customer from the
+Live Queue tray.) This keeps the landing view uncluttered while the MCP-backed
+cards stay one tap away.
 
 ### Follow-up questions (clarify + slot-fill)
 

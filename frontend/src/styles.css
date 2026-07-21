@@ -1873,3 +1873,199 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
   margin: 8px 0 0; padding-left: 18px; font-size: 12px; color: var(--ink-2);
 }
 .cx-guardrail-examples li { margin-bottom: 3px; font-family: ui-monospace, monospace; }
+
+/* ============================================================= */
+/* Guided POS checkout (View Together → payment → signature)     */
+/* ============================================================= */
+.co-card { text-align: left; }
+.co-head { margin-bottom: 12px; }
+.co-eyebrow { font-size: 11px; font-weight: 800; letter-spacing: 0.4px; color: var(--vz-red); text-transform: uppercase; }
+.co-title { font-size: 16px; font-weight: 800; margin: 5px 0 2px; }
+.co-sub { font-size: 12.5px; color: var(--ink-2); margin: 0; line-height: 1.4; }
+.co-section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--ink-2); margin: 14px 0 6px; }
+
+/* Current vs new vs blended comparison */
+.co-compare { display: flex; gap: 8px; margin: 4px 0 2px; }
+.co-compare-col {
+  flex: 1; display: flex; flex-direction: column; gap: 3px; align-items: center;
+  padding: 12px 8px; border: 1px solid var(--line); border-radius: 12px; background: #fafbfc;
+}
+.co-compare-col span { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--ink-2); }
+.co-compare-col b { font-size: 20px; font-weight: 800; color: var(--ink); }
+.co-compare-col small { font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.co-compare-col--add b { color: var(--vz-red); }
+.co-compare-col--total { background: #fff4f4; border-color: #f4c9c9; }
+.co-compare-col--total b { color: var(--vz-red); }
+/* Narrow (customer phone) — shrink the 3-up comparison so all columns fit. */
+@media (max-width: 480px) {
+  .co-compare { gap: 6px; }
+  .co-compare-col { padding: 9px 4px; gap: 2px; }
+  .co-compare-col span { font-size: 9px; letter-spacing: 0.2px; }
+  .co-compare-col b { font-size: 15px; }
+  .co-compare-col small { font-size: 10px; }
+}
+
+.co-lines { display: flex; flex-direction: column; }
+.co-line { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.co-line:last-child { border-bottom: none; }
+.co-line-label { color: var(--ink); font-weight: 600; }
+.co-line-label small { color: var(--ink-2); font-weight: 500; }
+.co-line-amt { color: var(--ink); font-weight: 700; white-space: nowrap; }
+.co-line--muted { color: var(--ink-2); }
+.co-line--muted .co-line-label, .co-line--muted .co-line-amt { color: var(--ink-2); font-weight: 600; }
+
+.co-duetoday {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 8px; padding: 11px 13px; border-radius: 10px;
+  background: #fff4f4; border: 1px solid #f4c9c9;
+}
+.co-duetoday span { font-size: 13px; font-weight: 700; color: var(--ink); }
+.co-duetoday-amt { font-size: 18px; font-weight: 800; color: var(--vz-red); }
+
+.co-actions { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+.co-actions .btn.primary { width: 100%; }
+.co-phone-btns { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.co-phone-label { font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.co-sent-note { margin-top: 10px; font-size: 12px; color: var(--info); background: #f4f7ff; border: 1px solid #d0dcff; border-radius: 8px; padding: 8px 10px; }
+
+/* Send-to-phone handoff (QR + SMS preview) */
+.co-handoff {
+  display: flex; gap: 14px; align-items: center; margin-top: 14px; padding: 14px;
+  border: 1px dashed var(--vz-red); border-radius: 12px; background: #fffafa;
+}
+.co-qr { width: 128px; height: 128px; flex: none; border-radius: 8px; background: #fff; }
+.co-handoff-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.co-handoff-text b { font-size: 14px; color: var(--ink); }
+.co-handoff-link, .co-handoff-preview { font-size: 11.5px; color: var(--ink-2); word-break: break-all; font-family: ui-monospace, monospace; }
+.co-handoff-warn { font-size: 12px; color: var(--warn); font-weight: 600; }
+
+/* Payment step */
+.co-pay-summary { display: flex; gap: 10px; margin-bottom: 4px; }
+.co-pay-summary > div { flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fafbfc; }
+.co-pay-summary span { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--ink-2); }
+.co-pay-summary b { font-size: 17px; font-weight: 800; color: var(--ink); }
+.co-tenders { display: flex; flex-direction: column; gap: 8px; }
+.co-tender {
+  display: flex; align-items: center; gap: 11px; width: 100%; text-align: left; cursor: pointer;
+  background: #fafbfc; border: 1.5px solid var(--line); border-radius: 10px; padding: 11px 13px; font: inherit;
+  transition: border-color 0.12s, background 0.12s;
+}
+.co-tender:hover { border-color: #c9ccd2; }
+.co-tender.selected { border-color: var(--vz-red); background: #fff4f4; }
+.co-tender-radio { font-size: 16px; color: var(--vz-red); flex: none; }
+.co-tender-main { display: flex; flex-direction: column; gap: 1px; }
+.co-tender-main b { font-size: 13.5px; color: var(--ink); }
+.co-tender-main small { font-size: 12px; color: var(--ink-2); }
+
+.co-fulfil { display: flex; gap: 8px; }
+.co-chip {
+  cursor: pointer; background: #fafbfc; border: 1.5px solid var(--line); border-radius: 999px;
+  padding: 8px 14px; font: inherit; font-size: 13px; font-weight: 600; color: var(--ink-2);
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+}
+.co-chip:hover { border-color: #c9ccd2; }
+.co-chip.selected { border-color: var(--vz-red); background: #fff4f4; color: var(--vz-red); }
+.co-chip.small { padding: 4px 11px; font-size: 12px; }
+
+/* Signature step */
+.co-sign-pad { position: relative; margin-top: 4px; }
+.co-sign-canvas {
+  width: 100%; height: 170px; display: block; touch-action: none;
+  background: #fff; border: 1.5px solid var(--line); border-radius: 12px; cursor: crosshair;
+}
+.co-sign-line {
+  position: absolute; left: 16px; right: 16px; bottom: 20px; pointer-events: none;
+  border-top: 1.5px solid #c9ccd2; padding-top: 4px; font-size: 12px; color: #b0b3ba;
+}
+.co-sign-tools { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+.co-receipt { display: flex; align-items: center; gap: 6px; }
+.co-receipt-label { font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.co-hint { font-size: 11.5px; color: var(--ink-2); margin-top: 8px; }
+
+/* Confirmation extras */
+.co-conf-foot { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.co-badge { font-size: 11.5px; font-weight: 600; color: var(--ink-2); background: var(--bg); border: 1px solid var(--line); border-radius: 20px; padding: 4px 11px; }
+.co-inline-tag { font-size: 11px; font-weight: 600; color: #0a7d4f; }
+.co-inline-tag--credit { color: var(--vz-red); }
+
+/* Cart recommendations (attach rail) + perk/accessory rows */
+.cart-item-kind--perk { background: #f3ecff; color: #6b3fc9; }
+.cart-item-kind--accessory { background: #eaf6ff; color: #0b6fb0; }
+.cart-item-prot { color: #0a7d4f; }
+.cart-footer--sub { border-top: none; padding-top: 2px; margin-top: 0; }
+.cart-footer-sub { font-size: 13px; font-weight: 700; color: var(--ink); }
+.cart-recs { display: flex; flex-direction: column; gap: 7px; margin-top: 12px; }
+.cart-rec {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; cursor: pointer;
+  background: #fffafa; border: 1px solid #f4c9c9; border-radius: 10px; padding: 9px 11px; font: inherit;
+  transition: border-color 0.12s, background 0.12s, transform 0.06s;
+}
+.cart-rec--perk { background: #f8f4ff; border-color: #ded0f5; }
+.cart-rec:hover:not(:disabled) { border-color: var(--vz-red); }
+.cart-rec--perk:hover:not(:disabled) { border-color: #6b3fc9; }
+.cart-rec:active:not(:disabled) { transform: translateY(1px); }
+.cart-rec:disabled { opacity: 0.55; cursor: default; }
+.cart-rec-icon { font-size: 16px; flex: none; }
+.cart-rec-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.cart-rec-main b { font-size: 13px; color: var(--ink); }
+.cart-rec-main small { font-size: 11.5px; color: var(--ink-2); }
+.cart-rec-add { font-size: 12px; font-weight: 700; color: var(--vz-red); flex: none; }
+.cart-rec--perk .cart-rec-add { color: #6b3fc9; }
+
+/* Customer-facing checkout page (/checkout/{id} on the customer's phone) */
+.cx-checkout { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; background: var(--bg); }
+.cx-checkout-top { display: flex; align-items: center; gap: 12px; background: var(--ink); color: #fff; padding: 14px 18px; }
+.cx-checkout-brandtext { display: flex; flex-direction: column; }
+.cx-checkout-brand { font-weight: 800; font-size: 17px; letter-spacing: -0.2px; }
+.cx-checkout-sub { font-size: 12px; color: #b9bcc4; }
+.cx-checkout-body { flex: 1; width: 100%; max-width: 520px; margin: 0 auto; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.cx-checkout-msg { text-align: center; color: var(--ink-2); font-size: 14px; padding: 40px 16px; }
+.cx-checkout-done { text-align: center; font-size: 14px; font-weight: 600; color: #0a7d4f; background: #e7f3ee; border: 1px solid #b6e0cd; border-radius: 12px; padding: 14px; }
+.cx-checkout-foot { text-align: center; font-size: 11.5px; color: var(--ink-2); padding: 14px; }
+
+/* ============================================================= */
+/* Demos — "Run a demo" CTA, picker card, running banner         */
+/* ============================================================= */
+.empty-demo { margin-top: 26px; }
+.empty-demo-cta {
+  display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; cursor: pointer;
+  background: linear-gradient(135deg, #fff, #fff6f6); border: 1.5px solid #f4c9c9; border-radius: 14px;
+  padding: 16px 18px; font: inherit; box-shadow: var(--shadow); transition: border-color 0.12s, transform 0.06s;
+}
+.empty-demo-cta:hover:not(:disabled) { border-color: var(--vz-red); }
+.empty-demo-cta:active:not(:disabled) { transform: translateY(1px); }
+.empty-demo-cta:disabled { opacity: 0.55; cursor: default; }
+.empty-demo-icon { font-size: 26px; flex: none; }
+.empty-demo-main { flex: 1; display: flex; flex-direction: column; gap: 2px; text-align: left; }
+.empty-demo-title { font-size: 15px; font-weight: 800; color: var(--ink); }
+.empty-demo-sub { font-size: 12.5px; color: var(--ink-2); }
+.empty-demo-go { font-size: 22px; color: var(--vz-red); flex: none; }
+
+.demo-card { text-align: left; }
+.demo-group { margin-top: 14px; }
+.demo-group-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; color: var(--ink-2); margin-bottom: 8px; }
+.demo-list { display: flex; flex-direction: column; gap: 10px; }
+.demo-item { display: flex; gap: 12px; padding: 12px 13px; border: 1px solid var(--line); border-radius: 12px; background: #fafbfc; }
+.demo-item-icon { font-size: 20px; flex: none; line-height: 1.4; }
+.demo-item-main { flex: 1; min-width: 0; }
+.demo-item-title { font-size: 14px; font-weight: 700; color: var(--ink); }
+.demo-item-persona { font-size: 12px; font-weight: 600; color: var(--vz-red); margin-top: 1px; }
+.demo-item-blurb { font-size: 12.5px; color: var(--ink-2); margin-top: 4px; line-height: 1.4; }
+.demo-item-actions { display: flex; gap: 8px; margin-top: 10px; }
+
+.demo-banner {
+  display: flex; align-items: center; gap: 10px; padding: 9px 14px;
+  background: #fff4f4; border: 1px solid #f4c9c9; border-radius: 10px; margin: 0 12px 8px;
+}
+.demo-banner-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--vz-red); flex: none; animation: demo-pulse 1.3s ease-in-out infinite; }
+@keyframes demo-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.demo-banner-text { flex: 1; font-size: 13px; color: var(--ink); }
+.demo-banner-text b { font-weight: 700; }
+
+/* Live Queue tray — waiting rows are clickable to assist */
+.lq-row--assistable {
+  width: 100%; text-align: left; font: inherit; cursor: pointer;
+  background: none; border: none; border-radius: 8px; transition: background 0.12s;
+}
+.lq-row--assistable:hover { background: #fff4f4; }
+.lq-row-assist { color: var(--vz-red); font-weight: 700; }

@@ -1,7 +1,7 @@
 import { useState } from "react";
+import { OrderConfirmationCard } from "./Checkout";
 import type {
   A2UIAccountSummary,
-  A2UIOrderConfirmation,
   A2UICoaching,
   A2UICoachingEntry,
   A2UIElement,
@@ -575,32 +575,3 @@ function AccountSummaryCard({ el, onAction, disabled }: {
   );
 }
 
-function OrderConfirmationCard({ el }: { el: A2UIOrderConfirmation }) {
-  return (
-    <div className="a2ui-card a2ui-order">
-      <div className="a2ui-order-head">
-        <span className="a2ui-order-check">✓</span>
-        <div>
-          <div className="a2ui-order-title">Order placed</div>
-          <div className="a2ui-order-id">{el.order_id}</div>
-        </div>
-      </div>
-      <div className="a2ui-order-items">
-        {el.items.map((it) => (
-          <div key={it.item_id} className="a2ui-order-item">
-            <span className="a2ui-order-item-name">
-              {it.device ?? "Device"}{it.line_id ? ` · ${it.line_id}` : ""}
-              <span className="a2ui-order-item-plan"> · {it.plan ?? "—"}</span>
-            </span>
-            <span className="a2ui-order-item-price">${it.monthly.toFixed(2)}/mo</span>
-          </div>
-        ))}
-      </div>
-      <div className="a2ui-order-total">
-        <span>Monthly total</span>
-        <span className="a2ui-order-total-amt">${el.monthly_total.toFixed(2)}/mo</span>
-      </div>
-      <div className="a2ui-order-pay">💳 Payment taken · {el.payment_method}{el.onetime_total ? ` · $${el.onetime_total.toFixed(2)} today` : ""}</div>
-    </div>
-  );
-}

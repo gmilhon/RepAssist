@@ -190,6 +190,47 @@ class ShopOrder(SQLModel, table=True):
     monthly_total: float = 0.0
     onetime_total: float = 0.0
     payment_method: str = ""       # masked mock card, e.g. "Visa ending 4242"
+    # One-time / perks / fulfillment breakdown captured at the signature step.
+    taxes: float = 0.0
+    activation_fees: float = 0.0
+    onetime_breakdown: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    perks: list = Field(default_factory=list, sa_column=Column(JSON))
+    fulfillment: str = "pickup"    # pickup | ship
+    signed_at: Optional[datetime] = None
+    signature_ref: Optional[str] = None   # demo artifact ref — never raw PII
+    receipt_channel: Optional[str] = None  # sms | email | none
+
+
+def _checkout_id() -> str:
+    return "CO-" + uuid.uuid4().hex[:12]
+
+
+class CheckoutSession(SQLModel, table=True):
+    """A guided POS checkout for one cart — the 'View Together' → payment →
+    signature wizard. Server-side + addressable by `id` so the SAME session can
+    be driven from the rep's screen AND the customer's phone (/checkout/{id}).
+    Payment is SIMULATED and the signature is a demo artifact; no real charge is
+    ever made and no card/PII is stored."""
+
+    __tablename__ = "checkout_sessions"
+
+    id: str = Field(default_factory=_checkout_id, primary_key=True)
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
+    thread_id: Optional[str] = None
+    rep_id: Optional[str] = None
+    account_id: Optional[str] = None
+    items: list = Field(default_factory=list, sa_column=Column(JSON))
+    quote: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    step: str = "review"           # review | payment | signature | complete
+    payment_method: Optional[str] = None
+    fulfillment: str = "pickup"    # pickup | ship
+    signed: bool = False
+    signed_at: Optional[datetime] = None
+    signature_ref: Optional[str] = None
+    receipt_channel: Optional[str] = None
+    sent_channel: Optional[str] = None    # last send-to-phone channel used (sms|qr)
+    order_id: Optional[str] = None
 
 
 class CesRoute(SQLModel, table=True):

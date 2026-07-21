@@ -1,4 +1,4 @@
-import type { A2UIElement, A2UIResponse, AccountSummary, AnalyzeResult, CallAgentResult, CandidateDefect, CapabilityGap, Cart, CesRouting, ChatResponse, CheckInResult, CoachingResult, CXOverview, EmailSettings, EmailSubscriber, EnhancementVideo, FileDefectResult, HuddleItem, JiraDefectItem, ListenUtterance, LiveQueueSnapshot, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, PlaybookGuideline, ProductionAnalyzeResult, ProductionIssue, ProductionOverview, QueueEntry, SendReportResult, SendSummaryResult, StartListenResult, StopListenResult, SystemHealth, Ticket, TicketAnalyzeResult, TrainingEnhancement, VideoStoryboard, Walkthrough } from "./types";
+import type { A2UIElement, A2UIResponse, AccountSummary, AnalyzeResult, CallAgentResult, CandidateDefect, CapabilityGap, Cart, CesRouting, ChatResponse, CheckInResult, CheckoutView, CoachingResult, CXOverview, EmailSettings, EmailSubscriber, EnhancementVideo, FileDefectResult, HuddleItem, JiraDefectItem, ListenUtterance, LiveQueueSnapshot, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, PlaybookGuideline, ProductionAnalyzeResult, ProductionIssue, ProductionOverview, QueueEntry, SendReportResult, SendSummaryResult, SendToPhoneResult, StartListenResult, StopListenResult, SystemHealth, Ticket, TicketAnalyzeResult, TrainingEnhancement, VideoStoryboard, Walkthrough } from "./types";
 
 async function http<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -88,10 +88,10 @@ export const api = {
       body: JSON.stringify({ rep_id, queue_entry_id, thread_id, mode }),
     }),
 
-  listenAnalyze: (session_id: string, utterances: ListenUtterance[]) =>
+  listenAnalyze: (session_id: string, utterances: ListenUtterance[], record_only = false) =>
     http<AnalyzeResult>(`/api/listen/${session_id}/analyze`, {
       method: "POST",
-      body: JSON.stringify({ utterances }),
+      body: JSON.stringify({ utterances, record_only }),
     }),
 
   listenStop: (session_id: string) =>
@@ -145,6 +145,32 @@ export const api = {
   shopAccount: (account_id?: string | null) =>
     http<{ summary: AccountSummary; elements: A2UIElement[] }>(`/api/shop/account${qs({ account_id: account_id ?? undefined })}`),
   shopCart: (thread_id: string) => http<Cart>(`/api/shop/cart/${thread_id}`),
+
+  // Guided POS checkout (View Together → payment → signature), shared by the
+  // rep screen and the customer phone view (/checkout/{id}).
+  checkoutStart: (thread_id: string, account_id?: string | null, rep_id = "rep.demo") =>
+    http<CheckoutView>("/api/shop/checkout/start", {
+      method: "POST",
+      body: JSON.stringify({ thread_id, account_id: account_id ?? null, rep_id }),
+    }),
+  checkoutGet: (id: string) => http<CheckoutView>(`/api/shop/checkout/${id}`),
+  checkoutAdvance: (id: string, to = "payment") =>
+    http<CheckoutView>(`/api/shop/checkout/${id}/advance`, { method: "POST", body: JSON.stringify({ to }) }),
+  checkoutPay: (id: string, payment_method: string, fulfillment?: string) =>
+    http<CheckoutView>(`/api/shop/checkout/${id}/pay`, {
+      method: "POST",
+      body: JSON.stringify({ payment_method, fulfillment: fulfillment ?? null }),
+    }),
+  checkoutSign: (id: string, signature?: string | null, receipt_channel?: string | null) =>
+    http<CheckoutView>(`/api/shop/checkout/${id}/sign`, {
+      method: "POST",
+      body: JSON.stringify({ signature: signature ?? null, receipt_channel: receipt_channel ?? null }),
+    }),
+  checkoutSendToPhone: (id: string, channel: "sms" | "qr", origin: string) =>
+    http<SendToPhoneResult>(`/api/shop/checkout/${id}/send-to-phone`, {
+      method: "POST",
+      body: JSON.stringify({ channel, origin }),
+    }),
 
   // CES Routing (Settings → CES Routing)
   getCesRouting: () => http<CesRouting>("/api/settings/ces-routing"),

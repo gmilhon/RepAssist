@@ -28,3 +28,6 @@ email-validator>=2.0
 
 # Multipart form parsing (used by /api/training video upload)
 python-multipart>=0.0.9
+
+# QR codes for the POS checkout "send to phone" sync (pure-Python, zero-dep)
+segno>=1.6

@@ -11,6 +11,7 @@ from ..config import get_settings
 from .models import (
     ActionAudit,
     CesRoute,
+    CheckoutSession,
     EnhancementVideo,
     Engagement,
     GapType,
@@ -89,6 +90,14 @@ def init_db() -> None:
             "ALTER TABLE listen_sessions ADD COLUMN playbook_score INTEGER",
             "ALTER TABLE listen_sessions ADD COLUMN playbook_grade JSON",
             "ALTER TABLE listen_sessions ADD COLUMN coaching JSON",
+            "ALTER TABLE shop_orders ADD COLUMN taxes FLOAT DEFAULT 0",
+            "ALTER TABLE shop_orders ADD COLUMN activation_fees FLOAT DEFAULT 0",
+            "ALTER TABLE shop_orders ADD COLUMN onetime_breakdown JSON DEFAULT '{}'",
+            "ALTER TABLE shop_orders ADD COLUMN perks JSON DEFAULT '[]'",
+            "ALTER TABLE shop_orders ADD COLUMN fulfillment VARCHAR DEFAULT 'pickup'",
+            "ALTER TABLE shop_orders ADD COLUMN signed_at DATETIME",
+            "ALTER TABLE shop_orders ADD COLUMN signature_ref VARCHAR",
+            "ALTER TABLE shop_orders ADD COLUMN receipt_channel VARCHAR",
         ):
             try:
                 conn.execute(text(stmt))
@@ -603,6 +612,35 @@ def create_shop_order(**kwargs) -> ShopOrder:
         s.commit()
         s.refresh(order)
     return order
+
+
+# --------------------------------------------------------------------------- #
+# Checkout sessions (guided POS wizard — rep screen + customer phone sync)
+# --------------------------------------------------------------------------- #
+def create_checkout(**kwargs) -> CheckoutSession:
+    session = CheckoutSession(**kwargs)
+    with Session(_engine) as s:
+        s.add(session)
+        s.commit()
+        s.refresh(session)
+    return session
+
+
+def get_checkout(checkout_id: str) -> Optional[CheckoutSession]:
+    with Session(_engine) as s:
+        return s.get(CheckoutSession, checkout_id)
+
+
+def save_checkout(session: CheckoutSession) -> CheckoutSession:
+    """Persist mutations to a (possibly detached) checkout session. `merge`
+    upserts by primary key so re-saving an instance loaded elsewhere does an
+    UPDATE rather than a conflicting INSERT, and picks up reassigned JSON cols."""
+    session.updated_at = datetime.now(timezone.utc)
+    with Session(_engine) as s:
+        merged = s.merge(session)
+        s.commit()
+        s.refresh(merged)
+    return merged
 
 
 # --------------------------------------------------------------------------- #

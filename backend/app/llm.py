@@ -819,21 +819,36 @@ def _shop_system() -> str:
     devices = "\n".join(f"  - {d['name']} ({d['type']}, ${d['price']:.0f})" for d in cat.DEVICES)
     plans = "\n".join(f"  - {p['name']} (${p['price']:.0f}/mo, for {'/'.join(p['for'])})" for p in cat.PLANS)
     promos = "\n".join(f"  - {pr['label']}" for pr in cat.PROMOS)
+    protection = "\n".join(f"  - {p['name']} (${p['monthly']:.0f}/mo, for {'/'.join(p['for'])})" for p in cat.PROTECTION)
+    perks = "\n".join(f"  - {pk['name']} (${pk['monthly']:.0f}/mo)" for pk in cat.PERKS)
+    accessories = "\n".join(f"  - {a['name']} (${a['price']:.2f} one-time)" for a in cat.ACCESSORIES)
     return (
         "You are a retail sales assistant helping a store rep build a shopping cart for a "
         "customer who wants to ADD A LINE or UPGRADE a device. Interpret the rep's latest "
         "message into structured cart operations (ops) plus a short, friendly reply. Use "
-        "ONLY devices, plans, and promos from this catalog, and write names EXACTLY as shown:\n\n"
+        "ONLY devices, plans, promos, protection, perks, and accessories from this catalog, "
+        "and write names EXACTLY as shown:\n\n"
         f"DEVICES:\n{devices}\n\nPLANS:\n{plans}\n\nPROMOS:\n{promos}\n\n"
+        f"PROTECTION (device insurance):\n{protection}\n\nPERKS (add-ons):\n{perks}\n\n"
+        f"ACCESSORIES (one-time):\n{accessories}\n\n"
         "Rules:\n"
         "- 'add a line' → op 'add_line' (include device/plan if the rep named them).\n"
-        "- 'upgrade line N' / 'trade in' → op 'upgrade' (line_id like 'L2'; device if named).\n"
+        "- 'upgrade line N' / 'trade in' → op 'upgrade' (line_id like 'L2'; device if named). "
+        "If they name the OLD device being traded in, also emit 'set_trade_in' with trade_in_device.\n"
         "- Changing an item already in the cart → 'set_device' / 'set_plan' / 'apply_promo' "
         "(use target to say which item, by device name).\n"
+        "- Protection/insurance/coverage on a device → 'add_protection' (target the device); "
+        "'skip/no protection' → 'decline_protection'.\n"
+        "- A streaming/service perk (Netflix, YouTube TV, Max, Apple One, Disney+) → 'add_perk' "
+        "with the exact perk name; 'remove_perk' to drop it.\n"
+        "- An accessory (case, charger, screen protector, earbuds) → 'add_accessory' with the exact name.\n"
+        "- 'pick it up' / 'ship it' → 'set_fulfillment' (pickup|ship, target the device).\n"
         "- 'remove'/'take off' → 'remove_item'; 'start over'/'clear' → 'clear'.\n"
         "- If the rep only asks a question, return empty ops and answer in reply.\n"
-        "- Match each device to its closest catalog entry and use that exact name.\n"
-        "- reply: one or two sentences — what changed, then ask for the next missing detail."
+        "- Match each item to its closest catalog entry and use that exact name.\n"
+        "- ALWAYS recommend device protection when a phone/tablet/watch is added and none is on it yet.\n"
+        "- reply: one or two sentences — what changed, then ask for the next missing detail "
+        "or recommend protection/a perk."
     )
 
 

@@ -31,6 +31,7 @@ dev team should build next, so the assistant keeps getting better.
 | **Production Monitor** — live escalation inflow, AI issue clustering, alerts, JIRA-stub defects | FastAPI SSE + Claude | [`backend/app/api/production.py`](backend/app/api/production.py), [`frontend/src/components/ProductionDashboard.tsx`](frontend/src/components/ProductionDashboard.tsx) |
 | **Store Check-In & Queue** + **Live Listen** — front-desk intake, and a read-only AI copilot over the live conversation (Playbook scoring, GenAI coaching, visit-summary email) | FastAPI + React + Claude | [`backend/app/api/queue.py`](backend/app/api/queue.py), [`backend/app/api/listen.py`](backend/app/api/listen.py), [`backend/app/api/coaching.py`](backend/app/api/coaching.py), [`backend/app/api/playbook.py`](backend/app/api/playbook.py) |
 | **Training & Enablement** — one "Show me how" (auto-generated steps + animated demo GIF + uploaded video), AI storyboard generator | FastAPI + React + Claude | [`backend/app/api/training.py`](backend/app/api/training.py), [`backend/app/mcp/system_stub.py`](backend/app/mcp/system_stub.py) |
+| **In-Chat Shopping + POS Checkout** — chat-built cart (protection / perks / accessories / trade-in), View Together bill review, simulated payment + signature, QR/SMS phone hand-off; plus **Guided Demos** (full sales/service visits, chat or Live Listen) | FastAPI + React + Claude + segno | [`backend/app/shop.py`](backend/app/shop.py), [`backend/app/checkout.py`](backend/app/checkout.py), [`frontend/src/components/Checkout.tsx`](frontend/src/components/Checkout.tsx), [`frontend/src/demos.ts`](frontend/src/demos.ts) |
 | LLM access (Claude + offline fallback) | official `anthropic` SDK | [`backend/app/llm.py`](backend/app/llm.py) |
 | Cloud Run deployment (one service, API + UI) | Docker + gcloud | [`deploy.sh`](deploy.sh), [`backend/Dockerfile`](backend/Dockerfile) |
 | Architecture, diagrams, runbook, roadmap | Markdown + Mermaid | [`docs/`](docs/) |
@@ -60,7 +61,8 @@ dev team should build next, so the assistant keeps getting better.
 21. [Training & Enablement](docs/21-training-and-enablement.md) — one "Show me how" per feature combining auto-generated steps, an animated demo GIF, and an uploaded training video, plus an AI storyboard/narration generator.
 22. [Live Queue](docs/22-live-queue.md) — real-time floor snapshot: waiting, being assisted, in-store pickups, and today's appointments, in a topbar indicator + popup.
 23. [CES Agent Routing](docs/23-ces-agent-routing.md) — relay selected triage intents to an external Google CX Agent Studio (CES) agent, switched on per-intent from Settings, built on `runSession` with an offline stub.
-24. [In-Chat Shopping](docs/24-in-chat-shopping.md) — account summary + a chat-built shopping cart (add a line / upgrade) in a top drawer, checkout behind the confirmation gate with a simulated payment, and Live-Listen cart edits.
+24. [In-Chat Shopping + POS Checkout](docs/24-in-chat-shopping.md) — a chat-built cart (add a line / upgrade + protection / perks / accessories / trade-in) with an always-on protection recommendation, then a full POS checkout: a **View Together** bill review (current vs. new vs. blended + one-time due today), a simulated payment, a captured signature, and a **phone hand-off** (SMS / scannable QR) that live-syncs the customer's own device.
+25. [Guided Demos](docs/25-guided-demos.md) — a "Run a demo" launcher that plays a full sales or service visit end-to-end (check-in → assist → conversation → checkout/resolution → visit summary + Playbook grade), in either Chat or Live Listen mode.
 
 ## 60-second quickstart
 
@@ -77,17 +79,21 @@ uvicorn app.main:app --port 8000                 # terminal B
 cd ../frontend && npm install && npm run dev      # terminal C  -> http://localhost:5173
 ```
 
-Open http://localhost:5173. The chat leads with **first-step CTA tiles** (Fix an
-activation, Unblock an order, …) that prefill the composer, a **Front desk**
-group to check a walk-in customer in and view/assist the live queue
+Open http://localhost:5173. The empty chat leads with a **"Run a demo"** launcher
+that plays a full sales or service visit end-to-end
+([doc 25](docs/25-guided-demos.md)). The **☰** drawer has a **Front desk** group
+to check a walk-in customer in and view the live queue
 ([doc 19](docs/19-store-checkin-queue.md)), plus **"Look up"** tiles that reveal
-MCP-backed *recent orders* / *open tickets* cards on demand. Pick one (or just
-type), then watch the assistant diagnose, ask you to confirm the fix, and
-resolve it — or escalate to the Resolution Desk. A **headset** button starts
-**Live Listen**, a read-only AI copilot that watches the live conversation,
-suggests issues it can triage, then grades the visit against the Playbook and
-drafts a customer summary email ([doc 20](docs/20-live-listen.md)). Full details
-in the [runbook](docs/05-local-setup-runbook.md).
+MCP-backed *recent orders* / *open tickets* cards on demand. Just type a problem
+(or assist a waiting customer from the **Live Queue** tray), then watch the
+assistant diagnose, ask you to confirm the fix, and resolve it — or escalate to
+the Resolution Desk. For sales, build a cart by chatting and run the **POS
+checkout** — View Together → payment → signature, with a phone hand-off
+([doc 24](docs/24-in-chat-shopping.md)). A **headset** button starts **Live
+Listen**, a read-only AI copilot that watches the live conversation, suggests
+issues it can triage, then grades the visit against the Playbook and drafts a
+customer summary email ([doc 20](docs/20-live-listen.md)). Full details in the
+[runbook](docs/05-local-setup-runbook.md).
 
 > **Go live with Claude:** put `ANTHROPIC_API_KEY=...` in `backend/.env`
 > (copy from `.env.example`). With no key, the system runs fully offline using a

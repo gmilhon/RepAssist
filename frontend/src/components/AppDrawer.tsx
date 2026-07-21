@@ -1,5 +1,5 @@
 import type { ChatAction, DrawerItem } from "../chatActions";
-import { BRIEFINGS, FIRST_STEPS, FRONT_DESK, LOOKUPS } from "../chatActions";
+import { BRIEFINGS, FRONT_DESK, LOOKUPS } from "../chatActions";
 
 export type Tab = "chat" | "desk" | "ops" | "cx" | "prod" | "settings";
 
@@ -28,7 +28,6 @@ const NAV_GROUPS: { heading: string; items: { tab: Tab; icon: string; label: str
 
 // Chat quick-start groups (shown below navigation).
 const QUICK_GROUPS: { heading: string; items: DrawerItem[] }[] = [
-  { heading: "First steps", items: FIRST_STEPS },
   { heading: "Front desk", items: FRONT_DESK },
   { heading: "Look up", items: LOOKUPS },
   { heading: "Briefings", items: BRIEFINGS },

@@ -5,13 +5,28 @@
 export type LookupKind = "orders" | "tickets" | "system" | "huddle" | "queue";
 
 // A quick-action the drawer asks the chat to perform. ChatWidget maps each kind
-// to its existing handler (send / showLookup / showCoaching / check-in / reset).
+// to its existing handler (send / showLookup / showCoaching / check-in / reset /
+// assist a queued customer / run a demo).
 export type ChatAction =
   | { kind: "prompt"; value: string }
   | { kind: "lookup"; value: LookupKind }
   | { kind: "coaching" }
   | { kind: "checkin" }
+  | { kind: "assist"; entry: QueueAssistTarget }
+  | { kind: "demos" }
   | { kind: "reset" };
+
+// The minimal customer identity the chat needs to start assisting a queued
+// customer picked from the Live Queue tray.
+export interface QueueAssistTarget {
+  id: string;
+  customer_name: string | null;
+  customer_phone: string | null;
+  reason: string;
+  reason_label: string;
+  account_id: string | null;
+  order_id?: string | null;
+}
 
 export interface DrawerItem {
   icon: string;
@@ -19,16 +34,6 @@ export interface DrawerItem {
   action: ChatAction;
   chevron?: boolean; // reveals a card/panel rather than sending a message
 }
-
-// First-step CTAs — tapping one sends a starter prompt; the assistant then asks
-// for the specifics it needs (order/account id).
-export const FIRST_STEPS: DrawerItem[] = [
-  { icon: "⚡", label: "Fix an activation", action: { kind: "prompt", value: "I have a line stuck in activation that I need to fix." } },
-  { icon: "🔓", label: "Unblock an order", action: { kind: "prompt", value: "A customer's order is blocked and I need to release it." } },
-  { icon: "🏷️", label: "Apply a promo", action: { kind: "prompt", value: "A promo didn't apply to a customer's account." } },
-  { icon: "💵", label: "Explain a charge", action: { kind: "prompt", value: "I need help explaining a charge on the customer's bill." } },
-  { icon: "🎁", label: "Request a credit", action: { kind: "prompt", value: "The customer is requesting a bill credit." } },
-];
 
 export const FRONT_DESK: DrawerItem[] = [
   { icon: "📝", label: "Check In", action: { kind: "checkin" } },

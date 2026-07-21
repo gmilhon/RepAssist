@@ -6,6 +6,7 @@ interface Props {
   onClose: () => void;
   onRefresh?: () => void;
   refreshing?: boolean;
+  onAssist?: (entry: LiveQueueEntry) => void;
 }
 
 function repName(id: string | null): string {
@@ -20,13 +21,41 @@ function personName(e: LiveQueueEntry): string {
 
 type RowKind = "waiting" | "assisting" | "ispu_to_pick" | "ispu_ready" | "appointment";
 
-function QueueRow({ entry, kind }: { entry: LiveQueueEntry; kind: RowKind }) {
+function QueueRow({ entry, kind, onAssist }: { entry: LiveQueueEntry; kind: RowKind; onAssist?: (e: LiveQueueEntry) => void }) {
   const sub =
     entry.customer_name && entry.customer_phone ? entry.customer_phone
     : entry.order_id ? entry.order_id
     : "";
-  return (
-    <div className="lq-row">
+  const assistable = kind === "waiting" && !!onAssist;
+  const meta = (
+    <div className="lq-row-meta">
+      {kind === "appointment" ? (
+        <>
+          <span className="lq-row-time">{entry.scheduled_label}</span>
+          <span className="lq-row-hint">{entry.eta_label}</span>
+        </>
+      ) : kind === "assisting" ? (
+        <>
+          <span className="lq-row-time">{entry.wait_label}</span>
+          <span className="lq-row-hint">{repName(entry.assigned_rep_id) || "in progress"}</span>
+        </>
+      ) : assistable ? (
+        <>
+          <span className="lq-row-time">{entry.wait_label}</span>
+          <span className="lq-row-hint lq-row-assist">Assist →</span>
+        </>
+      ) : (
+        <>
+          <span className="lq-row-time">{entry.wait_label}</span>
+          <span className="lq-row-hint">
+            {kind === "ispu_ready" ? "staged" : kind === "ispu_to_pick" ? "to pick" : "waiting"}
+          </span>
+        </>
+      )}
+    </div>
+  );
+  const body = (
+    <>
       <div className={`lq-row-tick lq-row-tick--${kind}`} />
       <div className="lq-row-main">
         <span className="lq-row-name">{personName(entry)}</span>
@@ -35,28 +64,17 @@ function QueueRow({ entry, kind }: { entry: LiveQueueEntry; kind: RowKind }) {
           {sub && <span className="lq-row-reason-sub"> · {sub}</span>}
         </span>
       </div>
-      <div className="lq-row-meta">
-        {kind === "appointment" ? (
-          <>
-            <span className="lq-row-time">{entry.scheduled_label}</span>
-            <span className="lq-row-hint">{entry.eta_label}</span>
-          </>
-        ) : kind === "assisting" ? (
-          <>
-            <span className="lq-row-time">{entry.wait_label}</span>
-            <span className="lq-row-hint">{repName(entry.assigned_rep_id) || "in progress"}</span>
-          </>
-        ) : (
-          <>
-            <span className="lq-row-time">{entry.wait_label}</span>
-            <span className="lq-row-hint">
-              {kind === "ispu_ready" ? "staged" : kind === "ispu_to_pick" ? "to pick" : "waiting"}
-            </span>
-          </>
-        )}
-      </div>
-    </div>
+      {meta}
+    </>
   );
+  if (assistable) {
+    return (
+      <button className="lq-row lq-row--assistable" onClick={() => onAssist!(entry)} title={`Assist ${personName(entry)}`}>
+        {body}
+      </button>
+    );
+  }
+  return <div className="lq-row">{body}</div>;
 }
 
 function Section({
@@ -81,7 +99,7 @@ function Section({
   );
 }
 
-export default function LiveQueuePanel({ snapshot, onClose, onRefresh, refreshing }: Props) {
+export default function LiveQueuePanel({ snapshot, onClose, onRefresh, refreshing, onAssist }: Props) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
     window.addEventListener("keydown", onKey);
@@ -137,7 +155,7 @@ export default function LiveQueuePanel({ snapshot, onClose, onRefresh, refreshin
         ) : (
           <>
             <Section title="Waiting" count={snapshot.waiting.length} emptyLabel="No one waiting right now.">
-              {snapshot.waiting.map((e) => <QueueRow key={e.id} entry={e} kind="waiting" />)}
+              {snapshot.waiting.map((e) => <QueueRow key={e.id} entry={e} kind="waiting" onAssist={onAssist} />)}
             </Section>
 
             <Section title="Being assisted" count={snapshot.assisting.length} emptyLabel="No active sessions.">

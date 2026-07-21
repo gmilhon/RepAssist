@@ -12,9 +12,11 @@ Where the chat **View queue** card ([doc 19](19-store-checkin-queue.md)) is an
 *on-demand, walk-in-focused* A2UI snapshot a rep pulls up when they want it,
 Live Queue is the *passive, floor-wide* view that's always visible and refreshes
 itself. Both read the same `queue_entries` table — Live Queue just buckets every
-status, not only waiting/in-progress. It introduces **no new mutation surface**:
-it is a read-only `GET`, with no Assist/claim affordance of its own (claiming
-still happens from the chat queue card or Live Listen).
+status, not only waiting/in-progress. **Waiting rows are clickable to assist**:
+the panel now reuses the same queue-assist hand-off as the chat card (it does not
+introduce a new mutation path — it dispatches into the existing
+`ChatWidget.assistCustomer`), so a rep can start helping a walk-in straight from
+the tray.
 
 ---
 
@@ -70,11 +72,13 @@ topbar "Live Queue" badge ──► GET /api/queue/live  (poll every 20s)
   each bucket in Python — the same rationale as `list_queue()` and
   `create_queue_entry()`. Counts are then derived from the serialized lists in
   `queue.py`, so the badge and the panel can never disagree.
-- **Why read-only, with no Assist affordance.** Live Queue is a *monitor*, not
-  a controller. Claiming a customer still goes through the chat queue card's
-  **Assist** (or Live Listen), which is the single place the queue-assist
-  hand-off into a chat thread lives. Keeping claim in one path means Live Queue
-  adds nothing new to audit.
+- **Assist reuses the one hand-off path.** A **waiting** row is a button →
+  `App.assistFromLiveQueue` → a `ChatAction {kind:"assist", entry}` →
+  `ChatWidget.assistCustomer` — the **same** claim + account-card + chat hand-off
+  the chat queue card's **Assist** uses (generalized out of `assistFromQueue`).
+  Live Queue adds a convenient *entry point*, not a new mutation surface: the
+  claim (`POST /api/queue/{id}/assist`) and its audit are unchanged. Non-waiting
+  buckets (assisting / ISPU / appointments) stay read-only.
 
 ---
 
@@ -136,6 +140,7 @@ object. No parameters; no auth beyond the app's usual.
       "reason": "new_service",
       "reason_label": "New Service",
       "status": "waiting",
+      "account_id": "AC-3002",
       "order_id": "ACT-1002",
       "assigned_rep_id": null,
       "wait_label": "6m"
@@ -172,9 +177,10 @@ object. No parameters; no auth beyond the app's usual.
 ```
 
 Every row carries `id`, `customer_name`, `customer_phone`, `reason`,
-`reason_label`, `status`, `order_id`, `assigned_rep_id`, and `wait_label`.
-**Scheduled** rows additionally carry `scheduled_at`, `scheduled_label`, and
-`eta_label`. `counts.ispu` is the sum of the two ISPU buckets; every other count
+`reason_label`, `status`, `account_id`, `order_id`, `assigned_rep_id`, and
+`wait_label` (`account_id` + `order_id` carry the known-customer context the
+assist hand-off passes into the chat thread). **Scheduled** rows additionally
+carry `scheduled_at`, `scheduled_label`, and `eta_label`. `counts.ispu` is the sum of the two ISPU buckets; every other count
 is the length of the like-named list.
 
 Code: [`backend/app/api/queue.py`](../backend/app/api/queue.py)
@@ -250,7 +256,7 @@ Live Queue and the chat **View queue** card are two views over the same
 | Trigger | Rep taps **View queue**; point-in-time | Always-on topbar badge; polls every 20 s |
 | Scope | Walk-ins (waiting + in-progress) + today's appointments appended | Every bucket — waiting, assisting, ISPU (both states), appointments |
 | Render | A2UI `queue` card ([doc 10](10-a2ui-generative-ui.md)) | Dedicated `LiveQueuePanel` drawer |
-| Actions | **Assist →** claims a waiting row | None — read-only monitor |
+| Actions | **Assist →** claims a waiting row | **Assist →** on waiting rows (same hand-off); other buckets read-only |
 
 The shared `QueueStatus`/`scheduled_at` changes also let the doc-19 chat card
 append today's future appointments as `scheduled` rows (a purple **Upcoming**
@@ -276,10 +282,9 @@ pill with a non-clickable **Scheduled** CTA, and a subtitle like
 - **Poll, not push.** The badge is at most 20 s stale (or immediate via
   Refresh). A busy multi-terminal floor would still benefit from an SSE channel
   like System Health, but the poll is intentionally simple for the demo.
-- **No claim from the panel.** Live Queue is deliberately read-only; to start
-  helping someone a rep uses the chat queue card or Live Listen. Adding an
-  Assist affordance here would mean threading the claim/hand-off (and its chat
-  thread) through the panel.
+- **Assist is waiting-only.** Waiting rows hand off into a chat thread; the
+  assisting / ISPU / appointment buckets stay read-only (there's nothing to
+  *claim* on an in-progress or scheduled row).
 - **ISPU/appointment state is seed-driven.** There's no UI to *advance* a pickup
   from `ispu_to_pick` → `ispu_ready`, or to book an appointment — those rows come
   from the seed. A real deployment would drive them from the order/appointment

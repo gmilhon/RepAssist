@@ -66,6 +66,10 @@ class ListenUtterance(BaseModel):
 
 class AnalyzeRequest(BaseModel):
     utterances: list[ListenUtterance] = Field(default_factory=list, max_length=MAX_UTTERANCES_PER_CALL)
+    # Record the utterances into the transcript WITHOUT running the watcher or
+    # cart builder — used by chat-mode demos to seed a gradeable transcript while
+    # the rep drives the cart/resolution directly through the chat.
+    record_only: bool = False
 
 
 def _aware(dt: datetime) -> datetime:
@@ -188,6 +192,10 @@ def analyze(session_id: str, req: AnalyzeRequest) -> dict:
         if not session or session.status != "active":
             raise HTTPException(409, "Listen session has ended")
         session = db.append_listen_utterances(session_id, utterances)
+        # Transcript-only: seed the visit transcript for end-of-visit grading
+        # without surfacing suggestions or mutating the cart.
+        if req.record_only:
+            return {"suggestions": [], "entities": _session_entities(session), "cart": None}
         result = _run_analysis(session)
         # Also fold any cart mutations heard in the NEW utterances into the
         # thread's shopping cart (idempotent — only the new batch is interpreted).
@@ -198,13 +206,16 @@ def analyze(session_id: str, req: AnalyzeRequest) -> dict:
 # Cheap pre-filter: only spend an LLM cart-interpret call when the new
 # utterances actually mention a device/plan or a cart verb.
 _CART_VERBS = ("swap", "change", "switch", "instead", "add", "remove", "drop",
-               "take off", "upgrade", "plan", "trade")
+               "take off", "upgrade", "plan", "trade", "protection", "insurance",
+               "perk", "case", "charger")
 
 
 def _has_cart_hint(text: str) -> bool:
     from .. import shop as shop_engine
+    cat = shop_engine.cat
     return bool(
-        shop_engine.cat.find_device(text) or shop_engine.cat.find_plan(text)
+        cat.find_device(text) or cat.find_plan(text) or cat.find_perk(text)
+        or cat.find_accessory(text) or cat.find_protection(text)
         or any(v in text.lower() for v in _CART_VERBS)
     )
 

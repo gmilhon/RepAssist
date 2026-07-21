@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
-import type { ChatAction, LookupKind } from "../chatActions";
-import type { A2UICoachingEntry, A2UIElement, A2UIEnhancement, A2UIQueue, A2UIQueueEntry, Cart, ChatResponse, CoachingResult, ConfirmationPayload, ListenSession, ListenUtterance, PlaybookGrade, ResolutionCard, SendSummaryResult, VisitSummary, Walkthrough } from "../types";
+import type { ChatAction, LookupKind, QueueAssistTarget } from "../chatActions";
+import type { A2UICoachingEntry, A2UIElement, A2UIEnhancement, A2UIQueue, A2UIQueueEntry, Cart, ChatResponse, CheckoutView, CoachingResult, ConfirmationPayload, ListenSession, ListenUtterance, PlaybookGrade, ResolutionCard, SendSummaryResult, VisitSummary, Walkthrough } from "../types";
 import { VISIT_REASONS } from "../types";
 import { A2UIRenderer, Stars } from "./A2UI";
+import { CheckoutFlow, type CheckoutHandlers } from "./Checkout";
+import { SALES_DEMOS, SERVICE_DEMOS, type Demo } from "../demos";
 
 interface VisitRecap {
   sessionId: string;
@@ -19,6 +21,7 @@ interface Msg {
   visit?: VisitRecap;
   grade?: PlaybookGrade;
   coaching?: CoachingResult;
+  demos?: boolean;   // the "Run a demo" picker card
   walkthrough?: { title: string; steps: Walkthrough; gifUrl?: string | null; gifCaption?: string | null; videoUrl?: string | null };
 }
 
@@ -60,17 +63,21 @@ const DEMO_SCRIPT: { speaker: "Customer" | "Rep"; text: string; delayMs: number 
 const SHOPPING_DEMO_SCRIPT: { speaker: "Customer" | "Rep"; text: string; delayMs: number }[] = [
   { speaker: "Rep", text: "Welcome back, Ms. Rivera! What can I set you up with today?", delayMs: 2600 },
   { speaker: "Customer", text: "I'd love to trade in my old iPhone for the new iPhone 17 Pro on Unlimited Ultimate.", delayMs: 3800 },
-  { speaker: "Rep", text: "Perfect — and that credit makes it a great deal.", delayMs: 3000 },
+  { speaker: "Rep", text: "Perfect — and that trade-in credit makes it a great deal.", delayMs: 3000 },
   { speaker: "Customer", text: "Actually, hold on — let me go with the Pixel 10 instead.", delayMs: 3600 },
   { speaker: "Rep", text: "You got it.", delayMs: 2400 },
-  { speaker: "Customer", text: "And can I add a new line for my daughter? She'd like the Galaxy S26.", delayMs: 3800 },
-  { speaker: "Rep", text: "Of course.", delayMs: 2400 },
+  { speaker: "Customer", text: "And add the protection plan on that Pixel — I always crack my screen.", delayMs: 3800 },
+  { speaker: "Rep", text: "Smart call — that's covered now.", delayMs: 2600 },
+  { speaker: "Customer", text: "Can I add a new line for my daughter? She'd like the Galaxy S26.", delayMs: 3800 },
+  { speaker: "Rep", text: "Of course.", delayMs: 2200 },
   { speaker: "Customer", text: "Put her on the Unlimited Ultimate plan — she streams a lot.", delayMs: 3600 },
-  { speaker: "Rep", text: "Done.", delayMs: 2400 },
-  { speaker: "Customer", text: "Oh, throw in an Apple Watch Series 10 for me too.", delayMs: 3600 },
-  { speaker: "Rep", text: "Sure thing.", delayMs: 2400 },
-  { speaker: "Customer", text: "You know what, let's skip the watch for today.", delayMs: 3400 },
-  { speaker: "Rep", text: "No problem — so you're all set with the Pixel 10 upgrade and the new line for your daughter. Want me to place the order?", delayMs: 3000 },
+  { speaker: "Rep", text: "Done.", delayMs: 2200 },
+  { speaker: "Customer", text: "Oh, and put Netflix on the account for her too.", delayMs: 3400 },
+  { speaker: "Rep", text: "Added.", delayMs: 2000 },
+  { speaker: "Customer", text: "And grab a case for the Pixel while we're at it.", delayMs: 3400 },
+  { speaker: "Rep", text: "Got it — anything else?", delayMs: 2400 },
+  { speaker: "Customer", text: "That's everything, thanks.", delayMs: 2800 },
+  { speaker: "Rep", text: "Perfect — Pixel 10 upgrade with protection, a new line for your daughter on Ultimate, Netflix, and a case. Let's review it together and place the order.", delayMs: 3200 },
 ];
 
 
@@ -105,6 +112,17 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
   // Shopping cart (built through the chat; shown in the top cart drawer).
   const [cart, setCart] = useState<Cart | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
+  // Guided POS checkout (View Together → payment → signature), rendered inline.
+  const [checkout, setCheckout] = useState<CheckoutView | null>(null);
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [accountId, setAccountId] = useState<string | null>(null);
+  const checkoutRef = useRef<CheckoutView | null>(null);
+  // A synchronously-updated thread id so the demo runner (which holds a stale
+  // render closure across awaited turns) always sends on the live thread.
+  const threadIdRef = useRef<string | null>(null);
+  // Auto-driven demo state.
+  const [demoRunning, setDemoRunning] = useState<Demo | null>(null);
+  const demoAbortRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastActionNonce = useRef(0);
   const recognitionRef = useRef<any>(null);
@@ -239,29 +257,163 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
     }
   }
 
-  // Queue card "Assist" → claim the entry, then drop into a normal chat turn
-  // with the customer's name/phone/reason already known.
-  async function assistFromQueue(entry: A2UIQueueEntry) {
+  // Claim a queued customer + drop into a normal chat turn with their
+  // name/phone/reason/account already known. Shared by the queue A2UI card, the
+  // Live Queue tray (App → chatAction "assist"), and the demo runner.
+  async function assistCustomer(t: QueueAssistTarget) {
     try {
-      await api.assistQueueEntry(entry.id, "rep.demo", threadId);
+      await api.assistQueueEntry(t.id, "rep.demo", threadId);
     } catch {
       /* best-effort — still let the rep start the conversation */
     }
-    const entities: Record<string, string> = { visit_reason: entry.reason };
-    if (entry.customer_name) entities.customer_name = entry.customer_name;
-    if (entry.customer_phone) entities.customer_phone = entry.customer_phone;
-    if (entry.account_id) entities.account_id = entry.account_id;
+    const entities: Record<string, string> = { visit_reason: t.reason };
+    if (t.customer_name) entities.customer_name = t.customer_name;
+    if (t.customer_phone) entities.customer_phone = t.customer_phone;
+    if (t.account_id) { entities.account_id = t.account_id; setAccountId(t.account_id); }
+    if (t.order_id) entities.order_id = t.order_id;
     // Surface the customer's account summary card up front so the rep can see
     // their lines/devices/plans and any opportunities before assisting.
     try {
-      const acct = await api.shopAccount(entry.account_id);
+      const acct = await api.shopAccount(t.account_id);
       if (acct.elements?.length) {
         setMessages((m) => [...m, { role: "assistant", a2ui: acct.elements }]);
       }
     } catch {
       /* account summary is best-effort */
     }
-    send(entry.prompt, entities);
+    const who = t.customer_name ?? t.customer_phone ?? "the customer";
+    send(`I'm now assisting ${who} — they're here for: ${t.reason_label}.`, entities);
+  }
+
+  // Queue A2UI card "Assist" → same flow, built from the card's richer entry.
+  function assistFromQueue(entry: A2UIQueueEntry) {
+    assistCustomer({
+      id: entry.id, customer_name: entry.customer_name, customer_phone: entry.customer_phone,
+      reason: entry.reason, reason_label: entry.reason_label, account_id: entry.account_id ?? null,
+    });
+  }
+
+  // ── Demos ──────────────────────────────────────────────────────────────────
+  // A synthetic (blank) signature image for auto-run checkouts — hashed to a
+  // demo ref server-side, never real PII.
+  const DEMO_SIGNATURE =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+  const wait = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
+
+  function showDemos() {
+    setMessages((m) => [...m, { role: "assistant", demos: true }]);
+    scrollDown();
+  }
+
+  // Send a rep turn and, if the assistant proposes a mutating action, approve it
+  // (demos run the happy path end-to-end).
+  async function runnerSend(text: string, entities?: Record<string, string>) {
+    const res = await send(text, entities);
+    if (res?.status === "needs_confirmation" && res.confirmation) {
+      await wait(1400);
+      const isShop = res.confirmation.action.service === "shop";
+      setMessages((m) => [...m, { role: "user", content: isShop ? "Place the order." : "Yes, apply the fix." }]);
+      try { applyResponse(await api.confirm(res.thread_id, true)); } catch { /* ignore */ }
+    }
+    return res;
+  }
+
+  // Wait for the Live Listen watcher to finish processing the last batch so the
+  // cart is fully built before we check out.
+  async function settleAnalyze() {
+    for (let i = 0; i < 18; i++) {
+      if (pendingBufferRef.current.length === 0 && !analyzeInFlightRef.current) {
+        await wait(700);
+        if (pendingBufferRef.current.length === 0 && !analyzeInFlightRef.current) return;
+      }
+      await wait(800);
+    }
+  }
+
+  // Auto-run the POS checkout end-to-end (View Together → payment → signature).
+  async function autoCheckout(acctId: string | null) {
+    const tid = threadIdRef.current;
+    if (!tid) return;
+    const start = await api.checkoutStart(tid, acctId);
+    handleCheckoutView(start);
+    const cid = start.checkout.id;
+    await wait(2800);
+    if (demoAbortRef.current) return;
+    handleCheckoutView(await api.checkoutAdvance(cid));
+    await wait(2200);
+    if (demoAbortRef.current) return;
+    handleCheckoutView(await api.checkoutPay(cid, "card_on_file", "pickup"));
+    await wait(2200);
+    if (demoAbortRef.current) return;
+    handleCheckoutView(await api.checkoutSign(cid, DEMO_SIGNATURE, "sms"));
+  }
+
+  // The end-to-end demo runner: check in → assist → conversation → completion
+  // (checkout for sales, resolution for service) → visit summary + Playbook grade.
+  async function runDemo(demo: Demo, mode: "chat" | "listen") {
+    if (demoRunning || busy) return;
+    reset();
+    await wait(60);
+    demoAbortRef.current = false;
+    setDemoRunning(demo);
+    const reasonLabel = VISIT_REASONS.find((r) => r.value === demo.checkIn.reason)?.label ?? demo.checkIn.reason;
+    try {
+      setMessages((m) => [...m, {
+        role: "assistant",
+        content: `🎬 Demo — ${demo.title} · ${mode === "chat" ? "Chat" : "Live Listen"}\nChecking ${demo.checkIn.customer_name} into the store (${reasonLabel})…`,
+      }]);
+      scrollDown();
+
+      // 1. Check the customer into the store.
+      const ci = await api.checkIn(demo.checkIn);
+      if (demoAbortRef.current) return;
+
+      // 2. Start a Live Listen session (both modes) so the visit gets a graded,
+      //    summarized recap at the end. Surface the account card up front.
+      const res = await api.listenStart(ci.entry.id, threadIdRef.current, "demo");
+      activateListenSession(res);
+      try {
+        const acct = await api.shopAccount(demo.checkIn.account_id ?? null);
+        if (acct.elements?.length) setMessages((m) => [...m, { role: "assistant", a2ui: acct.elements }]);
+      } catch { /* account card best-effort */ }
+      await wait(900);
+
+      // 3. Play the scenario.
+      if (mode === "listen") {
+        await playScriptAsync(demo.conversation); // watcher builds cart / surfaces suggestions
+        await settleAnalyze();
+      } else {
+        // Chat: record the conversation for grading (no watcher), then drive the
+        // assistant with explicit rep turns.
+        const utterances = demo.conversation.map((s) => ({ speaker: s.speaker, text: s.text }));
+        setLiveUtterances(utterances);
+        try { await api.listenAnalyze(res.session.id, utterances, true); } catch { /* transcript best-effort */ }
+        for (const turn of demo.chatTurns) {
+          if (demoAbortRef.current) return;
+          await runnerSend(turn);
+          await wait(1300);
+        }
+      }
+      if (demoAbortRef.current) return;
+
+      // 4. Complete the visit.
+      if (demo.kind === "sales") {
+        await wait(900);
+        await autoCheckout(demo.checkIn.account_id ?? null);
+      } else if (mode === "listen" && demo.resolveTurn) {
+        await runnerSend(demo.resolveTurn);
+      }
+      if (demoAbortRef.current) return;
+
+      // 5. End the visit → Playbook grade + visit summary.
+      await wait(1600);
+      await stopListen();
+    } catch (e) {
+      setMessages((m) => [...m, { role: "assistant", content: `⚠️ Demo error: ${e}` }]);
+    } finally {
+      setDemoRunning(null);
+    }
   }
 
   // Morning-Huddle "Read article" link → reveal the linked OST article card.
@@ -279,6 +431,7 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
 
   function applyResponse(res: ChatResponse) {
     setThreadId(res.thread_id);
+    threadIdRef.current = res.thread_id;
     if (res.status === "needs_confirmation") {
       setPending(res.confirmation);
     } else {
@@ -297,6 +450,106 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
     }
     scrollDown();
   }
+
+  // ── Guided POS checkout ────────────────────────────────────────────────────
+  // The cart's "Review & place order" opens the wizard (View Together → payment
+  // → signature). It's a server-side session so it can also be driven from the
+  // customer's phone; we poll while it's open so the rep screen follows along.
+  function handleCheckoutView(view: CheckoutView) {
+    if (view.checkout.step === "complete") {
+      const conf = view.element.type === "order_confirmation" ? view.element : view.order ?? null;
+      setMessages((m) => [
+        ...m,
+        {
+          role: "assistant",
+          content: `✅ Order ${view.checkout.order_id ?? ""} placed — signed & paid.`.trim(),
+          a2ui: conf ? [conf] : undefined,
+        },
+      ]);
+      checkoutRef.current = null;
+      setCheckout(null);
+      // The order clears the cart server-side; reflect that in the drawer.
+      setCart((prev) => (prev ? { ...prev, items: [], monthly_total: 0, onetime_total: 0, recommendations: [] } : prev));
+      setCartOpen(false);
+    } else {
+      checkoutRef.current = view;
+      setCheckout(view);
+    }
+    scrollDown();
+  }
+
+  async function startCheckout() {
+    if (!threadId || checkoutBusy || checkout) return;
+    setCheckoutBusy(true);
+    try {
+      handleCheckoutView(await api.checkoutStart(threadId, accountId));
+    } catch (e) {
+      setMessages((m) => [...m, { role: "assistant", content: `⚠️ Couldn't start checkout (${e}).` }]);
+    } finally {
+      setCheckoutBusy(false);
+    }
+  }
+
+  const checkoutHandlers: CheckoutHandlers = {
+    variant: "rep",
+    busy: checkoutBusy,
+    onAdvance: async () => {
+      const c = checkoutRef.current;
+      if (!c) return;
+      setCheckoutBusy(true);
+      try { handleCheckoutView(await api.checkoutAdvance(c.checkout.id)); }
+      finally { setCheckoutBusy(false); }
+    },
+    onPay: async (method, fulfillment) => {
+      const c = checkoutRef.current;
+      if (!c) return;
+      setCheckoutBusy(true);
+      try { handleCheckoutView(await api.checkoutPay(c.checkout.id, method, fulfillment)); }
+      finally { setCheckoutBusy(false); }
+    },
+    onSign: async (signature, receiptChannel) => {
+      const c = checkoutRef.current;
+      if (!c) return;
+      setCheckoutBusy(true);
+      try { handleCheckoutView(await api.checkoutSign(c.checkout.id, signature, receiptChannel)); }
+      finally { setCheckoutBusy(false); }
+    },
+    onSendToPhone: async (channel) => {
+      const c = checkoutRef.current;
+      if (!c) return null;
+      try {
+        const result = await api.checkoutSendToPhone(c.checkout.id, channel, window.location.origin);
+        // Reflect the handoff (sent_channel) without leaving the current step.
+        const fresh = await api.checkoutGet(c.checkout.id);
+        if (checkoutRef.current?.checkout.id === c.checkout.id && fresh.checkout.step !== "complete") {
+          checkoutRef.current = fresh;
+          setCheckout(fresh);
+        }
+        return result;
+      } catch {
+        return null;
+      }
+    },
+  };
+
+  // Follow the customer's phone: poll while a checkout is open and un-signed.
+  useEffect(() => {
+    if (!checkout || checkout.checkout.step === "complete") return;
+    const id = checkout.checkout.id;
+    const timer = window.setInterval(async () => {
+      try {
+        const v = await api.checkoutGet(id);
+        const cur = checkoutRef.current;
+        if (!cur || cur.checkout.id !== id) return;
+        if (v.checkout.step !== cur.checkout.step || v.checkout.sent_channel !== cur.checkout.sent_channel) {
+          handleCheckoutView(v);
+        }
+      } catch {
+        /* keep polling */
+      }
+    }, 2500);
+    return () => window.clearInterval(timer);
+  }, [checkout?.checkout.id, checkout?.checkout.step]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Voice-to-text via the Web Speech API (Chrome/Edge). Hidden where unsupported.
   const speechSupported =
@@ -352,28 +605,36 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
       });
   }
 
+  // Wire up an active Live Listen session (state + refs + elapsed timer) from a
+  // listenStart response. Shared by the setup panel and the demo runner.
+  function activateListenSession(res: { thread_id: string; entities: Record<string, string>; session: ListenSession }) {
+    if (listening) recognitionRef.current?.stop(); // composer dictation yields to Live Listen
+    setThreadId(res.thread_id);
+    threadIdRef.current = res.thread_id;
+    listenEntitiesRef.current = res.entities;
+    listenSessionRef.current = res.session;
+    setListenSession(res.session);
+    setListenSetupOpen(false);
+    setLiveUtterances([]);
+    setListenInterim("");
+    pendingBufferRef.current = [];
+    lastAnalyzeRef.current = 0;
+    listenActiveRef.current = true;
+    listenStartedAtRef.current = Date.now();
+    setListenElapsed(0);
+    if (elapsedTimerRef.current) window.clearInterval(elapsedTimerRef.current);
+    elapsedTimerRef.current = window.setInterval(() => {
+      setListenElapsed(Math.floor((Date.now() - listenStartedAtRef.current) / 1000));
+    }, 1000);
+  }
+
   async function startListen() {
     const entry = listenQueue.find((e) => e.id === listenEntryId);
     if (!entry || busy) return;
     setBusy(true);
     try {
-      const res = await api.listenStart(entry.id, threadId, listenMode);
-      if (listening) recognitionRef.current?.stop(); // composer dictation yields to Live Listen
-      setThreadId(res.thread_id);
-      listenEntitiesRef.current = res.entities;
-      listenSessionRef.current = res.session;
-      setListenSession(res.session);
-      setListenSetupOpen(false);
-      setLiveUtterances([]);
-      setListenInterim("");
-      pendingBufferRef.current = [];
-      lastAnalyzeRef.current = 0;
-      listenActiveRef.current = true;
-      listenStartedAtRef.current = Date.now();
-      setListenElapsed(0);
-      elapsedTimerRef.current = window.setInterval(() => {
-        setListenElapsed(Math.floor((Date.now() - listenStartedAtRef.current) / 1000));
-      }, 1000);
+      const res = await api.listenStart(entry.id, threadIdRef.current, listenMode);
+      activateListenSession(res);
       const label = res.session.customer_name ?? res.session.customer_phone ?? "the customer";
       const reasonLabel = VISIT_REASONS.find((r) => r.value === res.session.reason)?.label ?? res.session.reason;
       const oppLine = res.opportunities.length
@@ -453,17 +714,25 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
     // so the top cart drawer builds itself live; other visits play the
     // issue-triage script.
     const script = reason === "upgrade" || reason === "new_service" ? SHOPPING_DEMO_SCRIPT : DEMO_SCRIPT;
-    let i = 0;
-    const step = () => {
-      if (!listenActiveRef.current || i >= script.length) return;
-      const line = script[i++];
-      demoTimerRef.current = window.setTimeout(() => {
-        if (!listenActiveRef.current) return;
-        pushUtterance({ speaker: line.speaker, text: line.text });
-        step();
-      }, line.delayMs);
-    };
-    step();
+    void playScriptAsync(script);
+  }
+
+  // Play a scripted conversation into the live transcript on real-time delays,
+  // resolving once the last line is spoken (or the session is torn down).
+  function playScriptAsync(script: { speaker: "Customer" | "Rep"; text: string; delayMs: number }[]): Promise<void> {
+    return new Promise((resolve) => {
+      let i = 0;
+      const step = () => {
+        if (!listenActiveRef.current || i >= script.length) { resolve(); return; }
+        const line = script[i++];
+        demoTimerRef.current = window.setTimeout(() => {
+          if (!listenActiveRef.current) { resolve(); return; }
+          pushUtterance({ speaker: line.speaker, text: line.text });
+          step();
+        }, line.delayMs);
+      };
+      step();
+    });
   }
 
   function pushUtterance(u: ListenUtterance) {
@@ -509,6 +778,7 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
       for (const k of ["order_id", "account_id", "customer_name", "customer_phone", "visit_reason"]) {
         if (res.entities[k]) listenEntitiesRef.current[k] = res.entities[k];
       }
+      if (res.entities.account_id) setAccountId(res.entities.account_id);
       if (res.suggestions.length) {
         setMessages((m) => [
           ...m,
@@ -632,16 +902,19 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
     send(prompt, Object.keys(merged).length ? merged : undefined);
   }
 
-  async function send(text: string, entities?: Record<string, string>) {
-    if (!text.trim() || busy) return;
+  async function send(text: string, entities?: Record<string, string>): Promise<ChatResponse | null> {
+    if (!text.trim() || busy) return null;
     setMessages((m) => [...m, { role: "user", content: text }]);
     setInput("");
     setBusy(true);
     scrollDown();
     try {
-      applyResponse(await api.chat(text, threadId, "rep.demo", entities));
+      const res = await api.chat(text, threadIdRef.current, "rep.demo", entities);
+      applyResponse(res);
+      return res;
     } catch (e) {
       setMessages((m) => [...m, { role: "assistant", content: `⚠️ ${e}` }]);
+      return null;
     } finally {
       setBusy(false);
     }
@@ -683,6 +956,13 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
     setCiError(null);
     setCart(null);
     setCartOpen(false);
+    checkoutRef.current = null;
+    setCheckout(null);
+    setCheckoutBusy(false);
+    setAccountId(null);
+    threadIdRef.current = null;
+    demoAbortRef.current = true;   // abort any in-flight demo
+    setDemoRunning(null);
   }
 
   // Execute a quick-action dispatched from the global drawer (App owns the
@@ -697,6 +977,8 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
       case "lookup": showLookup(chatAction.value); break;
       case "coaching": showCoaching(); break;
       case "checkin": setCiError(null); setCheckInOpen(true); break;
+      case "assist": assistCustomer(chatAction.entry); break;
+      case "demos": showDemos(); break;
       case "reset": reset(); break;
     }
     onChatActionDone();
@@ -710,8 +992,9 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
             cart={cart}
             open={cartOpen}
             onToggle={() => setCartOpen((o) => !o)}
-            onCheckout={() => send("I'm ready to place the order.")}
-            busy={busy}
+            onCheckout={startCheckout}
+            onRecommend={(prompt) => send(prompt)}
+            busy={busy || checkoutBusy || checkout !== null}
           />
         )}
         <div className="messages" ref={scrollRef}>
@@ -724,6 +1007,17 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
                 Just describe it in your own words — or tap <strong>☰</strong> at the bottom-left
                 for a first step. I can also keep you in the loop on what's new.
               </p>
+              <div className="empty-demo">
+                <button className="empty-demo-cta" disabled={busy || !!demoRunning} onClick={showDemos}>
+                  <span className="empty-demo-icon">🎬</span>
+                  <span className="empty-demo-main">
+                    <span className="empty-demo-title">Run a demo</span>
+                    <span className="empty-demo-sub">Watch a full sales or service visit play out — chat or Live Listen</span>
+                  </span>
+                  <span className="empty-demo-go">›</span>
+                </button>
+              </div>
+
               <div className="empty-suggest">
                 <span className="empty-suggest-label">Catch up before your first customer</span>
                 <div className="empty-suggest-row">
@@ -754,9 +1048,16 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
                 />
               )}
               {m.coaching && <CoachingCard result={m.coaching} />}
+              {m.demos && <DemoCard onRun={runDemo} disabled={busy || !!demoRunning} />}
               {m.walkthrough && <WalkthroughCard walkthrough={m.walkthrough} />}
             </div>
           ))}
+
+          {checkout && (
+            <div className="bubble assistant">
+              <CheckoutFlow view={checkout} handlers={checkoutHandlers} />
+            </div>
+          )}
 
           {checkInOpen && (
             <div className="bubble assistant">
@@ -913,6 +1214,19 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
 
         {/* Live-transcript window + composer pinned together above the input. */}
         <div className="composer-dock">
+        {demoRunning && (
+          <div className="demo-banner">
+            <span className="demo-banner-dot" />
+            <span className="demo-banner-text">Demo running · <b>{demoRunning.title}</b> — sit back and watch.</span>
+            <button
+              type="button"
+              className="btn ghost small"
+              onClick={() => { demoAbortRef.current = true; setDemoRunning(null); stopListen(); }}
+            >
+              Stop demo
+            </button>
+          </div>
+        )}
         {/* Fixed live-transcript window, full width, pinned above the input. */}
         {listenSession && (
           <div className="listen-dock">
@@ -969,8 +1283,8 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
           </button>
           <input
             value={input}
-            disabled={busy}
-            placeholder={listening ? "Listening…" : "Describe the order or service issue…"}
+            disabled={busy || !!demoRunning}
+            placeholder={demoRunning ? "Demo running…" : listening ? "Listening…" : "Describe the order or service issue…"}
             onChange={(e) => setInput(e.target.value)}
           />
           {speechSupported && (
@@ -1015,14 +1329,18 @@ const CART_KIND_LABEL: Record<string, string> = {
   new_line: "New line",
   upgrade: "Upgrade",
   home_internet: "Home internet",
+  perk: "Perk",
+  accessory: "Accessory",
 };
 
 // The shopping cart, built through the chat — a collapsible drawer pinned to the
 // top of the conversation that opens/closes and live-updates as the rep chats.
-function CartDrawer({ cart, open, onToggle, onCheckout, busy }: {
-  cart: Cart; open: boolean; onToggle: () => void; onCheckout: () => void; busy: boolean;
+function CartDrawer({ cart, open, onToggle, onCheckout, onRecommend, busy }: {
+  cart: Cart; open: boolean; onToggle: () => void; onCheckout: () => void;
+  onRecommend: (prompt: string) => void; busy: boolean;
 }) {
   const n = cart.items.length;
+  const recs = cart.recommendations ?? [];
   return (
     <div className={`cart-drawer${open ? " open" : ""}`}>
       <button className="cart-bar" onClick={onToggle} aria-expanded={open} title={open ? "Collapse cart" : "Expand cart"}>
@@ -1034,26 +1352,68 @@ function CartDrawer({ cart, open, onToggle, onCheckout, busy }: {
       </button>
       {open && (
         <div className="cart-body">
-          {cart.items.map((it) => (
-            <div key={it.item_id} className="cart-item">
-              <span className={`cart-item-kind cart-item-kind--${it.kind}`}>{CART_KIND_LABEL[it.kind] ?? it.kind}</span>
-              <div className="cart-item-main">
-                <div className="cart-item-device">
-                  {it.device ?? "Device TBD"}
-                  {it.line_id ? <span className="cart-item-line"> · {it.line_id}</span> : null}
+          {cart.items.map((it) => {
+            const isAddon = it.kind === "perk" || it.kind === "accessory";
+            const title = isAddon ? (it.name ?? "Item") : (it.device ?? "Device TBD");
+            return (
+              <div key={it.item_id} className="cart-item">
+                <span className={`cart-item-kind cart-item-kind--${it.kind}`}>{CART_KIND_LABEL[it.kind] ?? it.kind}</span>
+                <div className="cart-item-main">
+                  <div className="cart-item-device">
+                    {title}
+                    {it.line_id ? <span className="cart-item-line"> · {it.line_id}</span> : null}
+                  </div>
+                  <div className="cart-item-sub">
+                    {it.kind === "perk" ? "Add-on · $10/mo"
+                      : it.kind === "accessory" ? (it.blurb ?? "One-time")
+                      : (
+                        <>
+                          {it.plan ?? "Plan TBD"}
+                          {it.protection ? <span className="cart-item-prot"> · 🛡 {it.protection.name}</span> : null}
+                          {it.promo ? <span className="cart-item-promo"> · {it.promo}</span> : null}
+                          {it.trade_in ? <span className="cart-item-promo"> · trade-in −${it.trade_in.credit.toFixed(0)}</span> : null}
+                        </>
+                      )}
+                  </div>
                 </div>
-                <div className="cart-item-sub">
-                  {it.plan ?? "Plan TBD"}
-                  {it.promo ? <span className="cart-item-promo"> · {it.promo}</span> : null}
-                </div>
+                <span className="cart-item-price">
+                  {it.kind === "accessory"
+                    ? <>${it.onetime.toFixed(2)}</>
+                    : <>${it.monthly.toFixed(2)}<span className="cart-item-per">/mo</span></>}
+                </span>
               </div>
-              <span className="cart-item-price">${it.monthly.toFixed(2)}<span className="cart-item-per">/mo</span></span>
-            </div>
-          ))}
+            );
+          })}
           <div className="cart-footer">
             <span className="cart-footer-label">Monthly total</span>
             <span className="cart-footer-total">${cart.monthly_total.toFixed(2)}/mo</span>
           </div>
+          {cart.onetime_total > 0 && (
+            <div className="cart-footer cart-footer--sub">
+              <span className="cart-footer-label">One-time items</span>
+              <span className="cart-footer-sub">${cart.onetime_total.toFixed(2)}</span>
+            </div>
+          )}
+          {recs.length > 0 && (
+            <div className="cart-recs">
+              {recs.map((r, i) => (
+                <button
+                  key={i}
+                  className={`cart-rec cart-rec--${r.kind}`}
+                  disabled={busy}
+                  onClick={() => onRecommend(r.prompt)}
+                  title={r.detail}
+                >
+                  <span className="cart-rec-icon">{r.kind === "protection" ? "🛡" : "🎁"}</span>
+                  <span className="cart-rec-main">
+                    <b>{r.label}</b>
+                    <small>{r.detail}</small>
+                  </span>
+                  <span className="cart-rec-add">+ Add</span>
+                </button>
+              ))}
+            </div>
+          )}
           <div className="cart-actions">
             <button className="btn primary cart-checkout" disabled={busy} onClick={onCheckout}>
               Review &amp; place order
@@ -1266,6 +1626,48 @@ function WalkthroughCard({
           <video className="wt-video" src={videoUrl} controls preload="metadata" />
         </div>
       )}
+    </div>
+  );
+}
+
+// The "Run a demo" picker: sales personas + service scenarios, each launchable
+// in Chat or Live Listen. The runner (runDemo) takes it from here.
+function DemoCard({ onRun, disabled }: { onRun: (demo: Demo, mode: "chat" | "listen") => void; disabled: boolean }) {
+  const groups: { label: string; icon: string; demos: Demo[] }[] = [
+    { label: "Sales", icon: "🛍", demos: SALES_DEMOS },
+    { label: "Service", icon: "🛠", demos: SERVICE_DEMOS },
+  ];
+  return (
+    <div className="a2ui-card demo-card">
+      <div className="a2ui-card-head">
+        <span className="a2ui-card-eyebrow">🎬 Demos</span>
+        <h4 className="a2ui-card-title">Run an end-to-end visit</h4>
+        <p className="a2ui-card-sub">
+          Pick a scenario, then <b>Chat</b> or <b>Live Listen</b>. Each plays out check-in → assist →
+          completion → visit summary &amp; Playbook grade.
+        </p>
+      </div>
+      {groups.map((g) => (
+        <div key={g.label} className="demo-group">
+          <div className="demo-group-label">{g.icon} {g.label}</div>
+          <div className="demo-list">
+            {g.demos.map((d) => (
+              <div key={d.id} className="demo-item">
+                <span className="demo-item-icon">{d.icon}</span>
+                <div className="demo-item-main">
+                  <div className="demo-item-title">{d.title}</div>
+                  <div className="demo-item-persona">{d.persona}</div>
+                  <div className="demo-item-blurb">{d.blurb}</div>
+                  <div className="demo-item-actions">
+                    <button className="btn small" disabled={disabled} onClick={() => onRun(d, "chat")}>💬 Chat</button>
+                    <button className="btn ghost small" disabled={disabled} onClick={() => onRun(d, "listen")}>🎧 Live Listen</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

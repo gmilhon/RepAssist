@@ -11,7 +11,7 @@ import OperationsDashboard from "./components/OperationsDashboard";
 import CXDashboard from "./components/CXDashboard";
 import ProductionDashboard from "./components/ProductionDashboard";
 import SettingsPage from "./components/SettingsPage";
-import type { LiveQueueSnapshot, SystemHealth } from "./types";
+import type { LiveQueueEntry, LiveQueueSnapshot, SystemHealth } from "./types";
 
 const STATUS_COLOR: Record<string, string> = {
   operational: "green",
@@ -116,6 +116,24 @@ export default function App() {
     setMenuOpen(false);
   }
 
+  // Live Queue tray → assist a waiting customer: close the tray, switch to chat,
+  // and hand the customer's identity to ChatWidget to start the assist.
+  function assistFromLiveQueue(entry: LiveQueueEntry) {
+    setShowLiveQueue(false);
+    dispatchChatAction({
+      kind: "assist",
+      entry: {
+        id: entry.id,
+        customer_name: entry.customer_name,
+        customer_phone: entry.customer_phone,
+        reason: entry.reason,
+        reason_label: entry.reason_label,
+        account_id: entry.account_id,
+        order_id: entry.order_id,
+      },
+    });
+  }
+
   const shStatus = sysHealth?.status ?? "operational";
   const qc = liveQueue?.counts;
 
@@ -201,6 +219,7 @@ export default function App() {
           onClose={() => setShowLiveQueue(false)}
           onRefresh={refreshLiveQueue}
           refreshing={lqRefreshing}
+          onAssist={assistFromLiveQueue}
         />
       )}
 

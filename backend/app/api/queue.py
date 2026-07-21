@@ -98,6 +98,7 @@ def _serialize(e: QueueEntry, now: datetime) -> dict:
         "reason": e.reason,
         "reason_label": _reason_label(e.reason),
         "status": e.status,
+        "account_id": e.account_id,
         "order_id": e.order_id,
         "assigned_rep_id": e.assigned_rep_id,
         # For walk-ins / ISPU: how long they've been in this state.

@@ -175,21 +175,101 @@ export interface A2UIAccountSummary extends AccountSummary {
 
 export interface CartItem {
   item_id: string;
-  kind: "new_line" | "upgrade" | "home_internet";
+  kind: "new_line" | "upgrade" | "home_internet" | "perk" | "accessory";
   device: string | null;
   device_type: string | null;
   plan: string | null;
   promo: string | null;
   line_id: string | null;
+  protection?: { name: string; monthly: number; blurb?: string } | null;
+  trade_in?: { device: string; credit: number } | null;
+  fulfillment?: string | null;
+  name?: string | null;        // perk / accessory label
+  blurb?: string | null;
   monthly: number;
   onetime: number;
   summary: string;
+}
+
+export interface CartRecommendation {
+  kind: "protection" | "perk";
+  target: string | null;
+  label: string;
+  detail: string;
+  prompt: string;
 }
 
 export interface Cart {
   items: CartItem[];
   monthly_total: number;
   onetime_total: number;
+  recommendations?: CartRecommendation[];
+}
+
+// ── Guided POS checkout (View Together → payment → signature) ───────────────
+export interface QuoteLine {
+  label: string;
+  sub?: string;
+  amount: number;
+}
+
+export interface CheckoutQuote {
+  current_monthly: number | null;
+  recurring_monthly: number;
+  blended_monthly: number;
+  next_month_total: number;
+  activation_fees: number;
+  accessories_onetime: number;
+  taxes: number;
+  device_retail: number;
+  due_today: number;
+  recurring_lines: QuoteLine[];
+  onetime_lines: QuoteLine[];
+}
+
+export interface A2UIViewTogether {
+  type: "view_together";
+  checkout_id: string;
+  customer_name: string | null;
+  account_id: string | null;
+  primary_phone: string | null;
+  current_monthly: number | null;
+  recurring_monthly: number;
+  blended_monthly: number;
+  next_month_total: number;
+  due_today: number;
+  taxes: number;
+  activation_fees: number;
+  accessories_onetime: number;
+  recurring_lines: QuoteLine[];
+  onetime_lines: QuoteLine[];
+}
+
+export interface PaymentTender {
+  id: string;
+  label: string;
+  sub?: string;
+}
+
+export interface A2UIPayment {
+  type: "payment";
+  checkout_id: string;
+  customer_name: string | null;
+  due_today: number;
+  recurring_monthly: number;
+  blended_monthly: number;
+  tenders: PaymentTender[];
+  fulfillment: string;
+}
+
+export interface A2UISignature {
+  type: "signature";
+  checkout_id: string;
+  customer_name: string | null;
+  payment_method: string;
+  due_today: number;
+  blended_monthly: number;
+  fulfillment: string;
 }
 
 export interface A2UIOrderConfirmation {
@@ -199,6 +279,65 @@ export interface A2UIOrderConfirmation {
   monthly_total: number;
   onetime_total: number;
   payment_method: string;
+  current_monthly?: number | null;
+  recurring_monthly?: number;
+  blended_monthly?: number;
+  taxes?: number;
+  activation_fees?: number;
+  due_today?: number;
+  onetime_lines?: QuoteLine[];
+  perks?: { name: string | null; monthly: number | null }[];
+  fulfillment?: string;
+  signature_ref?: string | null;
+  receipt_channel?: string | null;
+}
+
+export type CheckoutElement =
+  | A2UIViewTogether
+  | A2UIPayment
+  | A2UISignature
+  | A2UIOrderConfirmation;
+
+export interface CheckoutSessionView {
+  id: string;
+  step: "review" | "payment" | "signature" | "complete";
+  thread_id: string | null;
+  account_id: string | null;
+  customer_name: string | null;
+  primary_phone: string | null;
+  payment_method: string | null;
+  fulfillment: string;
+  signed: boolean;
+  order_id: string | null;
+  sent_channel: string | null;
+  quote: CheckoutQuote;
+  items: CartItem[];
+}
+
+export interface CheckoutReceipt {
+  channel: string;
+  sent: boolean;
+  previewed: boolean;
+  to: string | null;
+  message: string;
+}
+
+export interface CheckoutView {
+  checkout: CheckoutSessionView;
+  element: CheckoutElement;
+  order?: A2UIOrderConfirmation;
+  receipt?: CheckoutReceipt;
+}
+
+export interface SendToPhoneResult {
+  channel: "sms" | "qr";
+  link: string;
+  to: string | null;
+  qr_svg_data_uri?: string;
+  sent?: boolean;
+  previewed?: boolean;
+  body?: string;
+  message?: string;
 }
 
 export type A2UIElement =
@@ -252,6 +391,7 @@ export interface LiveQueueEntry {
   reason: string;
   reason_label: string;
   status: "waiting" | "in_progress" | "ispu_to_pick" | "ispu_ready" | "scheduled";
+  account_id: string | null;
   order_id: string | null;
   assigned_rep_id: string | null;
   wait_label: string;
