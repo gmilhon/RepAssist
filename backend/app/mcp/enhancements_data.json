@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-21T03:03:57.389700+00:00",
-  "last_commit_sha": "561f26a6a2efc4987dfc2e80175e97fb1b9f3887",
+  "generated_at": "2026-07-21T05:26:52.594395+00:00",
+  "last_commit_sha": "c45c6d9417485be1f8fe4bbe02f82f6c2780fdbe",
   "enhancements": [
     {
       "tag": "Improved",
@@ -380,8 +380,8 @@
     }
   ],
   "suggestions": [
-    "What changed with the guided demo feature?",
-    "How do I check out a customer using View Together?",
-    "How does Live Listen coaching and the Playbook score work?"
+    "How does the new checkout bill review work?",
+    "What does the 💡 opportunity badge mean in the queue?",
+    "How do I see my Playbook Score after a Live Listen session?"
   ]
 }
