@@ -377,10 +377,11 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
       const ci = await api.checkIn(demo.checkIn);
       if (demoAbortRef.current) return;
 
-      // 2. Start a Live Listen session (both modes) so the visit gets a graded,
-      //    summarized recap at the end. Surface the account card up front.
+      // 2. Start a Live Listen session so the visit gets a graded, summarized
+      //    recap at the end. The "LIVE" strip only shows in Live Listen mode —
+      //    Chat mode runs the session silently (just to grade the transcript).
       const res = await api.listenStart(ci.entry.id, threadIdRef.current, "demo");
-      activateListenSession(res);
+      activateListenSession(res, mode === "listen");
       try {
         const acct = await api.shopAccount(demo.checkIn.account_id ?? null);
         if (acct.elements?.length) setMessages((m) => [...m, { role: "assistant", a2ui: acct.elements }]);
@@ -392,10 +393,9 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
         await playScriptAsync(demo.conversation); // watcher builds cart / surfaces suggestions
         await settleAnalyze();
       } else {
-        // Chat: record the conversation for grading (no watcher), then drive the
-        // assistant with explicit rep turns.
+        // Chat: silently record the conversation for grading (no watcher, no
+        // strip), then drive the assistant with explicit rep turns.
         const utterances = demo.conversation.map((s) => ({ speaker: s.speaker, text: s.text }));
-        setLiveUtterances(utterances);
         try { await api.listenAnalyze(res.session.id, utterances, true); } catch { /* transcript best-effort */ }
         for (const turn of demo.chatTurns) {
           if (demoAbortRef.current) return;
@@ -415,9 +415,10 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
       }
       if (demoAbortRef.current) return;
 
-      // 5. End the visit → Playbook grade + visit summary.
+      // 5. End the visit → Playbook grade + visit summary. (Chat mode had no
+      //    visible Live Listen strip, so use a neutral header.)
       await wait(1600);
-      await stopListen();
+      await stopListen(mode === "chat" ? "📋 Demo complete — visit graded against the Playbook." : undefined);
     } catch (e) {
       setMessages((m) => [...m, { role: "assistant", content: `⚠️ Demo error: ${e}` }]);
     } finally {
@@ -627,13 +628,15 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
 
   // Wire up an active Live Listen session (state + refs + elapsed timer) from a
   // listenStart response. Shared by the setup panel and the demo runner.
-  function activateListenSession(res: { thread_id: string; entities: Record<string, string>; session: ListenSession }) {
+  // `showStrip=false` runs the session silently under the hood (chat-mode demos
+  // use a session only to grade the transcript — the "LIVE" dock stays hidden).
+  function activateListenSession(res: { thread_id: string; entities: Record<string, string>; session: ListenSession }, showStrip = true) {
     if (listening) recognitionRef.current?.stop(); // composer dictation yields to Live Listen
     setThreadId(res.thread_id);
     threadIdRef.current = res.thread_id;
     listenEntitiesRef.current = res.entities;
     listenSessionRef.current = res.session;
-    setListenSession(res.session);
+    if (showStrip) setListenSession(res.session);
     setListenSetupOpen(false);
     setLiveUtterances([]);
     setListenInterim("");
@@ -643,9 +646,11 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
     listenStartedAtRef.current = Date.now();
     setListenElapsed(0);
     if (elapsedTimerRef.current) window.clearInterval(elapsedTimerRef.current);
-    elapsedTimerRef.current = window.setInterval(() => {
-      setListenElapsed(Math.floor((Date.now() - listenStartedAtRef.current) / 1000));
-    }, 1000);
+    if (showStrip) {
+      elapsedTimerRef.current = window.setInterval(() => {
+        setListenElapsed(Math.floor((Date.now() - listenStartedAtRef.current) / 1000));
+      }, 1000);
+    }
   }
 
   async function startListen() {
@@ -844,7 +849,7 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
     try { rec?.stop(); } catch { /* ignore */ }
   }
 
-  async function stopListen() {
+  async function stopListen(headerOverride?: string) {
     const session = listenSessionRef.current;
     teardownListen();
     listenSessionRef.current = null;
@@ -861,7 +866,8 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
       const res = await api.listenStop(session.id);
       const recapMsg: Msg = {
         role: "assistant",
-        content: `🎧 Live Listen ended — ${res.recap.utterances} utterances, ${res.recap.suggestions} suggestions, ${res.recap.duration_label}.`,
+        content: headerOverride
+          ?? `🎧 Live Listen ended — ${res.recap.utterances} utterances, ${res.recap.suggestions} suggestions, ${res.recap.duration_label}.`,
       };
       // Attach the Playbook grade (stars) and the generated visit summary so
       // the score card, summary card, and "Send visit summary" button render
@@ -1263,7 +1269,7 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
                 {listenSession.customer_name ?? listenSession.customer_phone ?? "Customer"}
               </span>
               <span className="listen-elapsed">{formatElapsed(listenElapsed)}</span>
-              <button type="button" className="btn ghost small" onClick={stopListen}>
+              <button type="button" className="btn ghost small" onClick={() => stopListen()}>
                 Stop
               </button>
             </div>
