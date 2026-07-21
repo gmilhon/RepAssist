@@ -1,7 +1,56 @@
 {
-  "generated_at": "2026-07-21T01:43:36.605650+00:00",
-  "last_commit_sha": "89b10a3b048b477b6903421dc9f49051c95e17d8",
+  "generated_at": "2026-07-21T03:03:57.389700+00:00",
+  "last_commit_sha": "561f26a6a2efc4987dfc2e80175e97fb1b9f3887",
   "enhancements": [
+    {
+      "tag": "Improved",
+      "title": "Guided demo now hides the 'LIVE' dock during Chat mode runs",
+      "detail": "Chat mode demos still grade the visit behind the scenes just like before, but they no longer show the glowing 'LIVE' listening dock and headset icon — that visual is now reserved for real Live Listen sessions. The end-of-visit recap for a chat-mode demo also uses a neutral heading instead of 'Live Listen ended', so it doesn't look like you were on a live call when you weren't.",
+      "keywords": [
+        "run a demo",
+        "chat mode demo",
+        "live listen demo",
+        "live strip",
+        "headset icon",
+        "demo pacing"
+      ],
+      "answer": "When you run a demo in Chat mode, Rep Assist still grades the transcript against the playbook the same way it always has, but it no longer shows the 'LIVE' dock or glowing headset — that indicator now only appears for actual Live Listen sessions. The wrap-up recap for a chat-mode demo also gets a neutral header instead of 'Live Listen ended', so the demo reads cleanly without implying you were live on a call.",
+      "walkthrough": {
+        "intro": "Try the guided demo and see the difference between running it in Chat mode versus Live Listen mode now that the visuals match what's really happening.",
+        "steps": [
+          {
+            "title": "Open the menu drawer",
+            "detail": "Tap the ☰ button and look for 'Run a demo' under Quick start.",
+            "tip": null
+          },
+          {
+            "title": "Pick Chat mode or Live Listen mode",
+            "detail": "Choose Chat mode for a quiet, transcript-only demo, or Live Listen mode to see the full live transcript and coaching flow.",
+            "tip": null
+          },
+          {
+            "title": "Notice the LIVE dock is gone in Chat mode",
+            "detail": "In Chat mode, grading still happens in the background, but you won't see the glowing 'LIVE' strip or headset icon — that only shows up in real Live Listen sessions now.",
+            "tip": "If you're demoing for a new hire, point out that the LIVE indicator is specific to Live Listen mode."
+          },
+          {
+            "title": "Let the visit play out at a readable pace",
+            "detail": "Rep Assist walks through check-in, the conversation, and checkout or a resolution ticket at a slower, easier-to-follow speed.",
+            "tip": null
+          },
+          {
+            "title": "Review the wrap-up recap",
+            "detail": "A chat-mode demo shows a neutral summary heading instead of 'Live Listen ended', since no live session was actually visible.",
+            "tip": null
+          },
+          {
+            "title": "Check the Playbook grade",
+            "detail": "The demo visit still gets scored like a real one, so you can see what a strong or weak visit looks like.",
+            "tip": null
+          }
+        ]
+      }
+    },
     {
       "tag": "Improved",
       "title": "Checkout now works like a real store POS — with bill review, signatures, and phone handoff",
@@ -50,50 +99,6 @@
             "title": "Finish it yourself, or hand it to their phone",
             "detail": "Either continue on your screen with a simulated payment and signature, or tap to send a text link or show a QR code so the customer finishes checkout on their own phone.",
             "tip": "Both screens update live and stay in lock-step, so you can watch their progress if they take over."
-          }
-        ]
-      }
-    },
-    {
-      "tag": "New",
-      "title": "Run a full guided demo of a sales or service visit",
-      "detail": "A new 'Run a demo' option plays out an entire customer visit for you automatically — check-in, assist, conversation, checkout or resolution, visit summary, and Playbook grade — in either Chat mode or Live Listen mode. The playback pace has been slowed down so the conversation is easy to read and follow along with, whether you're watching a chat scroll by or a Live Listen transcript.",
-      "keywords": [
-        "run a demo",
-        "guided demo",
-        "chat mode demo",
-        "live listen demo",
-        "practice",
-        "training visit"
-      ],
-      "answer": "Open the menu and tap 'Run a demo' to have Rep Assist play out a complete visit on its own, from check-in through the conversation to checkout or a resolution ticket, ending with a visit summary and a Playbook grade — just like a real graded visit. The demo now runs at a slower, more readable pace with clear pauses between turns, so you can actually follow along instead of watching it fly by. You can watch it happen as a normal chat conversation, or run it through Live Listen mode to see how it looks with the transcript and coaching flow.",
-      "walkthrough": {
-        "intro": "Try the guided demo to watch a full visit play out automatically from start to finish, at a pace you can actually follow.",
-        "steps": [
-          {
-            "title": "Open the menu drawer",
-            "detail": "Tap the ☰ button and look for the 'Run a demo' option in Quick start.",
-            "tip": null
-          },
-          {
-            "title": "Pick Chat mode or Live Listen mode",
-            "detail": "Choose whether you want to watch it as a normal chat, or run it through Live Listen so you see the transcript experience too.",
-            "tip": null
-          },
-          {
-            "title": "Let it play out at a readable pace",
-            "detail": "Rep Assist automatically walks through check-in, assisting the customer, the full conversation, and checkout or a resolution ticket, now with slower, clearer pacing between lines so it's easy to follow.",
-            "tip": null
-          },
-          {
-            "title": "Review the visit summary",
-            "detail": "At the end, a visit summary card appears just like it would for a real customer.",
-            "tip": null
-          },
-          {
-            "title": "Check the Playbook grade",
-            "detail": "The demo visit gets graded like a real one, so you can see what a strong (or weak) visit looks like against the playbook.",
-            "tip": "Run a demo before a shift change or when training someone new — it's a safe way to preview the whole flow."
           }
         ]
       }
@@ -375,8 +380,8 @@
     }
   ],
   "suggestions": [
-    "Why does the cart tray keep popping open and closing?",
-    "How do I run a demo visit for training?",
-    "How do I check out with the View Together bill review?"
+    "What changed with the guided demo feature?",
+    "How do I check out a customer using View Together?",
+    "How does Live Listen coaching and the Playbook score work?"
   ]
 }
