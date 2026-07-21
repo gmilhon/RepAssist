@@ -3,17 +3,21 @@ import { api } from "../api";
 import type {
   JiraDefectItem, ProductionAnalyzeResult, ProductionIssue, ProductionOverview, TicketBrief,
 } from "../types";
+import ProductionImpactMap from "./ProductionImpactMap";
 
 const CATEGORY_LABEL: Record<string, string> = {
   payment: "Payment", etni: "ETNI · Number Inventory", activation: "Activation",
   backend: "Backend System", promo: "Promo Engine", billing: "Billing", other: "Other",
 };
 
+const CLOUD_SHORT: Record<string, string> = { aws_east: "AWS E", aws_west: "AWS W" };
+
 const SCENARIOS = [
-  { key: "etni", label: "ETNI outage" },
-  { key: "payment", label: "Payment gateway" },
-  { key: "activation", label: "Activation failures" },
-  { key: "promo", label: "Promo misses (non-critical)" },
+  { key: "payment", label: "Payment gateway (P1)" },
+  { key: "etni", label: "ETNI outage (P2)" },
+  { key: "activation", label: "Activation failures (P2)" },
+  { key: "billing", label: "Billing errors (P3)" },
+  { key: "promo", label: "Promo misses (P4)" },
 ];
 
 function fmtTime(iso: string | null | undefined): string {
@@ -41,17 +45,41 @@ function IssueCard({ issue, onResolve }: { issue: ProductionIssue; onResolve: (i
     <div className={`prod-issue prod-issue--${critical ? "critical" : "noncritical"}${issue.status === "resolved" ? " prod-issue--resolved" : ""}`}>
       <div className="prod-issue-head">
         <div className="prod-issue-badges">
-          <span className={`prod-sev prod-sev--${issue.severity}`}>
-            {critical ? "🚨 CRITICAL" : "⚠ Non-critical"}
+          <span className={`prod-plevel prod-plevel--${issue.priority_level}`} title={issue.priority_label}>
+            {issue.priority_level}
           </span>
           <span className="prod-cat">{CATEGORY_LABEL[issue.category] ?? issue.category}</span>
-          {issue.order_blocking && <span className="prod-blocking">ORDER-BLOCKING</span>}
+          {issue.order_blocking
+            ? <span className="prod-blocking">SALES-BLOCKING</span>
+            : issue.workaround_available && <span className="prod-workaround">Workaround available</span>}
           {issue.status === "resolved" && <span className="prod-resolved-tag">Resolved</span>}
         </div>
         <span className="prod-issue-time">{fmtAgo(issue.detected_at)}</span>
       </div>
 
       <h4 className="prod-issue-title">{issue.title}</h4>
+
+      {/* Impact — the scope behind the P-level */}
+      <div className="prod-impact">
+        <span className="prod-impact-metric">
+          <b>{issue.store_count}</b> store{issue.store_count === 1 ? "" : "s"}
+        </span>
+        <span className="prod-impact-metric">
+          <b>{issue.channels.length}</b> channel{issue.channels.length === 1 ? "" : "s"}
+        </span>
+        <span className="prod-impact-chips">
+          {issue.channels.map((key, i) => (
+            <span key={key} className={`prod-chip prod-chip--chan chan--${key}`}>
+              {issue.channel_labels[i] ?? key}
+            </span>
+          ))}
+        </span>
+        <span className="prod-impact-chips">
+          {issue.cloud_labels.map(c => (
+            <span key={c} className="prod-chip prod-chip--cloud">☁ {c}</span>
+          ))}
+        </span>
+      </div>
 
       <div className="prod-issue-section">
         <div className="prod-issue-label">Problem</div>
@@ -236,6 +264,9 @@ export default function ProductionDashboard() {
         </div>
       </div>
 
+      {/* Impact map — escalation geography + cloud health */}
+      {overview?.geo && <ProductionImpactMap geo={overview.geo} />}
+
       {/* Inflow chart + live feed */}
       <div className="dash-row">
         <div className="panel">
@@ -261,6 +292,19 @@ export default function ProductionDashboard() {
                 <span className="prod-feed-time">{fmtTime(t.created_at)}</span>
                 <span className={`prod-feed-pri prod-feed-pri--${t.priority}`}>{t.priority}</span>
                 <span className="prod-feed-summary" title={t.summary}>{t.summary}</span>
+                {t.channel && (
+                  <span className={`prod-feed-chan chan--${t.channel}`} title={t.channel_label ?? t.channel}>
+                    {t.channel_label ?? t.channel}
+                  </span>
+                )}
+                {t.cloud_env && (
+                  <span
+                    className={`prod-feed-cloud prod-feed-cloud--${t.cloud_env}`}
+                    title={t.city && t.state ? `${t.city}, ${t.state} · ${CLOUD_SHORT[t.cloud_env] ?? t.cloud_env}` : undefined}
+                  >
+                    {CLOUD_SHORT[t.cloud_env] ?? t.cloud_env}
+                  </span>
+                )}
                 <span className="prod-feed-id">{t.id}</span>
               </div>
             ))}
@@ -272,8 +316,13 @@ export default function ProductionDashboard() {
       {lastResult && !lastResult.status && (
         <div className="prod-result-strip">
           Analyzed {lastResult.analyzed_tickets} tickets → {lastResult.issues_found} issue
-          {lastResult.issues_found === 1 ? "" : "s"} ({lastResult.critical} critical,{" "}
-          {lastResult.non_critical} non-critical)
+          {lastResult.issues_found === 1 ? "" : "s"}
+          {lastResult.by_priority && (
+            <> ({(["P1", "P2", "P3", "P4"] as const)
+              .filter(p => (lastResult.by_priority?.[p] ?? 0) > 0)
+              .map(p => `${lastResult.by_priority![p]} ${p}`)
+              .join(" · ") || "none"})</>
+          )}
           {(lastResult.new_defects?.length ?? 0) > 0 && <> · defects filed: {lastResult.new_defects!.join(", ")}</>}
           {lastResult.alerts?.some(a => a.sent > 0) && <> · alert emailed to {lastResult.alerts!.find(a => a.sent > 0)!.recipients?.length} subscriber(s)</>}
         </div>

@@ -5,12 +5,27 @@ a burst of similar escalations usually means something is broken **in
 production**: the payment gateway, ETNI (telephone number inventory),
 activation/provisioning, the promo engine. The **Production** tab watches that
 inflow in real time, uses **AI analysis** to cluster it into systemic issues,
-and acts on what it finds:
+and acts on what it finds.
 
-| Severity | Criteria | Action |
+Every escalation now captures three **impact dimensions** — the **cloud
+environment** the reporting rep was connected to (AWS East / AWS West), the
+**store** they reported from, and the sales **channel** they belong to (Retail /
+Indirect / Door-to-Door / Inside Sales). The monitor aggregates those across a
+cluster to size the blast radius, and derives a **P1–P4 severity** from it:
+
+| P-level | Criteria | Internal severity → action |
 |---|---|---|
-| **Critical** | Order-blocking + a burst of related tickets | Red dashboard card + **email alert** with problem statement and recommended fix |
-| **Non-critical** | Recurring theme, orders still completing | **Defect filed** on the JIRA board (stub MCP) with problem, fix, and per-ticket examples |
+| **P1** | Sales-blocking, **all** channels impacted | critical → **email alert** |
+| **P2** | Sales-blocking, more than one channel | critical → **email alert** |
+| **P3** | Not sales-blocking, multiple locations/channels, no workaround | non_critical → **JIRA defect** (stub MCP) |
+| **P4** | Not sales-blocking, some locations/channels, workaround available | non_critical → **JIRA defect** (stub MCP) |
+
+P1/P2 keep the existing `critical` behavior (red card + email alert with problem
+statement and recommended fix); P3/P4 keep `non_critical` (a defect filed on the
+JIRA board with problem, fix, impact and per-ticket examples). The P-level is
+computed server-side from the **actual** channels/stores/clouds on the clustered
+tickets — not the model's guess — so it can't be hallucinated. The LLM's only
+added judgment is `order_blocking` (sales-blocking) and `workaround_available`.
 
 ---
 
@@ -34,6 +49,35 @@ and acts on what it finds:
    `ETNI outage`, `Payment gateway`, `Activation failures`, or
    `Promo misses (non-critical)` — so the whole loop can be exercised without
    driving dozens of chat conversations.
+
+---
+
+## Impact map
+
+A self-contained **US impact map** sits at the top of the tab (below the KPIs):
+
+- **Reporting stores** are plotted at their real location — dot **size** = escalation
+  volume in the window, **color** = channel. Hover for store, city and count.
+- **AWS East** (us-east-1, N. Virginia) and **AWS West** (us-west-2, Oregon) render
+  as **red/yellow/green** health nodes based on the volume connected to each
+  region (green `<4`, yellow `4–6`, red `≥7` in the last 24h), with a pulsing ring
+  when elevated. Faint connectors tie each store to its region.
+- Stat chips summarize **unique stores**, **channels impacted** (`n/4`) and per-region
+  volume — the scope inputs behind the P-level.
+
+The map is a hand-rolled inline SVG with its own lat/lng projection
+([`frontend/src/lib/usMap.ts`](../frontend/src/lib/usMap.ts)) over vendored,
+simplified CONUS state outlines ([`us-states.geo.json`](../frontend/src/data/us-states.geo.json),
+32 KB, derived from public-domain US Census boundaries) — **no map library, no
+external tiles**, same offline/zero-credential guarantee as the rest of the app.
+
+Store roster, channels, AWS regions, the rep→store assignment and the P-level
+function all live in [`backend/app/production_geo_data.py`](../backend/app/production_geo_data.py).
+Organic escalations get their dimensions from the reporting rep
+(`graph.nodes.ticket_fallback`); `⚡ Simulate incident` spreads each scenario
+across a scenario-appropriate set of stores/channels/clouds so the map and
+P-level light up realistically (Payment → P1 both clouds; ETNI → P2 East;
+Activation → P2 both; Billing → P3; Promo → P4).
 
 ---
 
@@ -95,7 +139,7 @@ graph escalation                     Production Monitor (api/production.py)
 
 | Method & path | Purpose |
 |---|---|
-| `GET /api/production/overview` | KPIs, hourly inflow buckets (24h), recent escalations, issues, monitor state |
+| `GET /api/production/overview` | KPIs, hourly inflow buckets (24h), recent escalations (with cloud/store/channel), issues (with P-level + aggregated impact), the `geo` block (per-store dots, per-region health, per-channel counts) and monitor state |
 | `GET /api/production/events` | SSE: `ticket_created`, `analysis_complete`, `issue_resolved` |
 | `POST /api/production/analyze` | Run an analysis pass now (returns findings, alert results, new defect keys) |
 | `POST /api/production/issues/{id}/resolve` | Retire an issue into history |
@@ -110,7 +154,8 @@ Code: [`backend/app/api/production.py`](../backend/app/api/production.py).
 
 | Table | Purpose |
 |---|---|
-| `production_issues` | Detected issues: severity, category, title, problem/fix, ticket ids, status, `alert_sent`, `defect_key` |
+| `ticket` | Gains `cloud_env` (aws_east/aws_west), `store_id`, `channel` — the impact dimensions captured at escalation time (additive `ALTER TABLE` in `db.init_db()`) |
+| `production_issues` | Detected issues: severity, `priority_level` (P1–P4), category, title, problem/fix, `order_blocking`, `workaround_available`, `channels`/`clouds`/`store_ids`/`store_count` (aggregated impact), ticket ids, status, `alert_sent`, `defect_key` |
 | `jira_defects` | The stub JIRA board: key (`REP-14xx`), summary, description, priority, labels, status, `ticket_ids` (originating tickets — can grow over time as more tickets are attached) |
 
 `email_subscribers` gained `subscribed_alerts` (Settings tab shows an
@@ -123,7 +168,9 @@ Code: [`backend/app/api/production.py`](../backend/app/api/production.py).
 
 | File | Role |
 |---|---|
-| `frontend/src/components/ProductionDashboard.tsx` | The whole tab: KPIs, chart, live feed, issue cards, defect board, simulate/analyze controls |
+| `frontend/src/components/ProductionDashboard.tsx` | The whole tab: KPIs, impact map, chart, live feed (channel/cloud chips), issue cards (P-level badge + impact row), defect board, simulate/analyze controls |
+| `frontend/src/components/ProductionImpactMap.tsx` | The US impact map: state outlines, store dots, AWS region health nodes, legend |
+| `frontend/src/lib/usMap.ts` · `frontend/src/data/us-states.geo.json` | Self-contained lat/lng projection + vendored CONUS geometry (no map library) |
 | `frontend/src/App.tsx` | Sixth tab: **Production** |
 | `frontend/src/api.ts` / `types.ts` | `production*` endpoints and types |
 | `frontend/vite.config.ts` | Dedicated SSE proxy entry for `/api/production/events` (see the [dev-proxy note](13-system-health.md#dev-proxy-note-sse--vite)) |

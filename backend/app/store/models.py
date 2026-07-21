@@ -71,6 +71,13 @@ class Ticket(SQLModel, table=True):
     sales_intent: Optional[str] = None  # nse | aal | up | None (heuristic tag)
     priority: str = "normal"  # low | normal | high
     summary: str = ""
+
+    # --- Production Monitor dimensions (see production_geo_data) ---
+    # Captured at escalation time so the impact map and P1–P4 severity can
+    # reason about cloud/channel/store scope. Nullable for pre-existing rows.
+    cloud_env: Optional[str] = None   # aws_east | aws_west — region the rep was connected to
+    store_id: Optional[str] = None    # reporting location id (STORE_BY_ID)
+    channel: Optional[str] = None     # retail | indirect | d2d | inside_sales
     order_id: Optional[str] = None
     account_id: Optional[str] = None
     conversation: list = Field(default_factory=list, sa_column=Column(JSON))
@@ -282,15 +289,24 @@ class ProductionIssue(SQLModel, table=True):
     detected_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)
 
-    severity: str = "non_critical"        # critical | non_critical
+    severity: str = "non_critical"        # critical | non_critical (drives alert vs. defect)
+    priority_level: str = "P4"            # P1 | P2 | P3 | P4 (impact-derived severity)
     category: str = "other"               # payment | etni | activation | backend | promo | billing | other
     title: str = ""
     problem_statement: str = ""
     recommended_fix: str = ""
-    order_blocking: bool = False
+    order_blocking: bool = False          # sales-blocking
+    workaround_available: bool = False    # a workaround exists (pulls P3→P4)
 
     ticket_ids: list = Field(default_factory=list, sa_column=Column(JSON))
     ticket_count: int = 0
+
+    # Aggregated impact across the cluster's member tickets, recomputed each
+    # analysis pass — the inputs to the P-level and what the card renders.
+    channels: list = Field(default_factory=list, sa_column=Column(JSON))    # distinct channels impacted
+    clouds: list = Field(default_factory=list, sa_column=Column(JSON))      # distinct cloud envs impacted
+    store_ids: list = Field(default_factory=list, sa_column=Column(JSON))   # distinct reporting stores
+    store_count: int = 0                  # number of unique reporting stores
 
     status: str = "active"                # active | resolved
     alert_sent: bool = False              # email alert dispatched (critical only)

@@ -78,6 +78,17 @@ def init_db() -> None:
             "ALTER TABLE ticket ADD COLUMN ai_article_title VARCHAR",
             "ALTER TABLE ticket ADD COLUMN ai_capability VARCHAR",
             "ALTER TABLE ticket ADD COLUMN ai_analyzed_at DATETIME",
+            # Production Monitor: cloud/store/channel captured at escalation time.
+            "ALTER TABLE ticket ADD COLUMN cloud_env VARCHAR",
+            "ALTER TABLE ticket ADD COLUMN store_id VARCHAR",
+            "ALTER TABLE ticket ADD COLUMN channel VARCHAR",
+            # Production Monitor: P1–P4 severity + aggregated cluster impact.
+            "ALTER TABLE production_issues ADD COLUMN priority_level VARCHAR DEFAULT 'P4'",
+            "ALTER TABLE production_issues ADD COLUMN workaround_available BOOLEAN DEFAULT 0",
+            "ALTER TABLE production_issues ADD COLUMN channels JSON DEFAULT '[]'",
+            "ALTER TABLE production_issues ADD COLUMN clouds JSON DEFAULT '[]'",
+            "ALTER TABLE production_issues ADD COLUMN store_ids JSON DEFAULT '[]'",
+            "ALTER TABLE production_issues ADD COLUMN store_count INTEGER DEFAULT 0",
             "ALTER TABLE jira_defects ADD COLUMN ticket_ids JSON DEFAULT '[]'",
             "ALTER TABLE email_subscribers ADD COLUMN subscribed_visit_summary BOOLEAN DEFAULT 1",
             "ALTER TABLE queue_entries ADD COLUMN account_id VARCHAR",

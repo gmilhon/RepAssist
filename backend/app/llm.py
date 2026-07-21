@@ -1468,10 +1468,16 @@ PROD_ANALYSIS_SYSTEM = (
     "telephone number inventory system), activation/provisioning failures, promo "
     "engine defects. Mark an issue critical only when it is order-blocking AND "
     "shows a burst of related tickets (roughly 5+ in the window); recurring themes "
-    "that are not blocking orders are non_critical. Only report clusters of 2 or "
-    "more tickets that plausibly share one root cause; return an empty list when "
-    "inflow shows no systemic pattern. Problem statements and fixes must be "
-    "specific and operational. Only reference ticket ids you were given."
+    "that are not blocking orders are non_critical. Set order_blocking=true when "
+    "reps cannot complete sales, and workaround_available=true when reps have a "
+    "viable way to keep selling despite the issue (alternate flow, manual "
+    "override, retry). Each ticket line includes the cloud environment "
+    "(AWS East/West), sales channel and store the rep reported from; when an "
+    "issue concentrates in one cloud, channel or region, say so in the problem "
+    "statement. Only report clusters of 2 or more tickets that plausibly share "
+    "one root cause; return an empty list when inflow shows no systemic pattern. "
+    "Problem statements and fixes must be specific and operational. Only "
+    "reference ticket ids you were given."
 )
 
 
@@ -1492,7 +1498,9 @@ def analyze_production_issues(tickets: list[dict], window_hours: int) -> list[di
         client = _client()
         lines = [
             f"- {t['id']} | {t['created_at']} | intent={t['intent']} | "
-            f"priority={t['priority']} | rep={t.get('rep_id') or '—'} | {t['summary']}"
+            f"priority={t['priority']} | rep={t.get('rep_id') or '—'} | "
+            f"cloud={t.get('cloud_env') or '—'} | channel={t.get('channel') or '—'} | "
+            f"store={t.get('store_id') or '—'} | {t['summary']}"
             for t in tickets
         ]
         prompt = (
@@ -1598,6 +1606,9 @@ _PROD_COPY: dict[str, tuple[str, str, str]] = {
 
 # Order-blocking categories become critical on a burst.
 _PROD_CRITICAL = {"etni", "payment", "activation", "backend"}
+# Non-blocking themes where reps have a viable workaround (drives P4 vs P3).
+# Billing is deliberately left out: overcharges have no clean rep-side workaround.
+_PROD_WORKAROUND = {"promo", "other"}
 
 
 def _mock_production_analysis(tickets: list[dict]) -> list[dict]:
@@ -1623,6 +1634,7 @@ def _mock_production_analysis(tickets: list[dict]) -> list[dict]:
             "category": category,
             "severity": "critical" if critical else "non_critical",
             "order_blocking": category in _PROD_CRITICAL,
+            "workaround_available": category in _PROD_WORKAROUND,
             "problem_statement": problem,
             "recommended_fix": fix,
             "ticket_ids": [m["id"] for m in members],

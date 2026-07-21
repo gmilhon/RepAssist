@@ -1234,6 +1234,8 @@ export interface MetricsOverview {
 
 // ── Production Monitor ────────────────────────────────────────────────────
 
+export type PriorityLevel = "P1" | "P2" | "P3" | "P4";
+
 export interface TicketBrief {
   id: string;
   created_at: string;
@@ -1241,6 +1243,16 @@ export interface TicketBrief {
   priority: string;
   rep_id: string | null;
   summary: string;
+  // Production Monitor dimensions (captured at escalation time)
+  cloud_env?: string | null;   // aws_east | aws_west
+  channel?: string | null;     // retail | indirect | d2d | inside_sales
+  channel_label?: string | null;
+  store_id?: string | null;
+  store_name?: string | null;
+  city?: string | null;
+  state?: string | null;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 export interface ProductionIssue {
@@ -1248,16 +1260,68 @@ export interface ProductionIssue {
   detected_at: string | null;
   updated_at: string | null;
   severity: "critical" | "non_critical";
+  priority_level: PriorityLevel;
+  priority_label: string;
   category: string; // payment | etni | activation | backend | promo | billing | other
   title: string;
   problem_statement: string;
   recommended_fix: string;
   order_blocking: boolean;
+  workaround_available: boolean;
+  channels: string[];
+  channel_labels: string[];
+  clouds: string[];
+  cloud_labels: string[];
+  store_ids: string[];
+  store_count: number;
   ticket_ids: string[];
   ticket_count: number;
   status: "active" | "resolved";
   alert_sent: boolean;
   defect_key: string | null;
+}
+
+// ── Impact map (escalation geography + cloud health) ──────────────────────
+export interface CloudHealth {
+  id: string;              // aws_east | aws_west
+  label: string;
+  aws_region: string;      // us-east-1 | us-west-2
+  site: string;
+  lat: number;
+  lng: number;
+  count: number;           // escalations connected to this region in-window
+  status: "green" | "yellow" | "red";
+  store_count: number;
+  channels: string[];
+  channel_labels: string[];
+}
+
+export interface GeoStore {
+  id: string;
+  name: string;
+  city: string;
+  state: string;
+  lat: number;
+  lng: number;
+  channel: string;
+  channel_label: string;
+  cloud: string;           // aws_east | aws_west
+  count: number;           // escalations from this store in-window
+}
+
+export interface ChannelStat {
+  channel: string;
+  label: string;
+  count: number;
+}
+
+export interface ProductionGeo {
+  stores: GeoStore[];
+  clouds: CloudHealth[];
+  channels: ChannelStat[];
+  unique_stores: number;
+  channels_impacted: number;
+  thresholds: { yellow: number; red: number };
 }
 
 export interface ProductionOverview {
@@ -1269,6 +1333,7 @@ export interface ProductionOverview {
     buckets: Array<{ hour: string; count: number }>;
     recent: TicketBrief[];
   };
+  geo: ProductionGeo;
   issues: ProductionIssue[];
   monitor: {
     last_analysis_at: string | null;
@@ -1285,6 +1350,7 @@ export interface ProductionAnalyzeResult {
   issues_found?: number;
   critical?: number;
   non_critical?: number;
+  by_priority?: Record<PriorityLevel, number>;
   alerts?: Array<{
     issue_id: string;
     title: string;

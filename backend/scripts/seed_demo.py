@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from app import production_geo_data as geo  # noqa: E402
 from app.store import db  # noqa: E402
 from app.store.models import GapType, TicketStatus  # noqa: E402
 
@@ -174,11 +175,14 @@ def _seed_queue() -> int:
 def _make_ticket(intent: str, created: datetime) -> str:
     summary = random.choice(SUMMARIES[intent])
     resolved = random.random() < 0.6
+    rep = random.choice(REPS)
+    home = geo.store_for_rep(rep)  # cloud/store/channel for the Production Monitor map
     common = dict(
-        rep_id=random.choice(REPS), thread_id=f"seed-tkt-{random.randint(10000, 99999)}",
+        rep_id=rep, thread_id=f"seed-tkt-{random.randint(10000, 99999)}",
         intent=intent, priority="high" if intent in ("activation", "pending_order") else "normal",
         summary=summary, conversation=[{"role": "user", "content": summary}],
         created_at=created, updated_at=created,
+        cloud_env=home["cloud"], store_id=home["id"], channel=home["channel"],
     )
     if not resolved:
         t = db.create_ticket(status=TicketStatus.OPEN, **common)

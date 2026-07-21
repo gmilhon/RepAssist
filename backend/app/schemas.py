@@ -263,7 +263,13 @@ class ProductionIssueFinding(BaseModel):
         description="critical = order-blocking with a burst of related tickets; "
         "non_critical = recurring theme that is not blocking orders."
     )
-    order_blocking: bool = Field(description="True when the issue prevents reps from completing orders.")
+    order_blocking: bool = Field(description="True when the issue prevents reps from completing orders (sales-blocking).")
+    workaround_available: bool = Field(
+        default=False,
+        description="True when reps have a viable workaround to keep selling despite the issue "
+        "(e.g. an alternate flow, manual override, or retry). Non-blocking issues WITH a workaround "
+        "are the lowest severity.",
+    )
     problem_statement: str = Field(
         description="2-4 sentences: what is failing, the observed symptoms, and the customer/order impact."
     )

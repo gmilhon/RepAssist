@@ -2350,3 +2350,119 @@ code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px; 
 .sm-callout-name { font-size: 13.5px; font-weight: 700; }
 .sm-callout-sub { font-size: 11px; color: #9aa0a8; margin-top: 1px; }
 .sm-callout-note { font-size: 11.5px; color: var(--ink-2); margin-top: 3px; }
+
+/* ===================================================================== */
+/* Production Monitor — impact map, P-levels, channel/cloud chips         */
+/* ===================================================================== */
+
+/* P1–P4 severity badge */
+.prod-plevel {
+  font-size: 11px; font-weight: 800; letter-spacing: 0.5px; padding: 2px 9px;
+  border-radius: 999px; color: #fff;
+}
+.prod-plevel--P1 { background: #dc2626; }
+.prod-plevel--P2 { background: #ea580c; }
+.prod-plevel--P3 { background: #ca8a04; }
+.prod-plevel--P4 { background: #64748b; }
+.prod-workaround {
+  font-size: 10px; font-weight: 700; background: #ecfdf5; color: #047857;
+  border: 1px solid #a7f3d0; padding: 1px 7px; border-radius: 999px;
+}
+
+/* Issue impact row */
+.prod-impact {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: -2px 0 12px; padding-bottom: 10px; border-bottom: 1px dashed var(--line);
+}
+.prod-impact-metric { font-size: 12px; color: var(--ink-2); }
+.prod-impact-metric b { color: var(--ink); font-size: 13px; }
+.prod-impact-chips { display: inline-flex; gap: 5px; flex-wrap: wrap; }
+.prod-chip {
+  font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px;
+  border: 1px solid transparent; white-space: nowrap;
+}
+.prod-chip--cloud { background: #eef2ff; color: #3730a3; border-color: #c7d2fe; }
+
+/* Channel chips (shared by issue impact row + live feed) */
+.prod-chip--chan { color: #fff; }
+.chan--retail { background: #3b82f6; }
+.chan--indirect { background: #8b5cf6; }
+.chan--d2d { background: #f59e0b; }
+.chan--inside_sales { background: #14b8a6; }
+
+/* Live feed channel/cloud chips */
+.prod-feed-chan {
+  font-size: 9.5px; font-weight: 700; color: #fff; padding: 1px 6px;
+  border-radius: 999px; flex-shrink: 0;
+}
+.prod-feed-cloud {
+  font-size: 9.5px; font-weight: 700; font-family: ui-monospace, monospace;
+  padding: 1px 6px; border-radius: 6px; flex-shrink: 0;
+}
+.prod-feed-cloud--aws_east { background: #e0f2fe; color: #075985; }
+.prod-feed-cloud--aws_west { background: #fef3c7; color: #92400e; }
+
+/* ---- Impact map ---- */
+.impactmap { margin-bottom: 16px; }
+.impactmap-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; margin-bottom: 12px;
+}
+.impactmap-stats { display: flex; gap: 8px; flex-wrap: wrap; }
+.impactmap-stat {
+  display: flex; flex-direction: column; align-items: center; min-width: 62px;
+  padding: 6px 10px; border-radius: 10px; background: #f8fafc; border: 1px solid var(--line);
+}
+.impactmap-stat-val { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.impactmap-stat-lbl { font-size: 10px; color: var(--ink-2); margin-top: 2px; text-align: center; }
+.impactmap-stat--yellow { background: #fefce8; border-color: #fde68a; }
+.impactmap-stat--yellow .impactmap-stat-val { color: #a16207; }
+.impactmap-stat--red { background: #fef2f2; border-color: #fecaca; }
+.impactmap-stat--red .impactmap-stat-val { color: #dc2626; }
+.impactmap-stat--green .impactmap-stat-val { color: #16a34a; }
+
+.impactmap-canvas { position: relative; }
+.impactmap-svg {
+  width: 100%; height: auto; display: block;
+  background: #f7fafc; border: 1px solid var(--line); border-radius: 12px;
+}
+.impactmap-states path {
+  fill: #e8edf3; stroke: #cbd5e1; stroke-width: 0.8; stroke-linejoin: round;
+}
+.impactmap-store { cursor: pointer; transition: fill-opacity 0.15s ease; }
+.impactmap-store:hover { fill-opacity: 1; }
+
+.impactmap-cloud-count { font-size: 13px; font-weight: 800; fill: #fff; }
+.impactmap-cloud-label { font-size: 12px; font-weight: 700; fill: var(--ink); }
+.impactmap-cloud-sub { font-size: 10px; fill: var(--ink-2); }
+.impactmap-cloud-pulse { opacity: 0.35; transform-origin: center; transform-box: fill-box; }
+.impactmap-cloud--red .impactmap-cloud-pulse { animation: impactmap-pulse 1.6s ease-out infinite; }
+.impactmap-cloud--yellow .impactmap-cloud-pulse { animation: impactmap-pulse 2.4s ease-out infinite; }
+@keyframes impactmap-pulse {
+  0%   { transform: scale(0.7); opacity: 0.5; }
+  70%  { transform: scale(1.8); opacity: 0; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+.impactmap-empty {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  background: rgba(255,255,255,0.9); border: 1px solid var(--line); border-radius: 999px;
+  padding: 6px 14px; font-size: 12px; color: var(--ink-2);
+}
+
+.impactmap-legend {
+  display: flex; gap: 24px; flex-wrap: wrap; margin-top: 12px;
+  padding-top: 12px; border-top: 1px solid var(--line);
+}
+.impactmap-legend-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.impactmap-legend-title {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-2);
+}
+.impactmap-legend-item { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ink-2); }
+.impactmap-swatch { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+.impactmap-swatch--ring { border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,0.08); }
+
+@media (max-width: 720px) {
+  .impactmap-head { flex-direction: column; }
+  .impactmap-legend { gap: 14px; }
+}

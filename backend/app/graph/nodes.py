@@ -651,6 +651,11 @@ def ticket_fallback(state: GraphState) -> dict:
 
     priority = "high" if intent in ("activation", "pending_order") else "normal"
 
+    # Capture the Production Monitor dimensions — the cloud env, store and
+    # channel the reporting rep belongs to (deterministic from the rep id).
+    from .. import production_geo_data as geo
+    home = geo.store_for_rep(state.get("rep_id"))
+
     ticket = db.create_ticket(
         rep_id=state.get("rep_id"),
         thread_id=state.get("thread_id"),
@@ -666,6 +671,7 @@ def ticket_fallback(state: GraphState) -> dict:
         trace=state.get("trace", []),
         # Pre-fill a suggested capability so the Tier 1/2 agent has a starting point.
         recommended_capability=INTENT_CAPABILITY.get(intent),
+        cloud_env=home["cloud"], store_id=home["id"], channel=home["channel"],
     )
 
     # Feed the Production Monitor's live inflow (SSE + burst-triggered analysis).
