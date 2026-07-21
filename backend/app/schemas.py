@@ -195,6 +195,62 @@ class ExecutiveSummary(BaseModel):
     backlog_priorities: str = Field(description="2-3 sentences on the top capability investments needed.")
 
 
+class StoreManagerPriority(BaseModel):
+    """One prioritized action item on the Store Manager daily brief."""
+
+    title: str = Field(description="Short imperative action, e.g. 'Call 2 unpicked pickups before auto-cancel'.")
+    detail: str = Field(description="One sentence of specifics — names, counts, times — so the manager can act.")
+    area: Literal["staffing", "sales", "operations"] = Field(description="Which part of the store this concerns.")
+    urgency: Literal["now", "today", "watch"] = Field(
+        description="now = act within the hour; today = before close; watch = keep an eye on it."
+    )
+
+
+class StoreManagerBrief(BaseModel):
+    """AI-generated 'start of shift' brief for the Store Manager dashboard."""
+
+    headline: str = Field(description="One sentence capturing the overall state of the store's day right now.")
+    priorities: list[StoreManagerPriority] = Field(
+        description="3-5 ranked action items, most urgent first, spanning staffing, sales and operations."
+    )
+    staffing_focus: str = Field(description="2-3 sentences on coverage, breaks and traffic vs. staffing.")
+    sales_focus: str = Field(description="2-3 sentences on ranking and which targets need a push today.")
+    operations_focus: str = Field(description="2-3 sentences on inventory, pickups, launches and compliance.")
+
+
+class RollupOutlier(BaseModel):
+    """One store or district that stands out (either direction) on a rollup."""
+
+    name: str = Field(description="The store or district that is the outlier.")
+    direction: Literal["up", "down"] = Field(description="up = notably ahead / a bright spot; down = slipping / a risk.")
+    detail: str = Field(description="One sentence: the metric it stands out on and by how much, so the leader can act or replicate.")
+
+
+class RollupPriority(BaseModel):
+    """One critical focus item on a district/territory rollup brief."""
+
+    title: str = Field(description="Short imperative action, e.g. 'Recover Westfield Gate' or 'Reverse District 19 slide'.")
+    detail: str = Field(description="One sentence of specifics — which store/district, which metric, what to do.")
+    scope: str = Field(description="Which store or district this concerns, or 'district-wide' / 'territory-wide'.")
+    urgency: Literal["now", "today", "week", "watch"] = Field(
+        description="For the daily district view use now/today; for the weekly territory view use week/watch."
+    )
+
+
+class RollupBrief(BaseModel):
+    """AI-generated outlier-management brief for a district or territory rollup."""
+
+    headline: str = Field(description="One sentence on the overall state of the district/territory for this period.")
+    outliers: list[RollupOutlier] = Field(
+        description="3-6 stores/districts that stand out — a mix of the ones slipping (to intervene) and the ones "
+        "outperforming (to study and replicate)."
+    )
+    priorities: list[RollupPriority] = Field(
+        description="3-5 ranked critical-focus actions, most urgent first, aimed at the outliers and the biggest gaps to plan."
+    )
+    momentum: str = Field(description="2-3 sentences on what is working and worth sustaining or replicating across the group.")
+
+
 class ProductionIssueFinding(BaseModel):
     """One systemic issue cluster identified from escalated-ticket inflow."""
 

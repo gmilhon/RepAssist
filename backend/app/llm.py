@@ -25,7 +25,9 @@ from .schemas import (
     PlaybookGuidelineScore,
     ProductionAnalysis,
     Resolution,
+    RollupBrief,
     ShopTurn,
+    StoreManagerBrief,
     StoryboardScene,
     SystemEnhancementsDoc,
     TicketClassificationBatch,
@@ -1048,6 +1050,394 @@ def _mock_executive_summary(overview: dict, gaps: list[dict]) -> dict:
         ),
         "backlog_priorities": gap_text,
     }
+
+
+# --------------------------------------------------------------------------- #
+# Store Manager daily brief
+# --------------------------------------------------------------------------- #
+STORE_BRIEF_SYSTEM = (
+    "You are the AI assistant for a retail wireless Store Manager, writing the "
+    "'start of shift' brief that sits at the top of their daily dashboard. You "
+    "receive a structured snapshot of the store right now: staffing and breaks, "
+    "the hour-by-hour traffic forecast vs. coverage, sales-target attainment and "
+    "rankings, and operational items (shipments, returns, unpicked pickups, "
+    "launches, training, hiring). Write a tight, action-oriented brief a busy "
+    "manager can scan in 15 seconds. Be specific with names, counts and times "
+    "from the data — never invent facts beyond it. The priorities list must be "
+    "ranked most-urgent first and span staffing, sales and operations. Plain "
+    "prose in the focus fields — no markdown, no bullet characters."
+)
+
+
+def generate_store_manager_brief(overview: dict) -> dict:
+    """AI-generated daily brief for the Store Manager dashboard.
+
+    Offline-safe: falls back to a deterministic rule-based brief when no API key
+    is set or any live call fails — same guarantee as the rest of the LLM layer.
+    """
+    settings = get_settings()
+    if not settings.llm_enabled:
+        _log_usage("store_manager_brief", settings.anthropic_model, 0, fallback=True)
+        return _mock_store_manager_brief(overview)
+    t0 = time.monotonic()
+    try:
+        client = _client()
+        prompt = _build_store_brief_prompt(overview)
+        resp = client.messages.parse(
+            model=settings.anthropic_model,
+            max_tokens=2048,
+            system=STORE_BRIEF_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+            output_format=StoreManagerBrief,
+        )
+        result = resp.parsed_output
+        if result is None:
+            raise ValueError("empty parsed_output")
+        _log_usage("store_manager_brief", settings.anthropic_model, int((time.monotonic() - t0) * 1000), resp=resp)
+        return result.model_dump()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Store manager brief generation failed (%s); using fallback", exc)
+        _log_usage("store_manager_brief", settings.anthropic_model, int((time.monotonic() - t0) * 1000),
+                   success=False, fallback=True)
+        return _mock_store_manager_brief(overview)
+
+
+def _build_store_brief_prompt(overview: dict) -> str:
+    st = overview.get("staffing", {}).get("counts", {})
+    people = overview.get("staffing", {}).get("people", [])
+    tr = overview.get("traffic", {})
+    sales = overview.get("sales", {})
+    ops = overview.get("operations", {})
+    ops_c = ops.get("counts", {})
+
+    needs_break = [p["name"] for p in people if p.get("break_due")]
+    on_break = [f"{p['name']} (back {p['until']})" for p in people if p["state"] in ("lunch", "break")]
+    coming = [f"{p['name']} at {p['until']}" for p in people if p["state"] == "scheduled"]
+    gap_hours = [h["label"] for h in tr.get("hours", []) if h.get("gap")]
+
+    behind = [f"{t['label']} at {round(t['attainment'] * 100)}% of target" for t in sales.get("targets", []) if t["pace"] == "behind"]
+    ahead = [t["label"] for t in sales.get("targets", []) if t["pace"] == "ahead"]
+    ranks = "; ".join(f"{r['scope']} #{r['rank']}/{r['of']} ({r['trend']} {r['delta']})" for r in sales.get("rankings", []))
+    at_risk = sales.get("at_risk_upgrades", [])
+
+    return (
+        f"STORE: {overview.get('store', {}).get('name')} — {overview.get('day_label')}, "
+        f"as of {overview.get('as_of_label')} (hours {overview.get('hours_label')}).\n\n"
+        f"STAFFING NOW: {st.get('on_floor')} on the floor, {st.get('on_break')} on break/lunch, "
+        f"{st.get('coming_later')} coming in later, {st.get('closers')} scheduled to close.\n"
+        f"  Overdue for a break: {', '.join(needs_break) or 'none'}\n"
+        f"  On break/lunch: {', '.join(on_break) or 'none'}\n"
+        f"  Coming in later: {', '.join(coming) or 'none'}\n\n"
+        f"TRAFFIC: current hour {tr.get('current_label')}, peak {tr.get('peak_hour_label')} "
+        f"(~{tr.get('peak_forecast')} customers), {tr.get('appointments_today')} appointments and "
+        f"{tr.get('ispu_today')} in-store pickups booked today. "
+        f"Understaffed hours (thin coverage): {', '.join(gap_hours) or 'none'}.\n\n"
+        f"SALES ({sales.get('period')}): rankings {ranks}.\n"
+        f"  Behind target: {', '.join(behind) or 'none'}.\n"
+        f"  Ahead of target: {', '.join(ahead) or 'none'}.\n"
+        f"  High-priority (at-risk) upgrade customers on the list: {len(at_risk)} "
+        f"(e.g. {', '.join(a['customer'] for a in at_risk[:3])}).\n\n"
+        f"OPERATIONS: {ops_c.get('inbound_units')} units inbound today, "
+        f"{ops_c.get('exchanges_due')} device exchanges due back within 2 days, "
+        f"{ops_c.get('ispu_call_first')} unpicked pickups need a customer call before auto-cancel, "
+        f"{ops_c.get('training_overdue')} training courses overdue, "
+        f"{ops_c.get('open_positions')} open positions.\n\n"
+        f"Produce the brief:\n"
+        f"- headline: 1 sentence on the state of the day right now.\n"
+        f"- priorities: 3-5 ranked action items (title + one-sentence detail + area + urgency), "
+        f"most urgent first, spanning staffing, sales and operations.\n"
+        f"- staffing_focus, sales_focus, operations_focus: 2-3 sentences each, specific with the numbers above."
+    )
+
+
+def _mock_store_manager_brief(overview: dict) -> dict:
+    st = overview.get("staffing", {}).get("counts", {})
+    people = overview.get("staffing", {}).get("people", [])
+    tr = overview.get("traffic", {})
+    sales = overview.get("sales", {})
+    ops = overview.get("operations", {})
+    ops_c = ops.get("counts", {})
+
+    needs_break = [p["name"] for p in people if p.get("break_due")]
+    coming = [p for p in people if p["state"] == "scheduled"]
+    gap_hours = [h["label"] for h in tr.get("hours", []) if h.get("gap")]
+    behind = [t for t in sales.get("targets", []) if t["pace"] == "behind"]
+    behind.sort(key=lambda t: t["attainment"])
+    call_first = [u for u in ops.get("unpicked_ispu", []) if u.get("call_first")]
+    exch_due = [e for e in ops.get("exchanges_to_return", []) if e["days_left"] <= 2]
+
+    priorities: list[dict] = []
+    if needs_break:
+        priorities.append({
+            "title": f"Send {needs_break[0].split()[0]} on a meal break",
+            "detail": f"{', '.join(needs_break)} {'has' if len(needs_break) == 1 else 'have'} worked 5+ hours without a break — cover the floor and rotate them out.",
+            "area": "staffing", "urgency": "now",
+        })
+    if call_first:
+        u = call_first[0]
+        priorities.append({
+            "title": f"Call {len(call_first)} unpicked pickups before auto-cancel",
+            "detail": f"{u['customer']}'s {u['item']} ({u['order']}) auto-cancels {u['auto_cancel'].lower()} — call {u['phone']} today.",
+            "area": "operations", "urgency": "now",
+        })
+    if gap_hours:
+        priorities.append({
+            "title": f"Thin coverage at {gap_hours[0]}" + (f" and {len(gap_hours) - 1} more hour(s)" if len(gap_hours) > 1 else ""),
+            "detail": f"Forecast outruns the floor at {', '.join(gap_hours)}. Flex a lunch or call in help before the {tr.get('peak_hour_label')} peak (~{tr.get('peak_forecast')} customers).",
+            "area": "staffing", "urgency": "today",
+        })
+    if behind:
+        b = behind[0]
+        priorities.append({
+            "title": f"Push {b['label']} — {round(b['attainment'] * 100)}% to target",
+            "detail": b["hint"],
+            "area": "sales", "urgency": "today",
+        })
+    if exch_due:
+        e = exch_due[0]
+        priorities.append({
+            "title": f"Return {len(exch_due)} device exchange(s) on time",
+            "detail": f"{e['device']} ({e['rma']}) is due back in {e['days_left']} day(s) — stage the RMA before the carrier cutoff.",
+            "area": "operations", "urgency": "watch",
+        })
+    priorities = priorities[:5]
+
+    top_rank = (sales.get("rankings") or [{}])[0]
+    ahead = [t["label"] for t in sales.get("targets", []) if t["pace"] == "ahead"]
+    next_in = coming[0] if coming else None
+
+    return {
+        "headline": (
+            f"{st.get('on_floor', 0)} on the floor with the {tr.get('peak_hour_label')} rush ahead — "
+            f"{('rotate breaks and cover ' + gap_hours[0]) if gap_hours else 'coverage looks balanced'}, "
+            f"and {('push ' + behind[0]['label']) if behind else 'stay on plan'} to hold "
+            f"{top_rank.get('scope', 'territory').lower()} #{top_rank.get('rank', '—')}."
+        ),
+        "priorities": priorities,
+        "staffing_focus": (
+            f"{st.get('on_floor', 0)} consultants are on the floor and {st.get('on_break', 0)} on break; "
+            f"{('overdue for a break: ' + ', '.join(needs_break) + '. ') if needs_break else 'break rotation is on track. '}"
+            f"{(next_in['name'] + ' comes in at ' + (next_in['until'] or '') + ', and ') if next_in else ''}"
+            f"{st.get('closers', 0)} are scheduled to close. "
+            f"{('Coverage is thin at ' + ', '.join(gap_hours) + ' versus forecast.') if gap_hours else 'Coverage matches the forecast across the day.'}"
+        ),
+        "sales_focus": (
+            f"The store sits {top_rank.get('scope', 'Territory')} #{top_rank.get('rank', '—')} of {top_rank.get('of', '—')} "
+            f"({sales.get('period')}). "
+            + (f"{behind[0]['label']} is the biggest gap at {round(behind[0]['attainment'] * 100)}% of target — {behind[0]['hint'].lower()} " if behind else "All headline targets are pacing to plan. ")
+            + (f"{ahead[0]} is ahead of plan; protect that momentum. " if ahead else "")
+            + f"{len(sales.get('at_risk_upgrades', []))} at-risk customers are upgrade-eligible today — work that list first."
+        ),
+        "operations_focus": (
+            f"{ops_c.get('inbound_units', 0)} units land today across {len(ops.get('shipments', []))} shipments. "
+            f"{('Call ' + str(ops_c.get('ispu_call_first', 0)) + ' unpicked pickups before they auto-cancel, and ') if ops_c.get('ispu_call_first') else ''}"
+            f"return {ops_c.get('exchanges_due', 0)} device exchange(s) due within two days. "
+            f"{ops_c.get('training_overdue', 0)} training course(s) are overdue and {ops_c.get('open_positions', 0)} roles are open."
+        ),
+    }
+
+
+# --------------------------------------------------------------------------- #
+# District / Territory rollup brief (outlier management)
+# --------------------------------------------------------------------------- #
+ROLLUP_BRIEF_SYSTEM = (
+    "You are the AI analyst for a retail wireless field leader — either a "
+    "District Manager (who reviews their stores DAILY and needs an operational, "
+    "act-today lens) or a Director (who reviews their districts WEEKLY and needs "
+    "a strategic, trend-and-trajectory lens). You receive a consolidated rollup "
+    "of the group's performance. Your job is OUTLIER MANAGEMENT: surface the "
+    "handful of stores/districts that stand out — both the ones slipping (so the "
+    "leader intervenes) and the ones outperforming (so their playbook gets "
+    "replicated) — and name the few critical areas to focus on. Be specific with "
+    "the names, index/attainment numbers and week-over-week moves in the data; "
+    "never invent anything beyond it. Match urgency to the cadence (daily → "
+    "now/today; weekly → week/watch). Plain prose in the momentum field — no "
+    "markdown, no bullet characters."
+)
+
+
+def generate_rollup_brief(rollup: dict) -> dict:
+    """AI outlier-management brief for a district or territory rollup.
+
+    Offline-safe: deterministic fallback with no API key or on any live failure.
+    """
+    settings = get_settings()
+    fn = f"rollup_brief_{rollup.get('level', 'district')}"
+    if not settings.llm_enabled:
+        _log_usage(fn, settings.anthropic_model, 0, fallback=True)
+        return _mock_rollup_brief(rollup)
+    t0 = time.monotonic()
+    try:
+        client = _client()
+        prompt = _build_rollup_prompt(rollup)
+        resp = client.messages.parse(
+            model=settings.anthropic_model,
+            max_tokens=2048,
+            system=ROLLUP_BRIEF_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+            output_format=RollupBrief,
+        )
+        result = resp.parsed_output
+        if result is None:
+            raise ValueError("empty parsed_output")
+        _log_usage(fn, settings.anthropic_model, int((time.monotonic() - t0) * 1000), resp=resp)
+        return result.model_dump()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Rollup brief generation failed (%s); using fallback", exc)
+        _log_usage(fn, settings.anthropic_model, int((time.monotonic() - t0) * 1000),
+                   success=False, fallback=True)
+        return _mock_rollup_brief(rollup)
+
+
+def _build_rollup_prompt(rollup: dict) -> str:
+    scope = rollup.get("scope", {})
+    k = rollup.get("kpis", {})
+    if rollup.get("level") == "territory":
+        units = rollup.get("districts", [])
+        rows = "\n".join(
+            f"  #{d['rank']} {d['name']} (DM {d['dm']}, {d['stores']} stores): index {d['index']} "
+            f"({d['pace']}), WoW {d['wow']:+.1f}, {d['red_stores']} red stores, "
+            f"training {round(d['training_pct'] * 100)}%, trend {d['trend']}"
+            for d in units
+        )
+        return (
+            f"TERRITORY: {scope.get('name')} — Director {scope.get('leader')} — {rollup.get('period')} "
+            f"(WEEKLY review).\n\n"
+            f"Territory index {k.get('territory_index')} ({k.get('pace')}), WoW {k.get('wow'):+.1f}. "
+            f"{k.get('districts')} districts / {k.get('stores')} stores, {k.get('districts_behind')} districts behind plan, "
+            f"{k.get('red_stores')} red-flag stores territory-wide, training {round(k.get('training_pct', 0) * 100)}%, "
+            f"{k.get('open_positions')} open roles, {k.get('at_risk_deals')} live deals at risk.\n\n"
+            f"DISTRICTS (ranked):\n{rows}\n\n"
+            f"Weakest single store anywhere: {rollup.get('worst_store', {}).get('name')} "
+            f"(index {rollup.get('worst_store', {}).get('index')}).\n\n"
+            f"Produce the weekly outlier brief: headline; outliers (name the districts sliding week-over-week AND the "
+            f"ones surging so their playbook can be replicated); priorities (ranked critical focus, scope + urgency "
+            f"week/watch); momentum. Be specific with names and week-over-week moves."
+        )
+    # district (daily)
+    units = rollup.get("stores", [])
+    rows = "\n".join(
+        f"  #{s['rank']} {s['name']} ({s['manager']}): index {s['index']} ({s['pace']}), "
+        f"PGA {round(s['pga'] * 100)}%, Upg {round(s['upgrades'] * 100)}%, M+H {round(s['mobile_home'] * 100)}%, "
+        f"coverage {s['coverage']}, {s['ops_alerts']} ops alerts, {s['at_risk_deals']} deals at risk, "
+        f"training {round(s['training_pct'] * 100)}%"
+        + ("  <-- your home store" if s.get("is_self") else "")
+        for s in units
+    )
+    return (
+        f"DISTRICT: {scope.get('name')} — District Manager {scope.get('leader')} — {rollup.get('period')} "
+        f"({rollup.get('day_label')}, DAILY review).\n\n"
+        f"District index {k.get('district_index')} ({k.get('pace')}). {k.get('stores')} stores, "
+        f"{k.get('stores_behind')} behind plan, {k.get('traffic_today')} customers forecast today, "
+        f"{k.get('coverage_gaps')} stores with coverage gaps, {k.get('ops_alerts')} ops alerts, "
+        f"{k.get('at_risk_deals')} live deals at risk, {k.get('needs_break')} staff overdue for breaks, "
+        f"{k.get('open_positions')} open roles.\n\n"
+        f"STORES (ranked):\n{rows}\n\n"
+        f"Produce the daily outlier brief: headline; outliers (name the stores lagging that need a touch-base today "
+        f"AND the top performers to learn from); priorities (ranked critical focus, scope + urgency now/today); "
+        f"momentum. Be specific with store names, index and which sales motion each laggard is missing."
+    )
+
+
+def _mock_rollup_brief(rollup: dict) -> dict:
+    scope = rollup.get("scope", {})
+    k = rollup.get("kpis", {})
+    name = scope.get("name", "the group")
+    is_territory = rollup.get("level") == "territory"
+
+    if is_territory:
+        units = rollup.get("districts", [])
+        out = rollup.get("outliers", {})
+        declining = out.get("declining", [])
+        rising = out.get("rising", [])
+        behind = out.get("behind", [])
+        worst_store = rollup.get("worst_store", {})
+
+        outliers = []
+        for d in declining[:2]:
+            outliers.append({"name": d["name"], "direction": "down",
+                             "detail": f"Index {d['index']} and down {abs(d['wow']):.1f} pts week-over-week — the fastest slide in the territory."})
+        for d in rising[:2]:
+            outliers.append({"name": d["name"], "direction": "up",
+                             "detail": f"Index {d['index']}, up {d['wow']:.1f} pts week-over-week — study what they changed and spread it."})
+
+        priorities = []
+        if declining:
+            d = declining[0]
+            priorities.append({"title": f"Reverse the {d['name']} slide", "scope": d["name"], "urgency": "week",
+                               "detail": f"{d['name']} dropped {abs(d['wow']):.1f} pts to index {d['index']} with {d['red_stores']} red stores — get {d['dm']} a recovery plan this week."})
+        if behind:
+            b = behind[0]
+            priorities.append({"title": f"Prioritize {b['name']}", "scope": b["name"], "urgency": "week",
+                               "detail": f"{b['name']} is the lowest district at index {b['index']} ({round(b['training_pct'] * 100)}% training) — schedule a working session."})
+        if worst_store:
+            priorities.append({"title": f"Escalate {worst_store.get('name')}", "scope": worst_store.get("name", ""), "urgency": "week",
+                               "detail": f"{worst_store.get('name')} is the weakest store anywhere at index {worst_store.get('index')} — decide on a turnaround or intervention."})
+        if rising:
+            r = rising[0]
+            priorities.append({"title": f"Replicate {r['name']}'s playbook", "scope": "territory-wide", "urgency": "watch",
+                               "detail": f"{r['name']} is up {r['wow']:.1f} pts — capture what's working and roll it to the behind-plan districts."})
+
+        headline = (
+            f"{name} is at index {k.get('territory_index')} ({k.get('pace')}), {k.get('wow'):+.1f} pts week-over-week, "
+            f"with {k.get('districts_behind')} of {k.get('districts')} districts behind plan and {k.get('red_stores')} red-flag stores to watch."
+        )
+        momentum = (
+            (f"{rising[0]['name']} (+{rising[0]['wow']:.1f} pts) is the bright spot to study and replicate. " if rising else "")
+            + f"Territory training sits at {round(k.get('training_pct', 0) * 100)}%. "
+            + (f"Watch {declining[0]['name']} closely — high index but sliding fast." if declining else "Trajectory is broadly stable week-over-week.")
+        )
+        return {"headline": headline, "outliers": outliers[:6], "priorities": priorities[:5], "momentum": momentum}
+
+    # district (daily)
+    units = rollup.get("stores", [])
+    out = rollup.get("outliers", {})
+    lagging = out.get("lagging", [])
+    leading = out.get("leading", [])
+    worst = out.get("worst", {})
+    best = out.get("best", {})
+
+    def weak_motion(s: dict) -> str:
+        motions = [("PGA", s.get("pga", 1)), ("Upgrades", s.get("upgrades", 1)), ("Mobile+Home", s.get("mobile_home", 1))]
+        m = min(motions, key=lambda x: x[1])
+        return f"{m[0]} at {round(m[1] * 100)}%"
+
+    outliers = []
+    for s in lagging[:3]:
+        outliers.append({"name": s["name"], "direction": "down",
+                         "detail": f"Index {s['index']} — trailing on {weak_motion(s)} with {s['ops_alerts']} ops alerts."})
+    for s in leading[:2]:
+        outliers.append({"name": s["name"], "direction": "up",
+                         "detail": f"Index {s['index']} — ahead of plan; a good model store for the district."})
+
+    priorities = []
+    if worst:
+        priorities.append({"title": f"Touch base with {worst.get('name')}", "scope": worst.get("name", ""), "urgency": "now",
+                           "detail": f"{worst.get('name')} ({worst.get('manager')}) is the district's lowest at index {worst.get('index')}, {weak_motion(worst)} — start the day here."})
+    cov = [s for s in units if s["coverage"] == "gap"]
+    if cov:
+        priorities.append({"title": f"Clear coverage gaps at {len(cov)} store(s)", "scope": "district-wide", "urgency": "today",
+                           "detail": f"{', '.join(s['name'] for s in cov[:3])} are short-staffed against today's forecast — flex breaks or move coverage."})
+    risk = sorted([s for s in units if s["at_risk_deals"] > 0], key=lambda s: -s["at_risk_deals"])
+    if risk:
+        priorities.append({"title": "Protect live deals at risk", "scope": "district-wide", "urgency": "now",
+                           "detail": f"{k.get('at_risk_deals')} deals are at risk district-wide — {risk[0]['name']} has {risk[0]['at_risk_deals']}; have managers coach the floor before close."})
+    pga_laggards = sorted(units, key=lambda s: s["pga"])[:1]
+    if pga_laggards and pga_laggards[0]["pga"] < 0.6:
+        s = pga_laggards[0]
+        priorities.append({"title": f"Push PGA at {s['name']}", "scope": s["name"], "urgency": "today",
+                           "detail": f"{s['name']} is at {round(s['pga'] * 100)}% of PGA plan — the district's biggest single gap to close."})
+
+    headline = (
+        f"{name} is at index {k.get('district_index')} ({k.get('pace')}) with {k.get('stores_behind')} of {k.get('stores')} "
+        f"stores behind plan, {k.get('coverage_gaps')} coverage gaps and {k.get('at_risk_deals')} live deals at risk today."
+    )
+    momentum = (
+        (f"{best.get('name')} leads at index {best.get('index')} — a model for the group. " if best else "")
+        + (f"{len(leading)} store(s) are ahead of plan. " if leading else "")
+        + f"Forecast is {k.get('traffic_today')} customers across the district today."
+    )
+    return {"headline": headline, "outliers": outliers[:6], "priorities": priorities[:5], "momentum": momentum}
 
 
 def _mock_compose(resolution: Resolution, ticket_id: str | None) -> str:

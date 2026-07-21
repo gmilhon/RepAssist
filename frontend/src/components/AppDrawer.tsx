@@ -1,7 +1,7 @@
 import type { ChatAction, DrawerItem } from "../chatActions";
 import { BRIEFINGS, FRONT_DESK, LOOKUPS } from "../chatActions";
 
-export type Tab = "chat" | "desk" | "ops" | "cx" | "prod" | "settings";
+export type Tab = "chat" | "desk" | "store" | "district" | "territory" | "ops" | "cx" | "prod" | "settings";
 
 // Primary navigation — the views that used to live as topbar tabs, now grouped.
 const NAV_GROUPS: { heading: string; items: { tab: Tab; icon: string; label: string }[] }[] = [
@@ -10,6 +10,14 @@ const NAV_GROUPS: { heading: string; items: { tab: Tab; icon: string; label: str
     items: [
       { tab: "chat", icon: "💬", label: "Rep Assist" },
       { tab: "desk", icon: "🗂️", label: "Resolution Desk" },
+    ],
+  },
+  {
+    heading: "Field",
+    items: [
+      { tab: "store", icon: "🏪", label: "Store Manager" },
+      { tab: "district", icon: "🗺️", label: "District (DM)" },
+      { tab: "territory", icon: "🌎", label: "Territory (Director)" },
     ],
   },
   {

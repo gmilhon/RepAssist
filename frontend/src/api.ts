@@ -1,4 +1,4 @@
-import type { A2UIElement, A2UIResponse, AccountSummary, AnalyzeResult, CallAgentResult, CandidateDefect, CapabilityGap, Cart, CesRouting, ChatResponse, CheckInResult, CheckoutView, CoachingResult, CXOverview, EmailSettings, EmailSubscriber, EnhancementVideo, FileDefectResult, HuddleItem, JiraDefectItem, ListenUtterance, LiveQueueSnapshot, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, PlaybookGuideline, ProductionAnalyzeResult, ProductionIssue, ProductionOverview, QueueEntry, SendReportResult, SendSummaryResult, SendToPhoneResult, StartListenResult, StopListenResult, SystemHealth, Ticket, TicketAnalyzeResult, TrainingEnhancement, VideoStoryboard, Walkthrough } from "./types";
+import type { A2UIElement, A2UIResponse, AccountSummary, AnalyzeResult, CallAgentResult, CandidateDefect, CapabilityGap, Cart, CesRouting, ChatResponse, CheckInResult, CheckoutView, CoachingResult, CXOverview, EmailSettings, EmailSubscriber, EnhancementVideo, FileDefectResult, HuddleItem, JiraDefectItem, ListenUtterance, LiveQueueSnapshot, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, PlaybookGuideline, ProductionAnalyzeResult, ProductionIssue, ProductionOverview, QueueEntry, SendReportResult, SendSummaryResult, SendToPhoneResult, DistrictRollup, RollupBrief, StartListenResult, StopListenResult, StoreManagerBrief, StoreManagerOverview, SystemHealth, TerritoryRollup, Ticket, TicketAnalyzeResult, TrainingEnhancement, VideoStoryboard, Walkthrough } from "./types";
 
 async function http<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -258,6 +258,16 @@ export const api = {
 
   cxOverview: (start?: string, end?: string) =>
     http<CXOverview>(`/api/cx/overview${qs({ start, end })}`),
+
+  // Store Manager dashboard
+  storeManagerOverview: () => http<StoreManagerOverview>("/api/store-manager/overview"),
+  storeManagerBrief: () => http<StoreManagerBrief>("/api/store-manager/brief"),
+
+  // District & Territory rollups (field leadership)
+  districtRollup: () => http<DistrictRollup>("/api/rollup/district"),
+  districtBrief: () => http<RollupBrief>("/api/rollup/district/brief"),
+  territoryRollup: () => http<TerritoryRollup>("/api/rollup/territory"),
+  territoryBrief: () => http<RollupBrief>("/api/rollup/territory/brief"),
 
   // Email reports
   emailSettings: () => http<EmailSettings>("/api/email/settings"),

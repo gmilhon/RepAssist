@@ -743,6 +743,284 @@ export interface PerformanceSummary {
   backlog_priorities: string;
 }
 
+// --------------------------------------------------------------------------- //
+// Store Manager dashboard
+// --------------------------------------------------------------------------- //
+export type StaffState = "working" | "lunch" | "break" | "scheduled" | "done";
+export type StaffSegment = "opener" | "mid" | "closer";
+
+export interface StorePerson {
+  name: string;
+  initials: string;
+  role: string;
+  specialty: string;
+  segment: StaffSegment;
+  shift: string;
+  start_label: string;
+  end_label: string;
+  state: StaffState;
+  until: string | null;
+  worked_hours: number;
+  break_due: boolean;
+  with_customer: boolean;
+}
+
+export interface StoreEngagement {
+  rep: string;
+  initials: string;
+  customer: string;
+  reason: string;
+  since_min: number;
+  stage: string;
+  opportunity_value: number;
+  opportunity_items: string[];
+  cart_value: number;
+  cart_items: string[];
+  gap: string[];
+  attach_ratio: number;
+  gap_value: number;
+  risk_level: "high" | "watch" | "none";
+  risk_reason: string;
+}
+
+export interface StoreTrafficHour {
+  hour: number;
+  label: string;
+  forecast: number;
+  appointments: number;
+  ispu: number;
+  staffed: number;
+  ratio: number;
+  gap: boolean;
+  is_current: boolean;
+  is_past: boolean;
+}
+
+export interface StoreTarget {
+  key: string;
+  label: string;
+  unit: "count" | "pct";
+  actual: number;
+  target: number;
+  attainment: number;
+  pace: "ahead" | "on" | "behind";
+  hint: string;
+}
+
+export interface StoreRanking {
+  scope: string;
+  name: string;
+  rank: number;
+  of: number;
+  trend: "up" | "down";
+  delta: number;
+}
+
+export interface StoreAtRiskUpgrade {
+  customer: string;
+  account: string;
+  device: string;
+  reason: string;
+  value: string;
+  priority: "high" | "medium";
+}
+
+export interface StoreManagerOverview {
+  generated_at: string;
+  store: { id: string; name: string; market: string; district: string; territory: string };
+  as_of: string;
+  as_of_label: string;
+  day_label: string;
+  hours_label: string;
+  staffing: {
+    counts: {
+      scheduled_today: number;
+      on_floor: number;
+      assisting: number;
+      at_risk: number;
+      on_break: number;
+      needs_break: number;
+      coming_later: number;
+      done: number;
+      closers: number;
+    };
+    people: StorePerson[];
+    next_in: StorePerson | null;
+    assisting: StoreEngagement[];
+  };
+  traffic: {
+    hours: StoreTrafficHour[];
+    current_hour: number;
+    current_label: string;
+    peak_hour_label: string;
+    peak_forecast: number;
+    appointments_today: number;
+    ispu_today: number;
+    gap_hours: number;
+    max_forecast: number;
+  };
+  sales: {
+    rankings: StoreRanking[];
+    period: string;
+    month_progress: number;
+    targets: StoreTarget[];
+    at_risk_upgrades: StoreAtRiskUpgrade[];
+  };
+  operations: {
+    shipments: { id: string; carrier: string; summary: string; eta: string; status: string; units: number }[];
+    exchanges_to_return: { device: string; imei_tail: string; rma: string; reason: string; days_left: number }[];
+    unpicked_ispu: { customer: string; order: string; item: string; days_waiting: number; auto_cancel: string; call_first: boolean; phone: string }[];
+    planogram_changes: { name: string; date: string; status: string; note: string }[];
+    device_launches: { device: string; launch_date: string; preorder_date: string; note: string }[];
+    training: { compliant: number; total: number; pct: number; overdue: { rep: string; course: string; due: string }[] };
+    open_positions: { title: string; stage: string; candidates: number; days_open: number }[];
+    counts: {
+      inbound_units: number;
+      exchanges_due: number;
+      ispu_call_first: number;
+      training_overdue: number;
+      open_positions: number;
+    };
+  };
+}
+
+export interface StoreManagerPriority {
+  title: string;
+  detail: string;
+  area: "staffing" | "sales" | "operations";
+  urgency: "now" | "today" | "watch";
+}
+
+export interface StoreManagerBrief {
+  generated_at: string;
+  as_of_label: string;
+  model: string;
+  headline: string;
+  priorities: StoreManagerPriority[];
+  staffing_focus: string;
+  sales_focus: string;
+  operations_focus: string;
+}
+
+// --------------------------------------------------------------------------- //
+// District & Territory rollups (field leadership)
+// --------------------------------------------------------------------------- //
+export type Pace = "ahead" | "on" | "behind";
+export type Trend = "up" | "down" | "flat";
+
+export interface RollupStore {
+  id: string;
+  name: string;
+  manager: string;
+  index: number;
+  pace: Pace;
+  rank: number;
+  pga: number;
+  upgrades: number;
+  mobile_home: number;
+  traffic: number;
+  coverage: "ok" | "thin" | "gap";
+  gap_hours: number;
+  on_floor: number;
+  scheduled: number;
+  needs_break: number;
+  ops_alerts: number;
+  at_risk_deals: number;
+  training_pct: number;
+  open_positions: number;
+  trend: Trend;
+  flags: string[];
+  is_self?: boolean;
+}
+
+export interface RollupDistrict {
+  id: string;
+  name: string;
+  dm: string;
+  stores: number;
+  index: number;
+  pace: Pace;
+  rank: number;
+  wow: number;
+  top: string;
+  bottom: string;
+  red_stores: number;
+  training_pct: number;
+  open_positions: number;
+  at_risk_deals: number;
+  trend: Trend;
+  is_home?: boolean;
+}
+
+export interface DistrictRollup {
+  generated_at: string;
+  level: "district";
+  scope: { name: string; leader_role: string; leader: string; territory: string };
+  cadence: "daily";
+  day_label: string;
+  period: string;
+  kpis: {
+    stores: number;
+    district_index: number;
+    pace: Pace;
+    stores_behind: number;
+    traffic_today: number;
+    coverage_gaps: number;
+    ops_alerts: number;
+    at_risk_deals: number;
+    needs_break: number;
+    open_positions: number;
+  };
+  stores: RollupStore[];
+  outliers: { lagging: RollupStore[]; leading: RollupStore[]; worst: RollupStore; best: RollupStore };
+}
+
+export interface TerritoryRollup {
+  generated_at: string;
+  level: "territory";
+  scope: { name: string; leader_role: string; leader: string; market: string };
+  cadence: "weekly";
+  period: string;
+  kpis: {
+    districts: number;
+    stores: number;
+    territory_index: number;
+    pace: Pace;
+    districts_behind: number;
+    wow: number;
+    red_stores: number;
+    training_pct: number;
+    open_positions: number;
+    at_risk_deals: number;
+  };
+  districts: RollupDistrict[];
+  worst_store: RollupStore;
+  outliers: { declining: RollupDistrict[]; rising: RollupDistrict[]; behind: RollupDistrict[] };
+}
+
+export interface RollupOutlier {
+  name: string;
+  direction: "up" | "down";
+  detail: string;
+}
+
+export interface RollupPriority {
+  title: string;
+  detail: string;
+  scope: string;
+  urgency: "now" | "today" | "week" | "watch";
+}
+
+export interface RollupBrief {
+  generated_at: string;
+  level: "district" | "territory";
+  model: string;
+  headline: string;
+  outliers: RollupOutlier[];
+  priorities: RollupPriority[];
+  momentum: string;
+}
+
 export interface EmailSubscriber {
   id: number;
   email: string;

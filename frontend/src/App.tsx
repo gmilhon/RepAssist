@@ -8,6 +8,8 @@ import HealthPanel from "./components/HealthPanel";
 import LiveQueuePanel from "./components/LiveQueuePanel";
 import ReviewConsole from "./components/ReviewConsole";
 import OperationsDashboard from "./components/OperationsDashboard";
+import StoreManagerDashboard from "./components/StoreManagerDashboard";
+import RollupDashboard from "./components/RollupDashboard";
 import CXDashboard from "./components/CXDashboard";
 import ProductionDashboard from "./components/ProductionDashboard";
 import SettingsPage from "./components/SettingsPage";
@@ -29,6 +31,9 @@ const STATUS_LABEL: Record<string, string> = {
 const VIEW_TITLES: Record<Tab, string> = {
   chat: "Rep Assist",
   desk: "Resolution Desk",
+  store: "Store Manager",
+  district: "District Rollup",
+  territory: "Territory Rollup",
   ops: "Performance",
   cx: "CX Monitor",
   prod: "Production",
@@ -195,6 +200,9 @@ export default function App() {
           />
         )}
         {tab === "desk" && <ReviewConsole />}
+        {tab === "store" && <StoreManagerDashboard />}
+        {tab === "district" && <RollupDashboard level="district" />}
+        {tab === "territory" && <RollupDashboard level="territory" />}
         {tab === "ops" && <OperationsDashboard />}
         {tab === "cx" && <CXDashboard />}
         {tab === "prod" && <ProductionDashboard />}
