@@ -81,6 +81,11 @@ const SHOPPING_DEMO_SCRIPT: { speaker: "Customer" | "Rep"; text: string; delayMs
 ];
 
 
+// Stretch scripted demo-conversation delays (Live Listen + the manual demo mode)
+// so a viewer can follow along. Purely a playback pace — it never delays the
+// real system, API, or LLM calls.
+const DEMO_LINE_PACE = 1.7;
+
 function formatElapsed(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
@@ -117,6 +122,9 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [accountId, setAccountId] = useState<string | null>(null);
   const checkoutRef = useRef<CheckoutView | null>(null);
+  // Auto-collapse timer: the cart drawer flashes open when it changes, then
+  // collapses so the chat keeps focus (the compact cart bar stays visible).
+  const cartFlashRef = useRef<number | null>(null);
   // A synchronously-updated thread id so the demo runner (which holds a stale
   // render closure across awaited turns) always sends on the live thread.
   const threadIdRef = useRef<string | null>(null);
@@ -391,8 +399,9 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
         try { await api.listenAnalyze(res.session.id, utterances, true); } catch { /* transcript best-effort */ }
         for (const turn of demo.chatTurns) {
           if (demoAbortRef.current) return;
+          await wait(2400);   // pause so the previous reply is readable before the rep "types" the next
           await runnerSend(turn);
-          await wait(1300);
+          await wait(2600);   // let the reply + any cart change settle
         }
       }
       if (demoAbortRef.current) return;
@@ -441,14 +450,25 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
         { role: "assistant", content: res.assistant_message ?? "", card: res.card, a2ui: res.a2ui ?? undefined },
       ]);
     }
-    // Shopping: reflect the updated cart in the top drawer, and pop it open the
-    // first time an item is added so the rep sees the cart building.
+    // Shopping: reflect the updated cart in the top drawer, flashing it open so
+    // the rep sees the change, then auto-collapsing to keep the chat in focus.
     if (res.cart) {
-      const hadItems = (cart?.items.length ?? 0) > 0;
       setCart(res.cart);
-      if (res.cart.items.length > 0 && !hadItems) setCartOpen(true);
+      if (res.cart.items.length > 0) flashCart();
     }
     scrollDown();
+  }
+
+  // Reveal the cart drawer briefly on a change, then collapse it so the chat
+  // stays readable. The compact cart bar remains visible when collapsed, and a
+  // manual toggle (below) cancels the pending auto-collapse.
+  function flashCart() {
+    setCartOpen(true);
+    if (cartFlashRef.current) window.clearTimeout(cartFlashRef.current);
+    cartFlashRef.current = window.setTimeout(() => {
+      cartFlashRef.current = null;
+      setCartOpen(false);
+    }, 2800);
   }
 
   // ── Guided POS checkout ────────────────────────────────────────────────────
@@ -717,8 +737,10 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
     void playScriptAsync(script);
   }
 
-  // Play a scripted conversation into the live transcript on real-time delays,
-  // resolving once the last line is spoken (or the session is torn down).
+  // Play a scripted conversation into the live transcript, resolving once the
+  // last line is spoken (or the session is torn down). Each line's delay is
+  // stretched by DEMO_LINE_PACE so a viewer can follow the conversation — this
+  // only paces the scripted playback, never the real system/API calls.
   function playScriptAsync(script: { speaker: "Customer" | "Rep"; text: string; delayMs: number }[]): Promise<void> {
     return new Promise((resolve) => {
       let i = 0;
@@ -729,7 +751,7 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
           if (!listenActiveRef.current) { resolve(); return; }
           pushUtterance({ speaker: line.speaker, text: line.text });
           step();
-        }, line.delayMs);
+        }, Math.round(line.delayMs * DEMO_LINE_PACE));
       };
       step();
     });
@@ -786,11 +808,10 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
         ]);
         scrollDown();
       }
-      // Live Listen heard a cart change — update the drawer + note it inline.
+      // Live Listen heard a cart change — flash the drawer + note it inline.
       if (res.cart) {
-        const hadItems = (cart?.items.length ?? 0) > 0;
         setCart(res.cart.cart);
-        if (res.cart.cart.items.length > 0 && !hadItems) setCartOpen(true);
+        if (res.cart.cart.items.length > 0) flashCart();
         if (res.cart.notes.length) {
           setMessages((m) => [...m, { role: "assistant", content: `🛒 Cart updated from the conversation — ${res.cart!.notes.join(", ")}.` }]);
           scrollDown();
@@ -956,6 +977,7 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
     setCiError(null);
     setCart(null);
     setCartOpen(false);
+    if (cartFlashRef.current) { window.clearTimeout(cartFlashRef.current); cartFlashRef.current = null; }
     checkoutRef.current = null;
     setCheckout(null);
     setCheckoutBusy(false);
@@ -991,7 +1013,11 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
           <CartDrawer
             cart={cart}
             open={cartOpen}
-            onToggle={() => setCartOpen((o) => !o)}
+            onToggle={() => {
+              // A manual toggle wins — cancel any pending auto-collapse.
+              if (cartFlashRef.current) { window.clearTimeout(cartFlashRef.current); cartFlashRef.current = null; }
+              setCartOpen((o) => !o);
+            }}
             onCheckout={startCheckout}
             onRecommend={(prompt) => send(prompt)}
             busy={busy || checkoutBusy || checkout !== null}
