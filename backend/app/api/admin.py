@@ -11,6 +11,7 @@ import json
 from fastapi import APIRouter, BackgroundTasks, Header, HTTPException
 from sqlmodel import Session, delete, text
 
+from .. import production_geo_data as geo
 from ..store.db import _engine
 from ..store.models import Engagement, GapType, Ticket, TicketStatus
 
@@ -221,6 +222,7 @@ def _make_ticket(
     summary  = rng.choice(SUMMARIES[intent])
     fate     = rng.random()
     convo    = json.dumps([{"role": "user", "content": summary}])
+    home     = geo.store_for_rep(rep)  # cloud/store/channel for the Production Monitor map
     base = dict(
         id=tkt_id,
         created_at=created.isoformat(),
@@ -232,6 +234,7 @@ def _make_ticket(
         priority="high" if intent in ("activation", "pending_order") else "normal",
         summary=summary,
         conversation=convo,
+        cloud_env=home["cloud"], store_id=home["id"], channel=home["channel"],
         order_id=None, account_id=None, order_context=None, trace="[]",
         assigned_to=None, resolution_notes=None, root_cause_category=None,
         recommended_capability=None, gap_type=None,
@@ -283,11 +286,13 @@ VALUES
 _TKT_SQL = """
 INSERT INTO ticket
   (id, created_at, updated_at, rep_id, thread_id, intent, sales_intent, priority, summary,
+   cloud_env, store_id, channel,
    order_id, account_id, conversation, order_context, trace,
    status, assigned_to, resolution_notes, root_cause_category,
    recommended_capability, gap_type, resolved_by, resolved_at)
 VALUES
   (:id, :created_at, :updated_at, :rep_id, :thread_id, :intent, :sales_intent, :priority, :summary,
+   :cloud_env, :store_id, :channel,
    :order_id, :account_id, :conversation, :order_context, :trace,
    :status, :assigned_to, :resolution_notes, :root_cause_category,
    :recommended_capability, :gap_type, :resolved_by, :resolved_at)
