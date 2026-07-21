@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-07-21T01:33:43.209833+00:00",
-  "last_commit_sha": "16388d116957ab681faabe25a6fe78c6679fef01",
+  "generated_at": "2026-07-21T01:43:36.605650+00:00",
+  "last_commit_sha": "89b10a3b048b477b6903421dc9f49051c95e17d8",
   "enhancements": [
     {
       "tag": "Improved",
       "title": "Checkout now works like a real store POS — with bill review, signatures, and phone handoff",
-      "detail": "The in-chat cart is now a full point-of-sale flow. Adding a device automatically recommends device protection (you can remove it), and you can add perks, accessories, and trade-in credit, then choose pickup or ship. When you're ready to check out, a 'View Together' card shows the current bill vs. the new bill vs. blended monthly cost, plus everything due today — taxes, activation, and accessories. You can finish on your screen with a simulated payment and captured signature, or text/QR-code the checkout straight to the customer's own phone so they can review and sign it themselves while you both watch it update live.",
+      "detail": "The in-chat cart is now a full point-of-sale flow. Adding a device automatically recommends device protection (you can remove it), and you can add perks, accessories, and trade-in credit, then choose pickup or ship. When you're ready to check out, a 'View Together' card shows the current bill vs. the new bill vs. blended monthly cost, plus everything due today — taxes, activation, and accessories. The cart tray now pops open briefly whenever you make a change, then automatically tucks itself back down after a couple seconds so it doesn't block the chat — you can still tap to keep it open manually. You can finish on your screen with a simulated payment and captured signature, or text/QR-code the checkout straight to the customer's own phone so they can review and sign it themselves while you both watch it update live.",
       "keywords": [
         "checkout",
         "view together",
@@ -14,16 +14,22 @@
         "text checkout",
         "device protection",
         "trade-in",
-        "pickup or ship"
+        "pickup or ship",
+        "cart tray"
       ],
-      "answer": "Once you've built a cart, tap to check out and Rep Assist shows a 'View Together' card comparing the customer's current bill, the new bill, and the blended monthly cost, along with everything due today like taxes, activation fees, and accessories. From there you can finish the sale on your own screen with a simulated payment and captured signature, or hand it off by texting a link or showing a QR code so the customer finishes it on their own phone — both screens stay in sync in real time. Devices now automatically get device protection recommended (you can remove it if the customer declines), and you can add perks, accessories, and trade-in credit before checking out, plus choose pickup or ship for fulfillment.",
+      "answer": "Once you've built a cart, tap to check out and Rep Assist shows a 'View Together' card comparing the customer's current bill, the new bill, and the blended monthly cost, along with everything due today like taxes, activation fees, and accessories. The cart tray briefly flashes open every time you add or change something, then automatically collapses back down after about 2-3 seconds so it stops covering the chat — you can tap it to keep it open if you want it visible. From there you can finish the sale on your own screen with a simulated payment and captured signature, or hand it off by texting a link or showing a QR code so the customer finishes it on their own phone.",
       "walkthrough": {
-        "intro": "Learn how to build a full cart with add-ons and finish checkout either yourself or by handing it to the customer's phone.",
+        "intro": "Learn how to build a full cart with add-ons, work with the auto-collapsing tray, and finish checkout either yourself or by handing it to the customer's phone.",
         "steps": [
           {
             "title": "Build the cart as usual",
             "detail": "Say things like 'add a line' or 'upgrade this phone' and Rep Assist builds the cart in the drawer as before.",
             "tip": null
+          },
+          {
+            "title": "Notice the cart tray flash open on changes",
+            "detail": "Every time you add or edit something, the tray pops fully open so you can see the update, then tucks itself back down to a compact bar after a couple seconds.",
+            "tip": "Tap the tray if you want to keep it open manually — that overrides the auto-collapse."
           },
           {
             "title": "Review the extras that come with a device",
@@ -44,11 +50,6 @@
             "title": "Finish it yourself, or hand it to their phone",
             "detail": "Either continue on your screen with a simulated payment and signature, or tap to send a text link or show a QR code so the customer finishes checkout on their own phone.",
             "tip": "Both screens update live and stay in lock-step, so you can watch their progress if they take over."
-          },
-          {
-            "title": "Confirm the order",
-            "detail": "Once signed, the order is recorded and a receipt/order card appears — no real payment is ever charged.",
-            "tip": null
           }
         ]
       }
@@ -56,7 +57,7 @@
     {
       "tag": "New",
       "title": "Run a full guided demo of a sales or service visit",
-      "detail": "A new 'Run a demo' option plays out an entire customer visit for you automatically — check-in, assist, conversation, checkout or resolution, visit summary, and Playbook grade — in either Chat mode or Live Listen mode. It's a hands-off way to see exactly how a visit should flow before trying it live.",
+      "detail": "A new 'Run a demo' option plays out an entire customer visit for you automatically — check-in, assist, conversation, checkout or resolution, visit summary, and Playbook grade — in either Chat mode or Live Listen mode. The playback pace has been slowed down so the conversation is easy to read and follow along with, whether you're watching a chat scroll by or a Live Listen transcript.",
       "keywords": [
         "run a demo",
         "guided demo",
@@ -65,9 +66,9 @@
         "practice",
         "training visit"
       ],
-      "answer": "Open the menu and tap 'Run a demo' to have Rep Assist play out a complete visit on its own, from check-in through the conversation to checkout or a resolution ticket, ending with a visit summary and a Playbook grade — just like a real graded visit. You can watch it happen as a normal chat conversation, or run it through Live Listen mode to see how it looks with the transcript and coaching flow. It's a great way to see the whole process modeled before doing it with a real customer.",
+      "answer": "Open the menu and tap 'Run a demo' to have Rep Assist play out a complete visit on its own, from check-in through the conversation to checkout or a resolution ticket, ending with a visit summary and a Playbook grade — just like a real graded visit. The demo now runs at a slower, more readable pace with clear pauses between turns, so you can actually follow along instead of watching it fly by. You can watch it happen as a normal chat conversation, or run it through Live Listen mode to see how it looks with the transcript and coaching flow.",
       "walkthrough": {
-        "intro": "Try the guided demo to watch a full visit play out automatically from start to finish.",
+        "intro": "Try the guided demo to watch a full visit play out automatically from start to finish, at a pace you can actually follow.",
         "steps": [
           {
             "title": "Open the menu drawer",
@@ -80,8 +81,8 @@
             "tip": null
           },
           {
-            "title": "Let it play out",
-            "detail": "Rep Assist automatically walks through check-in, assisting the customer, the full conversation, and checkout or a resolution ticket — you don't need to do anything.",
+            "title": "Let it play out at a readable pace",
+            "detail": "Rep Assist automatically walks through check-in, assisting the customer, the full conversation, and checkout or a resolution ticket, now with slower, clearer pacing between lines so it's easy to follow.",
             "tip": null
           },
           {
@@ -374,8 +375,8 @@
     }
   ],
   "suggestions": [
-    "How do I hand off checkout to a customer's phone?",
-    "How do I run a demo visit?",
-    "How do I assist someone directly from the Live Queue?"
+    "Why does the cart tray keep popping open and closing?",
+    "How do I run a demo visit for training?",
+    "How do I check out with the View Together bill review?"
   ]
 }
