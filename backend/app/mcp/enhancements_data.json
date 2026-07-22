@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-22T15:04:17.891247+00:00",
-  "last_commit_sha": "0245b93dc0920b1f69ef1000ffffd71da58d84b2",
+  "generated_at": "2026-07-22T15:13:19.390776+00:00",
+  "last_commit_sha": "accba7c86551a2ed2d8abc444c188140e486f87c",
   "enhancements": [
     {
       "tag": "Improved",
@@ -380,8 +380,8 @@
     }
   ],
   "suggestions": [
-    "How do I check out a customer with the new View Together card?",
-    "How does Live Listen coaching and scoring work?",
+    "How do I send a checkout link to a customer's phone?",
+    "How does Live Listen coaching work after a visit?",
     "How do I check in a walk-in customer?"
   ]
 }
