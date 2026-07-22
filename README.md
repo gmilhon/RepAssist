@@ -63,6 +63,7 @@ dev team should build next, so the assistant keeps getting better.
 23. [CES Agent Routing](docs/23-ces-agent-routing.md) — relay selected triage intents to an external Google CX Agent Studio (CES) agent, switched on per-intent from Settings, built on `runSession` with an offline stub.
 24. [In-Chat Shopping + POS Checkout](docs/24-in-chat-shopping.md) — a chat-built cart (add a line / upgrade + protection / perks / accessories / trade-in) with an always-on protection recommendation, then a full POS checkout: a **View Together** bill review (current vs. new vs. blended + one-time due today), a simulated payment, a captured signature, and a **phone hand-off** (SMS / scannable QR) that live-syncs the customer's own device.
 25. [Guided Demos](docs/25-guided-demos.md) — a "Run a demo" launcher that plays a full sales or service visit end-to-end (check-in → assist → conversation → checkout/resolution → visit summary + Playbook grade), in either Chat or Live Listen mode.
+26. [Field Dashboards](docs/26-field-dashboards.md) — three consolidated leadership views (🏪 Store Manager, 🗺️ District rollup for the DM, 🌎 Territory rollup for the Director), each with a GenAI brief: the store brief lists ranked priorities, the rollup briefs do outlier management pitched to the daily vs. weekly review cadence. Includes a live floor (who's with a customer, opportunity vs. cart, risk-to-close) and a coherent org that rolls up (store #4/9 in District 7, 1 of 6 districts in North Territory).
 
 ## 60-second quickstart
 
