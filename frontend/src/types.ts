@@ -1327,7 +1327,7 @@ export interface ProductionGeo {
     yellow_ratio: number;
     red_ratio: number;
     min_baseline: number;
-    baseline_days: number;
+    baseline_weeks: number;
   };
 }
 

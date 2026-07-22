@@ -49,10 +49,12 @@ _WINDOW_HOURS = 48
 _MAX_TICKETS = 80
 _AUTO_ANALYZE_EVERY = 5   # new escalations since last analysis
 
-# Trailing window (days, ending 24h ago) used to compute each cloud region's
-# baseline volume — the reference the map's red/yellow/green health compares
-# the current 24h volume against.
-BASELINE_DAYS = 7
+# The map's red/yellow/green health compares each region's current 24h volume to
+# a day-of-week-aligned baseline: the average of the SAME rolling-24h window over
+# the previous BASELINE_WEEKS weeks. Aligning on day-of-week means a naturally
+# busy weekday (or a quiet Sunday) reads as normal — only an abnormal spike
+# versus recent same-days lights the region up.
+BASELINE_WEEKS = 4
 
 
 # --------------------------------------------------------------------------- #
@@ -428,7 +430,7 @@ def _build_geo(recent: list[Ticket], baselines: dict[str, float]) -> dict:
             "yellow_ratio": geo.CLOUD_YELLOW_RATIO,
             "red_ratio": geo.CLOUD_RED_RATIO,
             "min_baseline": geo.CLOUD_MIN_BASELINE,
-            "baseline_days": BASELINE_DAYS,
+            "baseline_weeks": BASELINE_WEEKS,
         },
     }
 
@@ -437,11 +439,6 @@ def _build_geo(recent: list[Ticket], baselines: dict[str, float]) -> dict:
 def overview() -> dict:
     now = datetime.now(timezone.utc)
     cutoff24 = now - timedelta(hours=24)
-
-    # Per-region baseline: average daily volume over the trailing BASELINE_DAYS
-    # ending 24h ago (excludes the current window so today's spike doesn't
-    # inflate its own reference).
-    base_start = cutoff24 - timedelta(days=BASELINE_DAYS)
 
     with Session(_engine) as s:
         recent = s.exec(
@@ -453,12 +450,22 @@ def overview() -> dict:
             select(ProductionIssue).order_by(ProductionIssue.detected_at.desc()).limit(30)
         ).all()
 
-        base_rows = s.exec(
-            select(Ticket.cloud_env, func.count()).where(
-                Ticket.created_at >= base_start, Ticket.created_at < cutoff24
-            ).group_by(Ticket.cloud_env)
-        ).all()
-    baselines = {cid: cnt / BASELINE_DAYS for cid, cnt in base_rows if cid}
+        # DOW-aligned baseline: the same rolling-24h window over each of the
+        # previous BASELINE_WEEKS weeks, averaged per region. Same weekday +
+        # time-of-day as "now", so normal weekly rhythm reads as normal.
+        week_counts: dict[str, list[int]] = {cid: [] for cid in geo.CLOUD_REGIONS}
+        for w in range(1, BASELINE_WEEKS + 1):
+            w_end = now - timedelta(days=7 * w)
+            w_start = w_end - timedelta(hours=24)
+            rows = s.exec(
+                select(Ticket.cloud_env, func.count()).where(
+                    Ticket.created_at >= w_start, Ticket.created_at < w_end
+                ).group_by(Ticket.cloud_env)
+            ).all()
+            rc = {cid: n for cid, n in rows if cid}
+            for cid in geo.CLOUD_REGIONS:
+                week_counts[cid].append(rc.get(cid, 0))
+    baselines = {cid: (sum(v) / len(v) if v else 0.0) for cid, v in week_counts.items()}
 
     # Hourly buckets, oldest → newest (24 buckets ending this hour)
     buckets: list[dict] = []
