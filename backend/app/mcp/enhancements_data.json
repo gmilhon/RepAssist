@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-21T05:26:52.594395+00:00",
-  "last_commit_sha": "c45c6d9417485be1f8fe4bbe02f82f6c2780fdbe",
+  "generated_at": "2026-07-22T14:50:26.182222+00:00",
+  "last_commit_sha": "dce0c41e681a35818551cfae9ade8e3824816723",
   "enhancements": [
     {
       "tag": "Improved",
@@ -380,8 +380,8 @@
     }
   ],
   "suggestions": [
-    "How does the new checkout bill review work?",
+    "How does the View Together checkout screen work?",
     "What does the 💡 opportunity badge mean in the queue?",
-    "How do I see my Playbook Score after a Live Listen session?"
+    "How do I check in a walk-in customer?"
   ]
 }
