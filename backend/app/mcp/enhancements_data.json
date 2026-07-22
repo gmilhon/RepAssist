@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-22T14:50:26.182222+00:00",
-  "last_commit_sha": "dce0c41e681a35818551cfae9ade8e3824816723",
+  "generated_at": "2026-07-22T15:04:17.891247+00:00",
+  "last_commit_sha": "0245b93dc0920b1f69ef1000ffffd71da58d84b2",
   "enhancements": [
     {
       "tag": "Improved",
@@ -380,8 +380,8 @@
     }
   ],
   "suggestions": [
-    "How does the View Together checkout screen work?",
-    "What does the 💡 opportunity badge mean in the queue?",
+    "How do I check out a customer with the new View Together card?",
+    "How does Live Listen coaching and scoring work?",
     "How do I check in a walk-in customer?"
   ]
 }
