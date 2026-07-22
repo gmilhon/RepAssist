@@ -29,6 +29,7 @@ from typing import AsyncGenerator, Optional
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from .. import llm
@@ -47,6 +48,11 @@ router = APIRouter(prefix="/api/production", tags=["production"])
 _WINDOW_HOURS = 48
 _MAX_TICKETS = 80
 _AUTO_ANALYZE_EVERY = 5   # new escalations since last analysis
+
+# Trailing window (days, ending 24h ago) used to compute each cloud region's
+# baseline volume — the reference the map's red/yellow/green health compares
+# the current 24h volume against.
+BASELINE_DAYS = 7
 
 
 # --------------------------------------------------------------------------- #
@@ -366,9 +372,10 @@ def _issue_dict(i: ProductionIssue) -> dict:
     }
 
 
-def _build_geo(recent: list[Ticket]) -> dict:
+def _build_geo(recent: list[Ticket], baselines: dict[str, float]) -> dict:
     """Aggregate the in-window escalation inflow by store, cloud region and
-    channel for the impact map."""
+    channel for the impact map. `baselines` maps a cloud region to its expected
+    in-window volume (trailing daily average) so health reads relative to normal."""
     store_counts: dict[str, int] = {}
     channel_counts: dict[str, int] = {c: 0 for c in geo.CHANNELS}
     cloud_counts: dict[str, int] = {c: 0 for c in geo.CLOUD_REGIONS}
@@ -394,12 +401,14 @@ def _build_geo(recent: list[Ticket]) -> dict:
     clouds = []
     for cid, region in geo.CLOUD_REGIONS.items():
         count = cloud_counts.get(cid, 0)
+        baseline = baselines.get(cid, 0.0)
         region_stores = [sid for sid in store_counts if geo.STORE_BY_ID[sid]["cloud"] == cid]
         region_channels = sorted({geo.STORE_BY_ID[sid]["channel"] for sid in region_stores})
         clouds.append({
             "id": cid, "label": region["label"], "aws_region": region["aws_region"],
             "site": region["site"], "lat": region["lat"], "lng": region["lng"],
-            "count": count, "status": geo.cloud_status(count),
+            "count": count, "baseline": round(baseline, 1),
+            "status": geo.cloud_status(count, baseline),
             "store_count": len(region_stores),
             "channels": region_channels,
             "channel_labels": [geo.CHANNEL_LABEL[c] for c in region_channels],
@@ -414,7 +423,13 @@ def _build_geo(recent: list[Ticket]) -> dict:
         ],
         "unique_stores": len(store_counts),
         "channels_impacted": sum(1 for c in geo.CHANNELS if channel_counts[c] > 0),
-        "thresholds": {"yellow": geo.CLOUD_YELLOW, "red": geo.CLOUD_RED},
+        "thresholds": {
+            "model": "relative",
+            "yellow_ratio": geo.CLOUD_YELLOW_RATIO,
+            "red_ratio": geo.CLOUD_RED_RATIO,
+            "min_baseline": geo.CLOUD_MIN_BASELINE,
+            "baseline_days": BASELINE_DAYS,
+        },
     }
 
 
@@ -422,6 +437,11 @@ def _build_geo(recent: list[Ticket]) -> dict:
 def overview() -> dict:
     now = datetime.now(timezone.utc)
     cutoff24 = now - timedelta(hours=24)
+
+    # Per-region baseline: average daily volume over the trailing BASELINE_DAYS
+    # ending 24h ago (excludes the current window so today's spike doesn't
+    # inflate its own reference).
+    base_start = cutoff24 - timedelta(days=BASELINE_DAYS)
 
     with Session(_engine) as s:
         recent = s.exec(
@@ -432,6 +452,13 @@ def overview() -> dict:
         issues = s.exec(
             select(ProductionIssue).order_by(ProductionIssue.detected_at.desc()).limit(30)
         ).all()
+
+        base_rows = s.exec(
+            select(Ticket.cloud_env, func.count()).where(
+                Ticket.created_at >= base_start, Ticket.created_at < cutoff24
+            ).group_by(Ticket.cloud_env)
+        ).all()
+    baselines = {cid: cnt / BASELINE_DAYS for cid, cnt in base_rows if cid}
 
     # Hourly buckets, oldest → newest (24 buckets ending this hour)
     buckets: list[dict] = []
@@ -453,7 +480,7 @@ def overview() -> dict:
             "buckets": buckets,
             "recent": [_ticket_brief(t) for t in recent[:12]],
         },
-        "geo": _build_geo(list(recent)),
+        "geo": _build_geo(list(recent), baselines),
         "issues": [_issue_dict(i) for i in issues],
         "monitor": {
             "last_analysis_at": _state["last_analysis_at"],

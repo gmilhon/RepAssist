@@ -38,7 +38,7 @@ function CloudNode({ cloud }: { cloud: CloudHealth }) {
     <g className={`impactmap-cloud impactmap-cloud--${cloud.status}`}>
       <title>
         {`${cloud.label} (${cloud.aws_region}) — ${STATUS_LABEL[cloud.status]}\n`}
-        {`${cloud.count} escalations · ${cloud.store_count} stores · ${cloud.channels.length} channels`}
+        {`${cloud.count} escalations vs ~${cloud.baseline}/day baseline · ${cloud.store_count} stores · ${cloud.channels.length} channels`}
       </title>
       {cloud.status !== "green" && (
         <circle className="impactmap-cloud-pulse" cx={x} cy={y} r={18} fill={color} />
@@ -95,7 +95,7 @@ export default function ProductionImpactMap({ geo }: { geo: ProductionGeo }) {
           </h3>
           <p className="dash-sub">
             Reporting stores plotted by location · dot size = escalation volume, color = channel ·
-            AWS region nodes show red/yellow/green health by connected volume
+            AWS region nodes show red/yellow/green health vs each region's baseline
           </p>
         </div>
         <div className="impactmap-stats">

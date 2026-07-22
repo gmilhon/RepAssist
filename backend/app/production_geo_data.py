@@ -39,10 +39,14 @@ TOTAL_CHANNELS = len(CHANNELS)
 # --------------------------------------------------------------------------- #
 # Cloud environments — where the reporting rep's session was connected
 # --------------------------------------------------------------------------- #
-# Volume thresholds (escalations connected to a region within the inflow window)
-# that drive the map's red/yellow/green health node.
-CLOUD_YELLOW = 4   # >= this many → elevated (yellow)
-CLOUD_RED = 7      # >= this many → critical (red)
+# Cloud health is RELATIVE to each region's own recent baseline (its trailing
+# average in-window volume) rather than an absolute count — so a busy-but-normal
+# region reads green and only a genuine spike above normal lights up. A small
+# floor keeps a burst from a quiet region (or an empty-history dev DB) from
+# needing an unrealistic multiple.
+CLOUD_MIN_BASELINE = 3.0    # floor for the comparison scale
+CLOUD_YELLOW_RATIO = 1.5    # >= 1.5x the region's baseline → elevated (yellow)
+CLOUD_RED_RATIO = 2.5       # >= 2.5x the region's baseline → critical (red)
 
 CLOUD_REGIONS: dict[str, dict] = {
     "aws_east": {
@@ -62,11 +66,15 @@ CLOUD_REGIONS: dict[str, dict] = {
 }
 
 
-def cloud_status(count: int) -> str:
-    """Red/yellow/green for a region given its escalation volume in-window."""
-    if count >= CLOUD_RED:
+def cloud_status(count: float, baseline: float = 0.0) -> str:
+    """Red/yellow/green for a region: how far its in-window volume sits above its
+    own recent baseline. `baseline` is the region's expected in-window volume
+    (trailing daily average); the min floor avoids over-reacting to tiny numbers."""
+    scale = max(baseline, CLOUD_MIN_BASELINE)
+    ratio = count / scale if scale else 0.0
+    if ratio >= CLOUD_RED_RATIO:
         return "red"
-    if count >= CLOUD_YELLOW:
+    if ratio >= CLOUD_YELLOW_RATIO:
         return "yellow"
     return "green"
 

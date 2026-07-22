@@ -1290,7 +1290,8 @@ export interface CloudHealth {
   lat: number;
   lng: number;
   count: number;           // escalations connected to this region in-window
-  status: "green" | "yellow" | "red";
+  baseline: number;        // region's expected in-window volume (trailing daily avg)
+  status: "green" | "yellow" | "red";  // relative to baseline
   store_count: number;
   channels: string[];
   channel_labels: string[];
@@ -1321,7 +1322,13 @@ export interface ProductionGeo {
   channels: ChannelStat[];
   unique_stores: number;
   channels_impacted: number;
-  thresholds: { yellow: number; red: number };
+  thresholds: {
+    model: string;          // "relative"
+    yellow_ratio: number;
+    red_ratio: number;
+    min_baseline: number;
+    baseline_days: number;
+  };
 }
 
 export interface ProductionOverview {
