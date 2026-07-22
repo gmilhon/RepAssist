@@ -62,7 +62,7 @@ A self-contained **US impact map** sits at the top of the tab (below the KPIs):
   as **red/yellow/green** health nodes based on the volume connected to each
   region *relative to that region's own baseline* — the average of the same
   rolling-24h window over the previous 4 weeks (so a naturally busy weekday reads
-  normal, not elevated). green `<1.5×`, yellow `≥1.5×`, red `≥2.5×` baseline, with
+  normal, not elevated). green `<2×`, yellow `≥2×`, red `≥3×` baseline, with
   a pulsing ring when elevated. Faint connectors tie each store to its region.
 - Stat chips summarize **unique stores**, **channels impacted** (`n/4`) and per-region
   volume — the scope inputs behind the P-level.

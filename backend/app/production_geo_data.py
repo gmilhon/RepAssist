@@ -45,8 +45,8 @@ TOTAL_CHANNELS = len(CHANNELS)
 # floor keeps a burst from a quiet region (or an empty-history dev DB) from
 # needing an unrealistic multiple.
 CLOUD_MIN_BASELINE = 3.0    # floor for the comparison scale
-CLOUD_YELLOW_RATIO = 1.5    # >= 1.5x the region's baseline → elevated (yellow)
-CLOUD_RED_RATIO = 2.5       # >= 2.5x the region's baseline → critical (red)
+CLOUD_YELLOW_RATIO = 2.0    # >= 2x the region's baseline → elevated (yellow)
+CLOUD_RED_RATIO = 3.0       # >= 3x the region's baseline → critical (red)
 
 CLOUD_REGIONS: dict[str, dict] = {
     "aws_east": {
