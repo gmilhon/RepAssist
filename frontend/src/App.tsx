@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import type { ChatAction } from "./chatActions";
-import AppDrawer from "./components/AppDrawer";
-import type { Tab } from "./components/AppDrawer";
+import AppTray from "./components/AppTray";
+import type { Tab } from "./components/AppTray";
 import ChatWidget from "./components/ChatWidget";
 import HealthPanel from "./components/HealthPanel";
 import LiveQueuePanel from "./components/LiveQueuePanel";
@@ -47,7 +47,7 @@ interface HealthToast {
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("chat");
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [trayOpen, setTrayOpen] = useState(false);
   // A quick-action dispatched from the drawer into ChatWidget. The nonce forces
   // the chat's effect to re-run even when the same action is picked twice.
   const [chatAction, setChatAction] = useState<ChatAction | null>(null);
@@ -109,7 +109,7 @@ export default function App() {
 
   function navigate(next: Tab) {
     setTab(next);
-    setMenuOpen(false);
+    setTrayOpen(false);
   }
 
   // Drawer → chat quick-action: make sure we're on the chat view, then hand the
@@ -118,7 +118,7 @@ export default function App() {
     setTab("chat");
     setChatAction(action);
     setChatActionNonce(n => n + 1);
-    setMenuOpen(false);
+    setTrayOpen(false);
   }
 
   // Live Queue tray → assist a waiting customer: close the tray, switch to chat,
@@ -147,12 +147,12 @@ export default function App() {
       <header className="topbar">
         <button
           className="topbar-menu"
-          onClick={() => setMenuOpen(true)}
+          onClick={() => setTrayOpen(true)}
           aria-label="Open menu"
-          aria-expanded={menuOpen}
+          aria-expanded={trayOpen}
           title="Menu"
         >
-          ☰
+          <span className="topbar-menu-plus">+</span>
         </button>
         <div className="brand">
           <span className="brand-mark">✓</span>
@@ -193,7 +193,7 @@ export default function App() {
       <main className="content">
         {tab === "chat" && (
           <ChatWidget
-            onOpenMenu={() => setMenuOpen(true)}
+            onOpenMenu={() => setTrayOpen(true)}
             chatAction={chatAction}
             chatActionNonce={chatActionNonce}
             onChatActionDone={() => setChatAction(null)}
@@ -209,12 +209,12 @@ export default function App() {
         {tab === "settings" && <SettingsPage onHealthChange={loadSysHealth} />}
       </main>
 
-      <AppDrawer
-        open={menuOpen}
+      <AppTray
+        open={trayOpen}
         tab={tab}
         onNavigate={navigate}
         onChatAction={dispatchChatAction}
-        onClose={() => setMenuOpen(false)}
+        onClose={() => setTrayOpen(false)}
       />
 
       {showHealthPanel && (

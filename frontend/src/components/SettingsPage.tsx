@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import { getThemePref, setThemePref, type ThemePref } from "../theme";
 import type { CesRouting, CesRoutingIntent, EmailSettings, EmailSubscriber, HuddleItem, OSTArticleRef, PlaybookGuideline, SystemHealth, TrainingEnhancement, VideoStoryboard } from "../types";
 
 const HUDDLE_CATEGORIES = ["To-Do", "Promo", "Device", "Policy", "Network", "News"];
 const PLAYBOOK_CATEGORIES = ["Customer Needs", "Sales Positioning"];
 
-type SettingsSection = "health" | "email" | "playbook" | "training" | "opener" | "ces";
+type SettingsSection = "appearance" | "health" | "email" | "playbook" | "training" | "opener" | "ces";
 const SETTINGS_SECTIONS: { key: SettingsSection; label: string; icon: string }[] = [
+  { key: "appearance", label: "Appearance", icon: "🎨" },
   { key: "health", label: "System Health", icon: "🩺" },
   { key: "email", label: "Email Reports", icon: "✉️" },
   { key: "playbook", label: "Playbook", icon: "📋" },
@@ -15,11 +17,24 @@ const SETTINGS_SECTIONS: { key: SettingsSection; label: string; icon: string }[]
   { key: "opener", label: "The Opener", icon: "🚀" },
 ];
 
+const THEME_OPTIONS: { key: ThemePref; label: string; icon: string; sub: string }[] = [
+  { key: "system", label: "System", icon: "🖥️", sub: "Match your device" },
+  { key: "light", label: "Light", icon: "☀️", sub: "Always light" },
+  { key: "dark", label: "Dark", icon: "🌙", sub: "Always dark" },
+];
+
 export default function SettingsPage({ onHealthChange }: { onHealthChange?: () => void }) {
   const [subscribers, setSubscribers] = useState<EmailSubscriber[]>([]);
   const [smtp, setSmtp] = useState<EmailSettings | null>(null);
   const [loading, setLoading] = useState(true);
-  const [section, setSection] = useState<SettingsSection>("health");
+  const [section, setSection] = useState<SettingsSection>("appearance");
+
+  // Appearance / theme
+  const [theme, setTheme] = useState<ThemePref>(getThemePref());
+  function chooseTheme(pref: ThemePref) {
+    setTheme(pref);
+    setThemePref(pref);
+  }
 
   // Add form state
   const [addEmail, setAddEmail] = useState("");
@@ -313,6 +328,43 @@ export default function SettingsPage({ onHealthChange }: { onHealthChange?: () =
         </nav>
 
         <div className="settings-panel">
+
+      {/* ── Appearance ───────────────────────────────────────────────── */}
+      {section === "appearance" && (
+      <div className="settings-section">
+        <div className="settings-section-head">
+          <h3 className="settings-section-title">Appearance</h3>
+          <p className="settings-section-sub">
+            Choose how Rep Assist looks. <strong>System</strong> follows your device's
+            light or dark setting automatically; pick <strong>Light</strong> or{" "}
+            <strong>Dark</strong> to override it. Your choice is saved on this device.
+          </p>
+        </div>
+
+        <div className="theme-options" role="radiogroup" aria-label="Theme">
+          {THEME_OPTIONS.map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              role="radio"
+              aria-checked={theme === opt.key}
+              className={`theme-option${theme === opt.key ? " selected" : ""}`}
+              onClick={() => chooseTheme(opt.key)}
+            >
+              <span className={`theme-swatch theme-swatch--${opt.key}`} aria-hidden="true">
+                <span className="theme-swatch-bar" />
+                <span className="theme-swatch-bar theme-swatch-bar--short" />
+              </span>
+              <span className="theme-option-main">
+                <span className="theme-option-label">{opt.icon} {opt.label}</span>
+                <span className="theme-option-sub">{opt.sub}</span>
+              </span>
+              {theme === opt.key && <span className="theme-option-check">✓</span>}
+            </button>
+          ))}
+        </div>
+      </div>
+      )}
 
       {/* ── System Health ────────────────────────────────────────────── */}
       {section === "health" && (

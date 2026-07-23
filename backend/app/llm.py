@@ -18,6 +18,10 @@ from .schemas import (
     VISIT_REASON_LABELS,
     CoachingImprovement,
     CoachingRecommendation,
+    CompetitorBill,
+    CompetitorBillLine,
+    CompetitorHomeInternet,
+    CompetitorStreaming,
     ExecutiveSummary,
     LiveCoachResult,
     LiveSuggestion,
@@ -1898,4 +1902,86 @@ def _mock_storyboard(title: str, detail: str, walkthrough: dict | None) -> Video
         total_duration_label=f"{total // 60}m {total % 60}s" if total >= 60 else f"{total}s",
         scenes=scenes,
         call_to_action="Open Rep Assist and try it on your next customer.",
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Scan Bill — vision extraction of a competitor's wireless bill
+# --------------------------------------------------------------------------- #
+BILL_SYSTEM = (
+    "You are a retail sales assistant reading a photo of a customer's CURRENT "
+    "wireless bill from a competing carrier. Extract exactly what they pay today "
+    "so a rep can build a switch quote. Report monthly dollar amounts as numbers "
+    "(no currency symbols). Count phone lines. Capture any streaming/entertainment "
+    "add-ons (Netflix, Disney+, etc.) and any home-internet line separately. If a "
+    "value isn't legible, make a reasonable estimate and lower your confidence. "
+    "Never invent services that aren't shown."
+)
+BILL_PROMPT = (
+    "Extract this competitor wireless bill into the required structure: carrier, "
+    "plan name, number of phone lines, per-line charges if itemized, total wireless "
+    "monthly, any streaming add-ons with prices, any home-internet line with price, "
+    "and the grand total monthly."
+)
+
+# Media types the Anthropic vision API accepts.
+BILL_MEDIA_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+
+
+def analyze_competitor_bill(
+    image_base64: str, media_type: str, thread_id: str | None = None,
+) -> CompetitorBill:
+    """Read a competitor bill photo into a `CompetitorBill`. Uses Claude vision
+    when an API key is set; otherwise (or on any error) returns a realistic,
+    deterministic sample so Scan Bill works fully offline — same graceful-
+    degradation contract as `classify`/`analyze_live_transcript`.
+    """
+    settings = get_settings()
+    if not settings.llm_enabled:
+        _log_usage("scan_bill", settings.anthropic_model, 0, thread_id=thread_id, fallback=True)
+        return _mock_competitor_bill()
+    t0 = time.monotonic()
+    try:
+        client = _client()
+        resp = client.messages.parse(
+            model=settings.anthropic_model,
+            max_tokens=1500,
+            system=BILL_SYSTEM,
+            messages=[{"role": "user", "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_base64}},
+                {"type": "text", "text": BILL_PROMPT},
+            ]}],
+            output_format=CompetitorBill,
+        )
+        result = resp.parsed_output
+        if result is None:
+            raise ValueError("empty parsed_output")
+        _log_usage("scan_bill", settings.anthropic_model, int((time.monotonic() - t0) * 1000),
+                   thread_id=thread_id, resp=resp)
+        return result
+    except Exception as exc:  # noqa: BLE001 - intentional graceful degradation
+        logger.warning("Live bill scan failed (%s); using offline sample bill", exc)
+        _log_usage("scan_bill", settings.anthropic_model, int((time.monotonic() - t0) * 1000),
+                   thread_id=thread_id, success=False, fallback=True)
+        return _mock_competitor_bill()
+
+
+def _mock_competitor_bill() -> CompetitorBill:
+    """Deterministic offline sample — a pricey 3-line premium plan with Netflix
+    and home internet, so the switch quote shows a clear, realistic win."""
+    return CompetitorBill(
+        carrier="Rival Wireless",
+        plan_name="Premium Unlimited",
+        line_count=3,
+        lines=[
+            CompetitorBillLine(label="Line 1 — iPhone 15 Pro", monthly=70.0),
+            CompetitorBillLine(label="Line 2 — iPhone 14", monthly=70.0),
+            CompetitorBillLine(label="Line 3 — Galaxy S24", monthly=70.0),
+        ],
+        wireless_monthly=210.0,
+        streaming=[CompetitorStreaming(name="Netflix", monthly=22.99)],
+        home_internet=CompetitorHomeInternet(name="Rival Fiber 500", monthly=75.0),
+        total_monthly=307.99,
+        confidence=0.3,
+        notes="Offline sample bill — add an ANTHROPIC_API_KEY to read a real photo.",
     )

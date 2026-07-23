@@ -1,4 +1,4 @@
-import type { A2UIElement, A2UIResponse, AccountSummary, AnalyzeResult, CallAgentResult, CandidateDefect, CapabilityGap, Cart, CesRouting, ChatResponse, CheckInResult, CheckoutView, CoachingResult, CXOverview, EmailSettings, EmailSubscriber, EnhancementVideo, FileDefectResult, HuddleItem, JiraDefectItem, ListenUtterance, LiveQueueSnapshot, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, PlaybookGuideline, ProductionAnalyzeResult, ProductionIssue, ProductionOverview, QueueEntry, SendReportResult, SendSummaryResult, SendToPhoneResult, DistrictRollup, RollupBrief, StartListenResult, StopListenResult, StoreManagerBrief, StoreManagerOverview, SystemHealth, TerritoryRollup, Ticket, TicketAnalyzeResult, TrainingEnhancement, VideoStoryboard, Walkthrough } from "./types";
+import type { A2UIElement, A2UIResponse, AccountSummary, AnalyzeResult, CallAgentResult, CandidateDefect, CapabilityGap, Cart, CesRouting, ChatResponse, CheckInResult, CheckoutView, CoachingResult, CompetitorBill, CXOverview, EmailSettings, EmailSubscriber, EnhancementVideo, FileDefectResult, HuddleItem, JiraDefectItem, ListenUtterance, LiveQueueSnapshot, MetricsOverview, OSTArticleRef, PerformanceSummary, PingResult, PlaybookGuideline, ProductionAnalyzeResult, ProductionIssue, ProductionOverview, ProductByUpcResult, QueueEntry, ScanBillResult, SendReportResult, SendSummaryResult, SendToPhoneResult, DistrictRollup, RollupBrief, StartListenResult, StopListenResult, StoreManagerBrief, StoreManagerOverview, SwitchExtras, SystemHealth, TerritoryRollup, Ticket, TicketAnalyzeResult, TrainingEnhancement, VideoStoryboard, Walkthrough } from "./types";
 
 async function http<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -145,6 +145,18 @@ export const api = {
   shopAccount: (account_id?: string | null) =>
     http<{ summary: AccountSummary; elements: A2UIElement[] }>(`/api/shop/account${qs({ account_id: account_id ?? undefined })}`),
   shopCart: (thread_id: string) => http<Cart>(`/api/shop/cart/${thread_id}`),
+
+  // Scan Barcode / Scan Bill
+  productByUpc: (upc: string) => http<ProductByUpcResult>(`/api/shop/product-by-upc${qs({ upc })}`),
+  scanBill: (image_base64: string, media_type: string, thread_id?: string | null) =>
+    http<ScanBillResult>("/api/shop/scan-bill", {
+      method: "POST",
+      body: JSON.stringify({ image_base64, media_type, thread_id: thread_id ?? undefined }),
+    }),
+  switchQuote: (bill: CompetitorBill, extras: SwitchExtras) =>
+    http<ScanBillResult>("/api/shop/switch-quote", {
+      method: "POST", body: JSON.stringify({ bill, extras }),
+    }),
 
   // Guided POS checkout (View Together → payment → signature), shared by the
   // rep screen and the customer phone view (/checkout/{id}).

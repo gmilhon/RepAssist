@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import type { ChatAction, LookupKind, QueueAssistTarget } from "../chatActions";
-import type { A2UICoachingEntry, A2UIElement, A2UIEnhancement, A2UIQueue, A2UIQueueEntry, Cart, ChatResponse, CheckoutView, CoachingResult, ConfirmationPayload, ListenSession, ListenUtterance, PlaybookGrade, ResolutionCard, SendSummaryResult, VisitSummary, Walkthrough } from "../types";
+import type { A2UICoachingEntry, A2UIElement, A2UIEnhancement, A2UIQueue, A2UIQueueEntry, BarcodeProduct, Cart, ChatResponse, CheckoutView, CoachingResult, ConfirmationPayload, ListenSession, ListenUtterance, PlaybookGrade, ResolutionCard, ScanBillResult, SendSummaryResult, SwitchExtras, VisitSummary, Walkthrough } from "../types";
 import { VISIT_REASONS } from "../types";
 import { A2UIRenderer, Stars } from "./A2UI";
 import { CheckoutFlow, type CheckoutHandlers } from "./Checkout";
+import Scanner from "./Scanner";
 import { SALES_DEMOS, SERVICE_DEMOS, type Demo } from "../demos";
 
 interface VisitRecap {
@@ -23,6 +24,8 @@ interface Msg {
   coaching?: CoachingResult;
   demos?: boolean;   // the "Run a demo" picker card
   walkthrough?: { title: string; steps: Walkthrough; gifUrl?: string | null; gifCaption?: string | null; videoUrl?: string | null };
+  scanBill?: ScanBillResult;   // Scan Bill → competitor-switch analysis card
+  product?: BarcodeProduct;    // Scan Barcode → product lookup card
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -134,6 +137,27 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastActionNonce = useRef(0);
   const recognitionRef = useRef<any>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-grow the composer textarea with its content (up to a cap), and shrink
+  // back to a single line once it's cleared (e.g. after send).
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+  }, [input]);
+
+  function onComposerKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    // Enter submits; Shift+Enter (and IME composition) inserts a newline.
+    if (e.key === "Enter" && !e.shiftKey && !(e.nativeEvent as any).isComposing) {
+      e.preventDefault();
+      if (!busy && !demoRunning && input.trim()) send(input);
+    }
+  }
+
+  // Barcode / bill scanner modal (camera). null when closed.
+  const [scanner, setScanner] = useState<null | "barcode" | "bill">(null);
 
   // Check-in form state
   const [checkInOpen, setCheckInOpen] = useState(false);
@@ -187,6 +211,40 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
       scrollDown();
     } catch {
       /* MCP unavailable — silently ignore */
+    }
+  }
+
+  // Scan Barcode → resolve a UPC to a catalog product and show a product card.
+  async function handleBarcode(upc: string) {
+    setScanner(null);
+    setBusy(true);
+    try {
+      const res = await api.productByUpc(upc);
+      if (res.product) {
+        setMessages((m) => [...m, { role: "assistant", product: res.product! }]);
+      } else {
+        setMessages((m) => [...m, { role: "assistant", content: `No catalog match for UPC ${upc}. Try describing the product instead.` }]);
+      }
+    } catch (e) {
+      setMessages((m) => [...m, { role: "assistant", content: `Couldn't look up that barcode (${e}).` }]);
+    } finally {
+      setBusy(false);
+      scrollDown();
+    }
+  }
+
+  // Scan Bill → OCR a competitor bill and show the switch-analysis card.
+  async function handleBillCapture(base64: string, mediaType: string) {
+    setScanner(null);
+    setBusy(true);
+    try {
+      const res = await api.scanBill(base64, mediaType, threadIdRef.current);
+      setMessages((m) => [...m, { role: "assistant", scanBill: res }]);
+    } catch (e) {
+      setMessages((m) => [...m, { role: "assistant", content: `Couldn't analyze that bill (${e}).` }]);
+    } finally {
+      setBusy(false);
+      scrollDown();
     }
   }
 
@@ -1007,6 +1065,8 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
       case "checkin": setCiError(null); setCheckInOpen(true); break;
       case "assist": assistCustomer(chatAction.entry); break;
       case "demos": showDemos(); break;
+      case "scan_barcode": setScanner("barcode"); break;
+      case "scan_bill": setScanner("bill"); break;
       case "reset": reset(); break;
     }
     onChatActionDone();
@@ -1036,8 +1096,8 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
               <h2>{timeGreeting()}! I'm here to help.</h2>
               <p className="muted">
                 Stuck on an activation, a blocked order, a promo, or a billing question?
-                Just describe it in your own words — or tap <strong>☰</strong> at the bottom-left
-                for a first step. I can also keep you in the loop on what's new.
+                Just describe it in your own words — or tap <strong>+</strong> for the tray:
+                scan a barcode or a bill, check a customer in, and more.
               </p>
               <div className="empty-demo">
                 <button className="empty-demo-cta" disabled={busy || !!demoRunning} onClick={showDemos}>
@@ -1082,6 +1142,8 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
               {m.coaching && <CoachingCard result={m.coaching} />}
               {m.demos && <DemoCard onRun={runDemo} disabled={busy || !!demoRunning} />}
               {m.walkthrough && <WalkthroughCard walkthrough={m.walkthrough} />}
+              {m.product && <BarcodeProductCard product={m.product} onAdd={(p) => send(p)} disabled={busy} />}
+              {m.scanBill && <BillAnalysisCard initial={m.scanBill} onBuild={(p) => send(p)} disabled={busy} />}
             </div>
           ))}
 
@@ -1295,64 +1357,80 @@ export default function ChatWidget({ onOpenMenu, chatAction, chatActionNonce, on
             send(input);
           }}
         >
-          <button
-            type="button"
-            className="btn composer-menu"
-            onClick={onOpenMenu}
-            title="Menu"
-            aria-label="Open menu"
-          >
-            ☰
-          </button>
-          <button
-            type="button"
-            className="btn composer-new"
-            onClick={reset}
-            title="New conversation"
-            aria-label="New conversation"
-          >
-            +
-          </button>
-          <input
-            value={input}
-            disabled={busy || !!demoRunning}
-            placeholder={demoRunning ? "Demo running…" : listening ? "Listening…" : "Describe the order or service issue…"}
-            onChange={(e) => setInput(e.target.value)}
-          />
-          {speechSupported && (
-            <button
-              type="button"
-              className={`btn mic${listening ? " listening" : ""}`}
-              onClick={toggleMic}
-              // Browsers allow one SpeechRecognition per page — starting
-              // dictation during a mic-mode session would kill transcription.
-              disabled={busy || listenSession?.mode === "mic"}
-              title={
-                listenSession?.mode === "mic"
-                  ? "Voice to text is unavailable while Live Listen is using the microphone"
-                  : listening ? "Stop listening" : "Voice to text"
-              }
-              aria-label="Voice to text"
-            >
-              {listening ? "◉" : "🎤"}
-            </button>
-          )}
-          <button
-            type="button"
-            className={`btn listen${listenSession ? " live" : ""}`}
-            onClick={openListenSetup}
-            disabled={busy && !listenSession}
-            title={listenSession ? "Live Listen is on — click to stop" : "Live Listen"}
-            aria-label="Live Listen"
-          >
-            🎧
-          </button>
-          <button className="btn primary" disabled={busy || !input.trim()} type="submit">
-            Send
-          </button>
+          <div className="composer-box">
+            <textarea
+              ref={inputRef}
+              className="composer-input"
+              rows={1}
+              value={input}
+              disabled={busy || !!demoRunning}
+              placeholder={demoRunning ? "Demo running…" : listening ? "Listening…" : "Describe the order or service issue…"}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={onComposerKeyDown}
+            />
+            <div className="composer-actions">
+              <button
+                type="button"
+                className="composer-plus"
+                onClick={onOpenMenu}
+                title="Menu"
+                aria-label="Open menu"
+              >
+                +
+              </button>
+              <div className="composer-actions-right">
+                {speechSupported && (
+                  <button
+                    type="button"
+                    className={`composer-round mic${listening ? " listening" : ""}`}
+                    onClick={toggleMic}
+                    // Browsers allow one SpeechRecognition per page — starting
+                    // dictation during a mic-mode session would kill transcription.
+                    disabled={busy || listenSession?.mode === "mic"}
+                    title={
+                      listenSession?.mode === "mic"
+                        ? "Voice to text is unavailable while Live Listen is using the microphone"
+                        : listening ? "Stop listening" : "Voice to text"
+                    }
+                    aria-label="Voice to text"
+                  >
+                    {listening ? "◉" : "🎤"}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className={`composer-round listen${listenSession ? " live" : ""}`}
+                  onClick={openListenSetup}
+                  disabled={busy && !listenSession}
+                  title={listenSession ? "Live Listen is on — click to stop" : "Live Listen"}
+                  aria-label="Live Listen"
+                >
+                  🎧
+                </button>
+                <button
+                  className="composer-send"
+                  disabled={busy || !!demoRunning || !input.trim()}
+                  type="submit"
+                  aria-label="Send"
+                  title="Send"
+                >
+                  ↑
+                </button>
+              </div>
+            </div>
+          </div>
         </form>
         </div>
       </div>
+
+      {scanner && (
+        <Scanner
+          mode={scanner}
+          onClose={() => setScanner(null)}
+          onBarcode={handleBarcode}
+          onCapture={handleBillCapture}
+        />
+      )}
     </div>
   );
 }
@@ -1700,6 +1778,205 @@ function DemoCard({ onRun, disabled }: { onRun: (demo: Demo, mode: "chat" | "lis
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ── Scan Barcode result — a catalog product matched from a UPC ──────────────
+function BarcodeProductCard({ product, onAdd, disabled }: {
+  product: BarcodeProduct; onAdd: (prompt: string) => void; disabled: boolean;
+}) {
+  const isDevice = product.kind === "device";
+  return (
+    <div className="scan-card">
+      <div className="scan-card-head">
+        <span className="scan-card-eyebrow">🔎 Scanned product</span>
+        <span className="scan-card-upc">UPC {product.upc}</span>
+      </div>
+      <div className="prodcard-body">
+        <div className="prodcard-icon">{isDevice ? "📱" : "🎧"}</div>
+        <div className="prodcard-main">
+          <div className="prodcard-name">{product.name}</div>
+          <div className="prodcard-sub">
+            {product.brand ? `${product.brand} · ` : ""}
+            {product.kind === "device" ? "Device" : "Accessory"}
+            {product.blurb ? ` · ${product.blurb}` : ""}
+          </div>
+        </div>
+        <div className="prodcard-price">
+          {isDevice && product.monthly != null
+            ? <>${product.monthly.toFixed(2)}<span className="prodcard-per">/mo</span></>
+            : <>${product.price.toFixed(2)}</>}
+          {isDevice && <div className="prodcard-retail">${product.price.toFixed(0)} retail</div>}
+        </div>
+      </div>
+      <div className="scan-card-actions">
+        <button className="btn primary small" disabled={disabled} onClick={() => onAdd(`Add ${product.name} to the cart`)}>
+          Add to cart
+        </button>
+        <button className="btn ghost small" disabled={disabled} onClick={() => onAdd(`Tell me about the ${product.name}`)}>
+          Ask about it
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Common 3rd-party services a customer might pay for directly, offered as
+// quick-add chips so the rep can fold them into the switch quote as $10 perks.
+const STREAMING_PRESETS: { name: string; monthly: number }[] = [
+  { name: "Netflix", monthly: 22.99 },
+  { name: "Disney+ Bundle", monthly: 19.99 },
+  { name: "Max", monthly: 16.99 },
+  { name: "YouTube TV", monthly: 82.99 },
+  { name: "Apple One", monthly: 19.95 },
+  { name: "Peacock", monthly: 13.99 },
+  { name: "Spotify", monthly: 11.99 },
+];
+
+// ── Scan Bill result — competitor bill + our matched switch quote ───────────
+function BillAnalysisCard({ initial, onBuild, disabled }: {
+  initial: ScanBillResult; onBuild: (prompt: string) => void; disabled: boolean;
+}) {
+  const bill = initial.bill;
+  const [quote, setQuote] = useState(initial.quote);
+  const [streaming, setStreaming] = useState<Record<string, number>>({});
+  const [homeOn, setHomeOn] = useState(false);
+  const [homePrice, setHomePrice] = useState(70);
+  const [busy, setBusy] = useState(false);
+
+  const onBill = new Set(bill.streaming.map((s) => s.name.toLowerCase()));
+  const presets = STREAMING_PRESETS.filter((p) => !onBill.has(p.name.toLowerCase()));
+
+  async function recompute(nextStreaming: Record<string, number>, nextHomeOn: boolean, nextHomePrice: number) {
+    const extras: SwitchExtras = {
+      streaming: Object.entries(nextStreaming).map(([name, monthly]) => ({ name, monthly })),
+      home_internet: !bill.home_internet && nextHomeOn ? { name: "Current provider", monthly: nextHomePrice } : null,
+    };
+    setBusy(true);
+    try {
+      const res = await api.switchQuote(bill, extras);
+      setQuote(res.quote);
+    } catch { /* keep the previous quote on error */ }
+    finally { setBusy(false); }
+  }
+
+  function toggleStreaming(p: { name: string; monthly: number }) {
+    setStreaming((prev) => {
+      const next = { ...prev };
+      if (next[p.name] != null) delete next[p.name]; else next[p.name] = p.monthly;
+      recompute(next, homeOn, homePrice);
+      return next;
+    });
+  }
+  function toggleHome() {
+    const next = !homeOn;
+    setHomeOn(next);
+    recompute(streaming, next, homePrice);
+  }
+
+  const win = quote.monthly_savings > 0;
+  const buildPrompt = `Set up ${quote.our_plan.line_count} lines on ${quote.our_plan.name}`
+    + quote.perks.map((p) => `, add the ${p.name} perk`).join("")
+    + (quote.home_internet ? `, add ${quote.home_internet.name}` : "");
+
+  return (
+    <div className="scan-card billcard">
+      <div className="scan-card-head">
+        <span className="scan-card-eyebrow">🧾 Competitor bill — switch analysis</span>
+        {bill.confidence < 0.5 && <span className="billcard-lowconf" title="Low OCR confidence">estimated</span>}
+      </div>
+
+      {/* Savings headline */}
+      <div className={`billcard-hero${win ? " win" : ""}`}>
+        <div className="billcard-hero-figs">
+          <div className="billcard-hero-save">
+            {win ? "−" : "+"}${Math.abs(quote.monthly_savings).toFixed(2)}<span className="billcard-hero-per">/mo</span>
+          </div>
+          <div className="billcard-hero-annual">
+            {win ? `~$${Math.round(quote.annual_savings).toLocaleString()}/yr saved` : `~$${Math.round(Math.abs(quote.annual_savings)).toLocaleString()}/yr more`}
+          </div>
+        </div>
+        <div className="billcard-hero-compare">
+          <div><span className="billcard-compare-lbl">Pays today</span><span className="billcard-compare-val">${quote.their_total_monthly.toFixed(2)}/mo</span></div>
+          <div className="billcard-compare-arrow">→</div>
+          <div><span className="billcard-compare-lbl">With us</span><span className="billcard-compare-val strong">${quote.our_total_monthly.toFixed(2)}/mo</span></div>
+        </div>
+      </div>
+
+      {/* Their current bill */}
+      <div className="billcard-section">
+        <div className="billcard-section-title">Their bill · {bill.carrier}</div>
+        <div className="billcard-theirs">
+          <div className="billcard-row"><span>{bill.plan_name} · {bill.line_count} line{bill.line_count !== 1 ? "s" : ""}</span><span>${bill.wireless_monthly.toFixed(2)}</span></div>
+          {bill.streaming.map((s) => (
+            <div className="billcard-row" key={s.name}><span>{s.name}</span><span>${s.monthly.toFixed(2)}</span></div>
+          ))}
+          {bill.home_internet && (
+            <div className="billcard-row"><span>{bill.home_internet.name}</span><span>${bill.home_internet.monthly.toFixed(2)}</span></div>
+          )}
+          <div className="billcard-row billcard-row--total"><span>Total</span><span>${bill.total_monthly.toFixed(2)}/mo</span></div>
+        </div>
+      </div>
+
+      {/* Our matched quote */}
+      <div className="billcard-section">
+        <div className="billcard-section-title">Our matching quote{busy && <span className="billcard-recalc"> · recalculating…</span>}</div>
+        <div className="billcard-ours">
+          {quote.line_items.map((li, idx) => (
+            <div className="billcard-row" key={idx}>
+              <span className="billcard-li-main">{li.label}<span className="billcard-li-sub">{li.sub}</span></span>
+              <span>${li.amount.toFixed(2)}</span>
+            </div>
+          ))}
+          <div className="billcard-row billcard-row--total"><span>Total</span><span>${quote.our_total_monthly.toFixed(2)}/mo</span></div>
+        </div>
+      </div>
+
+      {/* Prompt for additional 3rd-party services */}
+      {(presets.length > 0 || !bill.home_internet) && (
+        <div className="billcard-section billcard-extras">
+          <div className="billcard-section-title">Paying anyone else directly?</div>
+          <div className="billcard-extras-hint">Add what they pay 3rd parties — bundling it as a perk usually saves more.</div>
+          {presets.length > 0 && (
+            <div className="billcard-chips">
+              {presets.map((p) => (
+                <button
+                  key={p.name}
+                  className={`billcard-chip${streaming[p.name] != null ? " on" : ""}`}
+                  disabled={disabled || busy}
+                  onClick={() => toggleStreaming(p)}
+                >
+                  {streaming[p.name] != null ? "✓ " : "+ "}{p.name}
+                  <span className="billcard-chip-price">${p.monthly.toFixed(2)}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {!bill.home_internet && (
+            <label className={`billcard-home${homeOn ? " on" : ""}`}>
+              <input type="checkbox" checked={homeOn} disabled={disabled || busy} onChange={toggleHome} />
+              <span>Has home internet elsewhere</span>
+              {homeOn && (
+                <span className="billcard-home-price">
+                  $<input
+                    type="number" className="billcard-home-input" value={homePrice} min={0}
+                    onChange={(e) => { const v = Number(e.target.value) || 0; setHomePrice(v); }}
+                    onBlur={() => recompute(streaming, homeOn, homePrice)}
+                  />/mo
+                </span>
+              )}
+            </label>
+          )}
+        </div>
+      )}
+
+      <div className="billcard-summary">{quote.summary}</div>
+      <div className="scan-card-actions">
+        <button className="btn primary small" disabled={disabled} onClick={() => onBuild(buildPrompt)}>
+          Build this quote in the cart
+        </button>
+      </div>
     </div>
   );
 }

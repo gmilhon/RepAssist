@@ -1383,3 +1383,50 @@ export interface JiraDefectItem {
   issue_id: string | null;
   created_at: string | null;
 }
+
+// ---- Scan Barcode / Scan Bill ----
+export interface CompetitorBillLine { label: string; monthly: number; }
+export interface CompetitorStreaming { name: string; monthly: number; }
+export interface CompetitorHomeInternet { name: string; monthly: number; }
+export interface CompetitorBill {
+  carrier: string;
+  plan_name: string;
+  line_count: number;
+  lines: CompetitorBillLine[];
+  wireless_monthly: number;
+  streaming: CompetitorStreaming[];
+  home_internet: CompetitorHomeInternet | null;
+  total_monthly: number;
+  confidence: number;
+  notes: string;
+}
+export interface SwitchQuoteLineItem { label: string; sub: string; amount: number; kind: string; }
+export interface SwitchQuotePerk { name: string; monthly: number; third_party_monthly: number; saves: number; source: string; }
+export interface SwitchQuoteHome { product: string; name: string; monthly: number; their_name: string; their_monthly: number; saves: number; }
+export interface SwitchQuote {
+  our_plan: { id: string; name: string; per_line: number; line_count: number; lines_monthly: number };
+  perks: SwitchQuotePerk[];
+  home_internet: SwitchQuoteHome | null;
+  line_items: SwitchQuoteLineItem[];
+  our_total_monthly: number;
+  their_total_monthly: number;
+  monthly_savings: number;
+  annual_savings: number;
+  summary: string;
+}
+export interface ScanBillResult { bill: CompetitorBill; quote: SwitchQuote; }
+export interface SwitchExtras {
+  streaming?: { name: string; monthly: number }[];
+  home_internet?: { name: string; monthly: number } | null;
+}
+export interface BarcodeProduct {
+  kind: "device" | "accessory";
+  id: string;
+  name: string;
+  brand: string | null;
+  price: number;
+  monthly: number | null;
+  blurb?: string;
+  upc: string;
+}
+export interface ProductByUpcResult { upc: string; product: BarcodeProduct | null; }

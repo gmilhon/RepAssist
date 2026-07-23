@@ -451,3 +451,36 @@ class ExecuteResponse(BaseModel):
     success: bool
     summary: str
     actions_taken: list[str] = Field(default_factory=list)
+
+
+# --------------------------------------------------------------------------- #
+# Competitor-bill scan (Scan Bill) — structured extraction from a photo of a
+# rival carrier's bill, used to build an apples-to-apples switch quote.
+# --------------------------------------------------------------------------- #
+class CompetitorBillLine(BaseModel):
+    label: str = Field(description="Line label as printed, e.g. 'Line 1 — iPhone 15' or a phone number.")
+    monthly: float = Field(description="Monthly charge for this line in USD.")
+
+
+class CompetitorStreaming(BaseModel):
+    name: str = Field(description="Streaming/entertainment add-on on the bill, e.g. 'Netflix', 'Disney+'.")
+    monthly: float = Field(description="What the customer pays for it, USD/month.")
+
+
+class CompetitorHomeInternet(BaseModel):
+    name: str = Field(description="Home-internet product/provider, e.g. 'Rival Fiber 500'.")
+    monthly: float = Field(description="Monthly price in USD.")
+
+
+class CompetitorBill(BaseModel):
+    """One competitor wireless bill, extracted from a photo."""
+    carrier: str = Field(description="Carrier/provider name printed on the bill; 'Unknown' if not visible.")
+    plan_name: str = Field(description="Wireless plan name, e.g. 'Premium Unlimited'; best guess if unclear.")
+    line_count: int = Field(description="Number of phone lines on the account.", ge=0)
+    lines: list[CompetitorBillLine] = Field(default_factory=list, description="Per-line charges, if itemized.")
+    wireless_monthly: float = Field(description="Total wireless (phone) charge per month in USD, incl. shown fees.")
+    streaming: list[CompetitorStreaming] = Field(default_factory=list, description="Streaming/entertainment add-ons billed here.")
+    home_internet: Optional[CompetitorHomeInternet] = Field(default=None, description="Home-internet line, if present on the bill.")
+    total_monthly: float = Field(description="Grand total the customer pays per month across everything on this bill.")
+    confidence: float = Field(description="0..1 confidence in the overall extraction.", ge=0.0, le=1.0)
+    notes: str = Field(default="", description="One short note about the bill or anything ambiguous.")
