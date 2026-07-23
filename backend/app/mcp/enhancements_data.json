@@ -1,51 +1,171 @@
 {
-  "generated_at": "2026-07-22T15:13:19.390776+00:00",
-  "last_commit_sha": "accba7c86551a2ed2d8abc444c188140e486f87c",
+  "generated_at": "2026-07-23T03:56:13.731807+00:00",
+  "last_commit_sha": "7c6b9cee3276e5e3a929d303407d27ff297e116c",
   "enhancements": [
     {
-      "tag": "Improved",
-      "title": "Guided demo now hides the 'LIVE' dock during Chat mode runs",
-      "detail": "Chat mode demos still grade the visit behind the scenes just like before, but they no longer show the glowing 'LIVE' listening dock and headset icon — that visual is now reserved for real Live Listen sessions. The end-of-visit recap for a chat-mode demo also uses a neutral heading instead of 'Live Listen ended', so it doesn't look like you were on a live call when you weren't.",
+      "tag": "New",
+      "title": "Scan Bill turns a competitor's paper bill into an instant switch quote",
+      "detail": "Tap Scan Bill and snap a photo of a competitor's bill — Rep Assist reads every line automatically and builds a side-by-side savings comparison for switching to us, including home internet and $10 perks. As you add or remove services the customer mentions, the quote updates live.",
       "keywords": [
-        "run a demo",
-        "chat mode demo",
-        "live listen demo",
-        "live strip",
-        "headset icon",
-        "demo pacing"
+        "scan bill",
+        "competitor bill",
+        "switch quote",
+        "savings",
+        "photo bill",
+        "home internet"
       ],
-      "answer": "When you run a demo in Chat mode, Rep Assist still grades the transcript against the playbook the same way it always has, but it no longer shows the 'LIVE' dock or glowing headset — that indicator now only appears for actual Live Listen sessions. The wrap-up recap for a chat-mode demo also gets a neutral header instead of 'Live Listen ended', so the demo reads cleanly without implying you were live on a call.",
+      "answer": "Scan Bill lets you take a photo of a customer's competitor bill, and Rep Assist uses AI to read every line and instantly build a savings comparison covering phone lines, perks, and home internet. As you add or remove services the customer mentions, the quote recalculates right in front of you so the savings stay accurate.",
       "walkthrough": {
-        "intro": "Try the guided demo and see the difference between running it in Chat mode versus Live Listen mode now that the visuals match what's really happening.",
+        "intro": "Learn how to turn a customer's paper bill into an on-the-spot savings comparison.",
         "steps": [
           {
-            "title": "Open the menu drawer",
-            "detail": "Tap the ☰ button and look for 'Run a demo' under Quick start.",
+            "title": "Open the tray and tap Scan Bill",
+            "detail": "Swipe up the bottom tray and choose Scan Bill from the quick actions.",
             "tip": null
           },
           {
-            "title": "Pick Chat mode or Live Listen mode",
-            "detail": "Choose Chat mode for a quiet, transcript-only demo, or Live Listen mode to see the full live transcript and coaching flow.",
+            "title": "Snap a clear photo of the bill",
+            "detail": "Line up the bill so all the charges are readable, then take the photo.",
+            "tip": "Good lighting helps the extraction come out accurate on the first try."
+          },
+          {
+            "title": "Let Rep Assist read the lines",
+            "detail": "Rep Assist automatically extracts each charge and service from the bill — no typing needed.",
             "tip": null
           },
           {
-            "title": "Notice the LIVE dock is gone in Chat mode",
-            "detail": "In Chat mode, grading still happens in the background, but you won't see the glowing 'LIVE' strip or headset icon — that only shows up in real Live Listen sessions now.",
-            "tip": "If you're demoing for a new hire, point out that the LIVE indicator is specific to Live Listen mode."
-          },
-          {
-            "title": "Let the visit play out at a readable pace",
-            "detail": "Rep Assist walks through check-in, the conversation, and checkout or a resolution ticket at a slower, easier-to-follow speed.",
+            "title": "Review the savings card",
+            "detail": "You'll see current cost vs. our new cost side by side, including perks and home internet options.",
             "tip": null
           },
           {
-            "title": "Review the wrap-up recap",
-            "detail": "A chat-mode demo shows a neutral summary heading instead of 'Live Listen ended', since no live session was actually visible.",
+            "title": "Adjust lines to re-quote live",
+            "detail": "Add or remove services as the customer describes their needs, and the savings numbers update instantly.",
+            "tip": null
+          }
+        ]
+      }
+    },
+    {
+      "tag": "New",
+      "title": "Scan Barcode pulls up any product instantly",
+      "detail": "Tap Scan Barcode and point your camera at a UPC label — Rep Assist reads the code and pulls up the matching product card with pricing and details, no manual searching needed.",
+      "keywords": [
+        "scan barcode",
+        "upc",
+        "product lookup",
+        "barcode scanner",
+        "product card"
+      ],
+      "answer": "Scan Barcode opens your camera, reads the UPC on a box or shelf tag, and looks up the exact product for you, showing a card with pricing and details in seconds. If the scanner can't read a barcode, you can type the number in manually instead.",
+      "walkthrough": {
+        "intro": "Learn how to scan a product barcode instead of typing a search.",
+        "steps": [
+          {
+            "title": "Open the tray and tap Scan Barcode",
+            "detail": "Swipe up the bottom tray and choose Scan Barcode from the quick actions.",
             "tip": null
           },
           {
-            "title": "Check the Playbook grade",
-            "detail": "The demo visit still gets scored like a real one, so you can see what a strong or weak visit looks like.",
+            "title": "Point your camera at the UPC",
+            "detail": "Hold the barcode steady in frame until Rep Assist detects it.",
+            "tip": null
+          },
+          {
+            "title": "Enter it manually if needed",
+            "detail": "If the barcode won't scan, tap to type the UPC number in by hand.",
+            "tip": null
+          },
+          {
+            "title": "Review the product card",
+            "detail": "Rep Assist shows the matching product with pricing and details.",
+            "tip": null
+          },
+          {
+            "title": "Add it to the cart",
+            "detail": "If the customer wants it, add the item straight from the product card.",
+            "tip": null
+          }
+        ]
+      }
+    },
+    {
+      "tag": "Improved",
+      "title": "Navigation moved into a swipe-up tray, with a roomier message box",
+      "detail": "The old hamburger menu is gone — everything now lives in a draggable tray you swipe up from the bottom of the screen, snapping to half or full height. It holds New chat, Scan Barcode, Scan Bill, Check In, Performance, Recent Orders, My Tickets, Resolution Desk, System Enhancements, The Opener, and Settings. Your message box also grows as you type and keeps its buttons lined up along the bottom.",
+      "keywords": [
+        "tray",
+        "navigation",
+        "menu",
+        "composer",
+        "bottom sheet",
+        "new chat"
+      ],
+      "answer": "Instead of tapping a hamburger icon, you now drag up the tray at the bottom of the screen to reveal all your navigation and quick actions — it snaps to a half view or a full view depending on how far you drag it. The message box was also rebuilt so it grows as you type longer messages, with the send and action buttons staying aligned along the bottom.",
+      "walkthrough": {
+        "intro": "Get comfortable using the new bottom tray for navigation and quick actions.",
+        "steps": [
+          {
+            "title": "Swipe up from the bottom of any screen",
+            "detail": "Drag the tray handle upward to reveal the menu.",
+            "tip": null
+          },
+          {
+            "title": "Let it snap to half or full height",
+            "detail": "A short drag opens it halfway; a longer drag opens it full screen.",
+            "tip": null
+          },
+          {
+            "title": "Tap New chat or a quick action",
+            "detail": "Choose New chat, Scan Barcode, Scan Bill, or Check In right from the top of the tray.",
+            "tip": null
+          },
+          {
+            "title": "Browse the rest of the menu",
+            "detail": "Scroll to find Performance, Recent Orders, My Tickets, Resolution Desk, System Enhancements, The Opener, and Settings.",
+            "tip": null
+          },
+          {
+            "title": "Dismiss the tray",
+            "detail": "Drag it back down or tap outside it to close.",
+            "tip": null
+          }
+        ]
+      }
+    },
+    {
+      "tag": "New",
+      "title": "Dark mode is here — choose Light, Dark, or System",
+      "detail": "Head to Settings → Appearance to switch Rep Assist between Light and Dark, or let it automatically match your phone or computer's setting. Your choice is remembered the next time you open the app, with no flicker when it loads.",
+      "keywords": [
+        "dark mode",
+        "appearance",
+        "theme",
+        "settings",
+        "light mode"
+      ],
+      "answer": "In Settings under Appearance, you can pick Light, Dark, or System — System just follows whatever your phone or computer is already set to. The app remembers your choice and applies it instantly, without any flash or flicker when Rep Assist opens.",
+      "walkthrough": {
+        "intro": "Switch Rep Assist's look to match your preference or your device's setting.",
+        "steps": [
+          {
+            "title": "Open the tray and tap Settings",
+            "detail": "Swipe up the tray and choose Settings from the list.",
+            "tip": null
+          },
+          {
+            "title": "Tap Appearance",
+            "detail": "This opens the theme options.",
+            "tip": null
+          },
+          {
+            "title": "Choose Light, Dark, or System",
+            "detail": "Pick whichever mode you want the app to use.",
+            "tip": "System keeps Rep Assist in sync automatically if your device switches themes at sunset."
+          },
+          {
+            "title": "See the app switch instantly",
+            "detail": "Every screen updates right away — no need to restart the app.",
             "tip": null
           }
         ]
@@ -54,7 +174,7 @@
     {
       "tag": "Improved",
       "title": "Checkout now works like a real store POS — with bill review, signatures, and phone handoff",
-      "detail": "The in-chat cart is now a full point-of-sale flow. Adding a device automatically recommends device protection (you can remove it), and you can add perks, accessories, and trade-in credit, then choose pickup or ship. When you're ready to check out, a 'View Together' card shows the current bill vs. the new bill vs. blended monthly cost, plus everything due today — taxes, activation, and accessories. The cart tray now pops open briefly whenever you make a change, then automatically tucks itself back down after a couple seconds so it doesn't block the chat — you can still tap to keep it open manually. You can finish on your screen with a simulated payment and captured signature, or text/QR-code the checkout straight to the customer's own phone so they can review and sign it themselves while you both watch it update live.",
+      "detail": "The in-chat cart is now a full point-of-sale flow. Adding a device automatically recommends device protection (you can remove it), and you can add perks, accessories, and trade-in credit, then choose pickup or ship. When you're ready to check out, a 'View Together' card shows the current bill vs. the new bill vs. blended monthly cost, plus everything due today — taxes, activation, and accessories. The cart tray pops open briefly whenever you make a change, then automatically tucks itself back down after a couple seconds so it doesn't block the chat — you can still tap to keep it open manually. You can finish on your screen with a simulated payment and captured signature, or text/QR-code the checkout straight to the customer's own phone so they can review and sign it themselves while you both watch it update live.",
       "keywords": [
         "checkout",
         "view together",
@@ -63,12 +183,11 @@
         "text checkout",
         "device protection",
         "trade-in",
-        "pickup or ship",
-        "cart tray"
+        "pickup or ship"
       ],
-      "answer": "Once you've built a cart, tap to check out and Rep Assist shows a 'View Together' card comparing the customer's current bill, the new bill, and the blended monthly cost, along with everything due today like taxes, activation fees, and accessories. The cart tray briefly flashes open every time you add or change something, then automatically collapses back down after about 2-3 seconds so it stops covering the chat — you can tap it to keep it open if you want it visible. From there you can finish the sale on your own screen with a simulated payment and captured signature, or hand it off by texting a link or showing a QR code so the customer finishes it on their own phone.",
+      "answer": "Once you've built a cart, tap to check out and Rep Assist shows a 'View Together' card comparing the customer's current bill, the new bill, and the blended monthly cost, along with everything due today like taxes, activation fees, and accessories. From there you can finish the sale on your own screen with a simulated payment and captured signature, or hand it off by texting a link or showing a QR code so the customer finishes it on their own phone.",
       "walkthrough": {
-        "intro": "Learn how to build a full cart with add-ons, work with the auto-collapsing tray, and finish checkout either yourself or by handing it to the customer's phone.",
+        "intro": "Learn how to build a full cart with add-ons and finish checkout either yourself or by handing it to the customer's phone.",
         "steps": [
           {
             "title": "Build the cart as usual",
@@ -76,13 +195,13 @@
             "tip": null
           },
           {
-            "title": "Notice the cart tray flash open on changes",
-            "detail": "Every time you add or edit something, the tray pops fully open so you can see the update, then tucks itself back down to a compact bar after a couple seconds.",
-            "tip": "Tap the tray if you want to keep it open manually — that overrides the auto-collapse."
+            "title": "Watch the cart tray flash open on changes",
+            "detail": "Every time you add or edit something, the tray pops fully open so you can see the update, then tucks back down after a couple seconds.",
+            "tip": "Tap the tray if you want to keep it open manually."
           },
           {
             "title": "Review the extras that come with a device",
-            "detail": "When a device is added, device protection is now recommended by default — remove it if the customer doesn't want it — and you can also add perks, accessories, and trade-in credit.",
+            "detail": "Device protection is recommended by default when a device is added — remove it if the customer doesn't want it — and you can add perks, accessories, and trade-in credit too.",
             "tip": null
           },
           {
@@ -92,13 +211,62 @@
           },
           {
             "title": "Open the View Together bill review",
-            "detail": "Tap to check out and Rep Assist shows current vs. new vs. blended monthly cost, plus everything due today including taxes and activation.",
+            "detail": "Tap to check out and see current vs. new vs. blended monthly cost, plus everything due today.",
             "tip": "Walk the customer through this card out loud — it's designed to be reviewed together."
           },
           {
             "title": "Finish it yourself, or hand it to their phone",
-            "detail": "Either continue on your screen with a simulated payment and signature, or tap to send a text link or show a QR code so the customer finishes checkout on their own phone.",
-            "tip": "Both screens update live and stay in lock-step, so you can watch their progress if they take over."
+            "detail": "Continue on your screen with a simulated payment and signature, or send a text link or QR code so the customer finishes on their own phone.",
+            "tip": "Both screens update live and stay in lock-step."
+          }
+        ]
+      }
+    },
+    {
+      "tag": "Improved",
+      "title": "Live Listen scores your visits, flags sales opportunities, and can email a recap",
+      "detail": "Live Listen keeps a transcript docked above your message box and calls out opportunities like upgrade promos or Fiber/Fixed Wireless Internet the moment you start a session — look for the 💡 badge on a customer's queue entry beforehand. When you end the session, Rep Assist grades the visit against the playbook with a 1-5 star score, breaks down what you did well and what to work on, and can email the customer a short AI-written recap with one tap. Visit the Coaching tile anytime to revisit past graded visits and get a suggested script.",
+      "keywords": [
+        "live listen",
+        "playbook score",
+        "coaching",
+        "opportunity badge",
+        "visit summary",
+        "email recap"
+      ],
+      "answer": "Live Listen automatically pulls in the customer's account or order info, keeps the transcript pinned above your chat, and reminds you to bring up any 💡 flagged opportunity like an upgrade promo or home internet. When you stop the session, you get a star rating with strengths and gaps, an option to email the customer a quick recap, and access to the Coaching tile for a suggested script based on that visit.",
+      "walkthrough": {
+        "intro": "Practice running a full Live Listen session from opportunity spotting through wrap-up coaching.",
+        "steps": [
+          {
+            "title": "Check the queue for a 💡 badge",
+            "detail": "Look for customers Rep Assist flags as eligible for an upgrade promo or home internet offer.",
+            "tip": null
+          },
+          {
+            "title": "Tap Assist and start Live Listen",
+            "detail": "The customer's account or order info carries in automatically.",
+            "tip": null
+          },
+          {
+            "title": "Watch the docked transcript while you talk",
+            "detail": "It stays pinned above your message box the whole session.",
+            "tip": null
+          },
+          {
+            "title": "Listen for the opportunity callout",
+            "detail": "Live Listen reminds you early on to mention the flagged opportunity.",
+            "tip": "Bring it up early — it's easy to forget once the conversation moves on."
+          },
+          {
+            "title": "Tap Stop and review your Playbook Score",
+            "detail": "You'll see a star rating plus a breakdown of strengths and gaps.",
+            "tip": null
+          },
+          {
+            "title": "Send a recap or open Coaching",
+            "detail": "Tap 'Send visit summary' to email the customer a recap, or open 🎯 Coaching later for a suggested script.",
+            "tip": null
           }
         ]
       }
@@ -113,10 +281,9 @@
         "waiting",
         "ispu",
         "pickup",
-        "appointments",
         "assist from queue"
       ],
-      "answer": "The top bar badge shows live counts like waiting, active, and ISPU (in-store pickup), and tapping it opens a drawer with waiting customers, in-progress visits, pickup orders, and today's remaining appointments. You can now tap Assist directly on a waiting customer's row inside that drawer to claim them and jump straight into chat with their details already filled in — no need to go find them somewhere else first.",
+      "answer": "The top bar badge shows live counts like waiting, active, and ISPU (in-store pickup), and tapping it opens a drawer with waiting customers, in-progress visits, pickup orders, and today's remaining appointments. You can now tap Assist directly on a waiting customer's row inside that drawer to claim them and jump straight into chat with their details already filled in.",
       "walkthrough": {
         "intro": "Learn how to check the queue badge and claim a waiting customer directly from it.",
         "steps": [
@@ -149,190 +316,9 @@
       }
     },
     {
-      "tag": "Improved",
-      "title": "Menu moved into one global drawer, plus a quick 'new chat' button",
-      "detail": "Every screen now opens the same slide-out menu — tap the ☰ in the top corner or the one next to your message box while chatting. Inside you'll find Workspace, Analytics, and Admin sections, plus a Quick start area with the same shortcuts you used to see as chat buttons. There's also a + button next to your message box to jump straight into a fresh conversation.",
-      "keywords": [
-        "menu",
-        "navigation drawer",
-        "new conversation",
-        "plus button",
-        "send button",
-        "mobile"
-      ],
-      "answer": "Rep Assist now uses one navigation drawer everywhere in the app — open it from the ☰ in the top bar on any screen, or the ☰ next to your message box while chatting. Inside, options are grouped into Workspace, Analytics, and Admin, with a Quick start section holding shortcuts like Front Desk, Look Up, and Run a demo. We also added a + button beside the composer to instantly start a new conversation.",
-      "walkthrough": {
-        "intro": "Learn where the app's menu options live and how to start a fresh conversation quickly.",
-        "steps": [
-          {
-            "title": "Tap the ☰ in the top bar",
-            "detail": "No matter what screen you're on, tap the ☰ icon to slide out the global menu.",
-            "tip": null
-          },
-          {
-            "title": "Or tap the ☰ next to your message box",
-            "detail": "While in a chat, you can also open the same drawer using the ☰ button beside the composer.",
-            "tip": null
-          },
-          {
-            "title": "Browse the sections",
-            "detail": "Inside you'll see Workspace, Analytics, and Admin groups, plus a Quick start section with shortcuts.",
-            "tip": null
-          },
-          {
-            "title": "Tap + to start a new conversation",
-            "detail": "Next to your message box, tap + to jump straight into a brand-new chat.",
-            "tip": null
-          }
-        ]
-      }
-    },
-    {
-      "tag": "New",
-      "title": "Live Listen now scores your visits and coaches you afterward",
-      "detail": "After you end a Live Listen session, Rep Assist grades the conversation against the store's official playbook and gives you a 1-5 star score with what you did well and what to work on. A Coaching tile lets you pull up past graded visits and get a suggested script for doing better next time.",
-      "keywords": [
-        "playbook",
-        "coaching",
-        "star rating",
-        "grade",
-        "visit score",
-        "strengths and gaps"
-      ],
-      "answer": "When you stop a Live Listen session, Rep Assist compares the conversation to the current playbook guidelines and shows a Playbook Score card with a star rating, a quick headline, and a breakdown of strengths and gaps. Tap the Coaching tile in the menu to revisit any recent graded visit and get a personalized tip plus a suggested script — especially helpful if you missed positioning something the customer was eligible for.",
-      "walkthrough": {
-        "intro": "Here's how to see your Playbook Score after a visit and pull up coaching to improve next time.",
-        "steps": [
-          {
-            "title": "Start a Live Listen session",
-            "detail": "Tap Listen in the chat composer and pick the checked-in customer you're helping.",
-            "tip": null
-          },
-          {
-            "title": "Have your normal conversation",
-            "detail": "Talk with the customer as usual — Live Listen quietly follows along.",
-            "tip": null
-          },
-          {
-            "title": "End the session",
-            "detail": "Tap Stop when you're done talking with the customer.",
-            "tip": null
-          },
-          {
-            "title": "Check your Playbook Score card",
-            "detail": "A card appears showing your star rating, a quick headline, and strengths vs. gaps.",
-            "tip": "Read the gaps section closely — it often points out an opportunity you didn't mention."
-          },
-          {
-            "title": "Open the Coaching tile",
-            "detail": "Tap 🎯 Coaching in the menu drawer to see your recent graded visits.",
-            "tip": null
-          },
-          {
-            "title": "Pick a visit for a suggested script",
-            "detail": "Select any past visit to get a specific tip and a suggested script for handling it better next time.",
-            "tip": null
-          }
-        ]
-      }
-    },
-    {
-      "tag": "New",
-      "title": "Spot sales opportunities before you even start talking",
-      "detail": "Rep Assist flags customers who may be eligible for things like an upgrade promo, Fiber Home Internet, or Fixed Wireless Internet with a 💡 badge in the check-in queue, and Live Listen calls out those opportunities right when you start the session.",
-      "keywords": [
-        "opportunity badge",
-        "sales eligibility",
-        "upgrade promo",
-        "fiber internet",
-        "fixed wireless",
-        "queue"
-      ],
-      "answer": "Look for the 💡 badge on a customer's entry in the front-desk queue card — it means Rep Assist has spotted something they may qualify for. When you start Live Listen with that customer, it will remind you out loud what to look for, and if you don't end up mentioning it, your visit score and coaching feedback will call that out afterward.",
-      "walkthrough": {
-        "intro": "Learn to spot the opportunity badge and make sure you position it during the visit.",
-        "steps": [
-          {
-            "title": "Open the queue card",
-            "detail": "Pull up the front-desk queue to see who's checked in and waiting.",
-            "tip": null
-          },
-          {
-            "title": "Look for the 💡 badge",
-            "detail": "A lightbulb badge next to a customer's name means they may be eligible for an upgrade promo or a home internet offer.",
-            "tip": null
-          },
-          {
-            "title": "Claim the customer",
-            "detail": "Tap Assist on their entry, or start a Live Listen session with them.",
-            "tip": null
-          },
-          {
-            "title": "Listen for the callout",
-            "detail": "When Live Listen starts, it reminds you which opportunity to bring up.",
-            "tip": "Mention it early — it's easy to forget once the conversation moves on."
-          },
-          {
-            "title": "Check your coaching feedback afterward",
-            "detail": "If you didn't position the opportunity, your Playbook Score will flag it as a gap.",
-            "tip": null
-          }
-        ]
-      }
-    },
-    {
-      "tag": "Improved",
-      "title": "Live Listen gets a docked transcript, smarter lookups, and visit-summary emails",
-      "detail": "The live transcript stays pinned above your message box instead of scrolling away. Live Listen also uses the customer's known account or order info automatically, and when you end a session you can send the customer a short AI-written visit summary by email with one tap.",
-      "keywords": [
-        "listen",
-        "live listen",
-        "transcript",
-        "visit summary",
-        "email summary",
-        "account lookup"
-      ],
-      "answer": "When you check in a customer with an account or order number, Live Listen carries that straight into the conversation so it doesn't need to ask again. The transcript stays docked above the chat box so it won't scroll out of view. When you stop a session, Rep Assist writes a quick customer-friendly recap and shows it as a card — tap 'Send visit summary' to email that recap to the customer.",
-      "walkthrough": {
-        "intro": "See how the improved Live Listen experience keeps the transcript visible and can email the customer a recap.",
-        "steps": [
-          {
-            "title": "Check in the customer with their info",
-            "detail": "Add their account or order number when checking them in, if you have it.",
-            "tip": null
-          },
-          {
-            "title": "Start Live Listen",
-            "detail": "Tap Listen and select the customer — their info carries in automatically.",
-            "tip": null
-          },
-          {
-            "title": "Watch the docked transcript",
-            "detail": "It stays pinned above your message box the whole time.",
-            "tip": null
-          },
-          {
-            "title": "Stop the session",
-            "detail": "Tap Stop once the conversation wraps up.",
-            "tip": null
-          },
-          {
-            "title": "Review the visit summary card",
-            "detail": "Rep Assist shows a short, customer-friendly recap of what happened.",
-            "tip": null
-          },
-          {
-            "title": "Send it to the customer",
-            "detail": "Tap 'Send visit summary' to email the recap directly.",
-            "tip": "Make sure the customer's email preference is turned on in Settings."
-          }
-        ]
-      }
-    },
-    {
       "tag": "New",
       "title": "Check in walk-in customers and manage the front-desk queue",
-      "detail": "A Check In option lets you log a walk-in customer's name, phone, and reason for the visit, plus their account or order number if you have it. Everyone waiting shows up in a queue card, and tapping Assist on an entry pulls their info straight into chat.",
+      "detail": "A Check In option, now available right from the swipe-up tray, lets you log a walk-in customer's name, phone, and reason for the visit, plus their account or order number if you have it. Everyone waiting shows up in a queue card, and tapping Assist on an entry pulls their info straight into chat.",
       "keywords": [
         "check in",
         "queue",
@@ -341,13 +327,13 @@
         "assist",
         "waiting"
       ],
-      "answer": "Use the Check In button to log a walk-in customer with their visit reason, contact info, and account or order number if known, and they'll appear in the store's queue card in arrival order. Tap Assist on their entry to claim it — Rep Assist drops you into chat with their name and details already filled in.",
+      "answer": "Use the Check In option in the tray to log a walk-in customer with their visit reason, contact info, and account or order number if known, and they'll appear in the store's queue card in arrival order. Tap Assist on their entry to claim it — Rep Assist drops you into chat with their name and details already filled in.",
       "walkthrough": {
         "intro": "Learn how to check in a walk-in customer and pick them up from the queue.",
         "steps": [
           {
-            "title": "Open the menu drawer",
-            "detail": "Tap ☰ and choose Front Desk to see the Check In option.",
+            "title": "Open the tray",
+            "detail": "Swipe up the bottom tray to see the Check In quick action.",
             "tip": null
           },
           {
@@ -380,8 +366,8 @@
     }
   ],
   "suggestions": [
-    "How do I send a checkout link to a customer's phone?",
-    "How does Live Listen coaching work after a visit?",
-    "How do I check in a walk-in customer?"
+    "How do I scan a competitor's bill for a savings quote?",
+    "How do I turn on dark mode?",
+    "How does Live Listen score my visits?"
   ]
 }
